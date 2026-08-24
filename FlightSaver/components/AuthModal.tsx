@@ -29,27 +29,29 @@ export function AuthModal({
   if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
     try {
+      setIsLoading(true);
       const supabase = createClient();
-      const redirectTo = typeof window !== 'undefined'
-        ? `${window.location.origin}/auth/callback`
-        : undefined;
+      const redirectTo = `${window.location.origin}/auth/callback`;
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
         options: {
           redirectTo,
         },
       });
 
       if (error) {
-        setErrorMessage(error.message);
+        alert("Ошибка авторизации: " + error.message);
         setIsLoading(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url);
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Authentication error');
+      alert("Ошибка: " + (err?.message || "Не удалось войти"));
       setIsLoading(false);
     }
   };
@@ -116,7 +118,7 @@ export function AuthModal({
             type="button"
             onClick={onClose}
             aria-label="Закрыть окно"
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -151,7 +153,7 @@ export function AuthModal({
                 id="btn-auth-google"
                 disabled={isLoading}
                 onClick={handleGoogleLogin}
-                className="w-full min-h-[56px] h-auto p-3.5 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-blue-400 text-slate-800 font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-blue-100"
+                className="w-full min-h-[56px] h-auto p-3.5 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-blue-400 text-slate-800 font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin text-blue-600 shrink-0" />
@@ -206,7 +208,7 @@ export function AuthModal({
                 <button
                   type="submit"
                   disabled={isLoading || !email.trim()}
-                  className="w-full min-h-[52px] h-auto py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 disabled:opacity-50 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                  className="w-full min-h-[52px] h-auto py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 disabled:opacity-50 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
