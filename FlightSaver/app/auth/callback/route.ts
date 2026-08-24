@@ -10,8 +10,8 @@ export async function GET(request: Request) {
   if (code) {
     const cookieStore = cookies();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wdmobwotfitrenvxvbfx.supabase.co',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_key',
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "https://wdmobwotfitrenvxvbfx.supabase.co",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_Ec3unvJULowI7TVD0LsLbg_Zay6j",
       {
         cookies: {
           getAll() {

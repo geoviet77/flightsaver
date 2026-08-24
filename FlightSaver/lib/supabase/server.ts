@@ -4,10 +4,15 @@ import { cookies } from 'next/headers';
 export async function createClient() {
   const cookieStore = cookies();
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wdmobwotfitrenvxvbfx.supabase.co';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_key';
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "https://wdmobwotfitrenvxvbfx.supabase.co";
 
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    "sb_publishable_Ec3unvJULowI7TVD0LsLbg_Zay6j";
+
+  return createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
