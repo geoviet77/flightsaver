@@ -15,5 +15,10 @@ export function createClient() {
     supabaseKey = DEFAULT_SUPABASE_KEY;
   }
 
-  return createBrowserClient(supabaseUrl.trim(), supabaseKey.trim());
+  return createBrowserClient(supabaseUrl.trim(), supabaseKey.trim(), {
+    auth: {
+      flowType: "pkce",
+      detectSessionInUrl: true,
+    },
+  });
 }

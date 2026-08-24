@@ -32,7 +32,7 @@ export function AuthModal({
     try {
       setIsLoading(true);
       const supabase = createClient();
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
