@@ -17,6 +17,7 @@ import { InfoModalType } from './InfoModal';
 import { AuthModal } from './AuthModal';
 import { SettingsModal } from './SettingsModal';
 import { UserProfile, getStoredUser, setStoredUser } from '../lib/mockStorage';
+import { createClient } from '../lib/supabase/client';
 
 interface HeaderProps {
   currentCurrency: Currency;
@@ -45,9 +46,54 @@ export function Header({
   const userMenuRef = useRef<HTMLDivElement>(null);
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.ru;
 
-  // Load user on mount
+  // Sync Supabase Auth session on mount and subscribe to auth state changes
   useEffect(() => {
-    setUser(getStoredUser());
+    const supabase = createClient();
+
+    // 1. Initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata || {};
+        const profile: UserProfile = {
+          id: session.user.id,
+          email: session.user.email || '',
+          fullName: metadata.full_name || metadata.name || session.user.email?.split('@')[0] || 'Пользователь',
+          avatarUrl: metadata.avatar_url || metadata.picture || '',
+          preferredCurrency: 'RUB',
+          isAccessibilityMode: false,
+        };
+        setUser(profile);
+        setStoredUser(profile);
+      } else {
+        setUser(getStoredUser());
+      }
+    }).catch(() => {
+      setUser(getStoredUser());
+    });
+
+    // 2. Real-time auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata || {};
+        const profile: UserProfile = {
+          id: session.user.id,
+          email: session.user.email || '',
+          fullName: metadata.full_name || metadata.name || session.user.email?.split('@')[0] || 'Пользователь',
+          avatarUrl: metadata.avatar_url || metadata.picture || '',
+          preferredCurrency: 'RUB',
+          isAccessibilityMode: false,
+        };
+        setUser(profile);
+        setStoredUser(profile);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setStoredUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Close user menu on click outside & Escape key
@@ -73,7 +119,11 @@ export function Header({
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {}
     setUser(null);
     setStoredUser(null);
     setIsUserMenuOpen(false);
@@ -109,9 +159,17 @@ export function Header({
                   aria-label="Меню пользователя"
                   className="min-h-[38px] sm:min-h-[44px] h-auto p-1 sm:px-3 sm:py-1.5 rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-sm flex items-center gap-1.5 font-bold text-xs sm:text-sm transition-all hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-200 shrink-0"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
-                    {user.fullName.charAt(0)}
-                  </div>
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      className="w-7 h-7 rounded-full object-cover shrink-0 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
+                      {user.fullName.charAt(0)}
+                    </div>
+                  )}
                   <span className="hidden md:inline max-w-[100px] truncate">{user.fullName.split(' ')[0]}</span>
                   <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
                 </button>

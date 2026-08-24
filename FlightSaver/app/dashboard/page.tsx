@@ -38,6 +38,7 @@ import {
   getStoredSearches,
   calculateStats
 } from '@/lib/mockStorage';
+import { createClient } from '@/lib/supabase/client';
 
 function DashboardContent() {
   const searchParams = useSearchParams();
@@ -57,6 +58,23 @@ function DashboardContent() {
     setUser(getStoredUser());
     setOrders(getStoredOrders());
     setSearches(getStoredSearches());
+
+    // Check real Supabase session
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata || {};
+        const profile: UserProfile = {
+          id: session.user.id,
+          email: session.user.email || '',
+          fullName: metadata.full_name || metadata.name || session.user.email?.split('@')[0] || 'Пользователь',
+          avatarUrl: metadata.avatar_url || metadata.picture || '',
+          preferredCurrency: 'RUB',
+          isAccessibilityMode: false,
+        };
+        setUser(profile);
+      }
+    }).catch(() => {});
   }, []);
 
   // Update tab if URL param changes
