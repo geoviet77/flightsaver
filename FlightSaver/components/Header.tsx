@@ -41,13 +41,29 @@ export function Header({
   useEffect(() => {
     const supabase = createClient();
 
-    // 1. Получаем текущую сессию
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    // 1. Если в URL есть ?code= от Google OAuth — мгновенно обмениваем его на сессию
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (code) {
+        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+          if (!error && data?.user) {
+            setUser(data.user);
+            // Очищаем адресную строку от технического параметра ?code=...
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        });
+      }
+    }
+
+    // 2. Получаем текущую сессию
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUser(user);
       setLoading(false);
     });
 
-    // 2. Слушаем события входа / выхода
+    // 3. Подписка на изменения
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
