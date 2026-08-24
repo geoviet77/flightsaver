@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./FlightSaver/*", "./*"]
+    }
+  },
+  "include": [
+    "FlightSaver/next-env.d.ts",
+    "FlightSaver/**/*.ts",
+    "FlightSaver/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "FlightSaver/node_modules"]
+}
