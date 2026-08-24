@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Language, Currency } from './types';
 
 export const CURRENCY_RATES: Record<Currency, { rate: number; symbol: string }> = {
@@ -12,6 +13,33 @@ export function formatPrice(amountRub: number, currency: Currency): string {
   const currInfo = CURRENCY_RATES[currency] || CURRENCY_RATES.RUB;
   const converted = Math.round(amountRub * currInfo.rate);
   return `${converted.toLocaleString(currency === 'RUB' ? 'ru-RU' : 'en-US')} ${currInfo.symbol}`;
+}
+
+export function useI18n() {
+  const [lang, setLangState] = useState<Language>('ru');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('flightsaver_lang') as Language;
+      if (saved && (saved === 'ru' || saved === 'en')) {
+        setLangState(saved);
+      }
+    }
+  }, []);
+
+  const setLang = (newLang: Language) => {
+    setLangState(newLang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('flightsaver_lang', newLang);
+      window.dispatchEvent(new Event('languageChange'));
+    }
+  };
+
+  return {
+    lang,
+    setLang,
+    t: TRANSLATIONS[lang],
+  };
 }
 
 export const TRANSLATIONS = {

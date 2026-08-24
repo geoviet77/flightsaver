@@ -4,18 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   LayoutGrid,
-  Eye,
-  Globe,
-  Coins,
-  Plane,
-  Hotel,
-  Info,
   Gem,
-  Check,
-  X,
   User,
   LogOut,
-  Sparkles,
   Ticket,
   History,
   ChevronDown
@@ -24,6 +15,7 @@ import { Currency, Language } from '../lib/types';
 import { TRANSLATIONS } from '../lib/i18n';
 import { InfoModalType } from './InfoModal';
 import { AuthModal } from './AuthModal';
+import { SettingsModal } from './SettingsModal';
 import { UserProfile, getStoredUser, setStoredUser } from '../lib/mockStorage';
 
 interface HeaderProps {
@@ -50,7 +42,6 @@ export function Header({
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const t = TRANSLATIONS[currentLanguage];
 
@@ -59,7 +50,7 @@ export function Header({
     setUser(getStoredUser());
   }, []);
 
-  // Close menus on click outside & Escape key
+  // Close user menu on click outside & Escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -69,20 +60,18 @@ export function Header({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsMenuOpen(false);
         setIsUserMenuOpen(false);
+        setIsMenuOpen(false);
       }
     };
 
-    if (isMenuOpen || isUserMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('keydown', handleKeyDown);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMenuOpen, isUserMenuOpen]);
+  }, []);
 
   const handleLogout = () => {
     setUser(null);
@@ -197,210 +186,32 @@ export function Header({
             )}
 
             {/* 2. Google-Style 9-Dots Menu Button */}
-            <div className="relative shrink-0" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen((prev) => !prev)}
-                aria-expanded={isMenuOpen}
-                aria-haspopup="true"
-                aria-label={t.settingsTitle}
-                title={t.settingsTitle}
-                id="menu-button"
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-200 shrink-0 ${
-                  isMenuOpen
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 rotate-90'
-                    : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm'
-                }`}
-              >
-                {isMenuOpen ? <X className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5 text-blue-600" />}
-              </button>
-
-              {/* Responsive Settings Menu: Mobile Bottom Sheet (<640px) + Desktop Dropdown (>=640px) */}
-              {isMenuOpen && (
-                <>
-                  {/* Backdrop Overlay for Mobile & Desktop click-outside */}
-                  <div
-                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end sm:items-start sm:justify-end p-0 sm:p-4"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {/* Menu Sheet / Dropdown Container */}
-                    <div
-                      role="dialog"
-                      aria-modal="true"
-                      id="header-dropdown-menu"
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full sm:w-[350px] sm:max-w-[360px] bg-white rounded-t-[32px] sm:rounded-3xl border border-slate-200 shadow-[0_25px_60px_rgba(15,23,42,0.25)] p-5 pb-8 sm:pb-5 space-y-4 animate-slideUp sm:animate-fadeIn text-slate-900 max-h-[85vh] sm:max-h-none overflow-y-auto sm:mt-12 sm:mr-2"
-                    >
-                      {/* Mobile Pull Bar Indicator */}
-                      <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto sm:hidden mb-2" />
-
-                      {/* Header with Title & Close button on Mobile */}
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100 sm:hidden">
-                        <span className="font-extrabold text-base text-slate-900">
-                          {t.settingsTitle}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsMenuOpen(false)}
-                          aria-label={t.modalClose}
-                          className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      {/* Dashboard Quick Access Link */}
-                      <Link
-                        href="/dashboard"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all hover:opacity-95"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <User className="w-4 h-4 text-white shrink-0" />
-                          <span>{t.dashboardBtn}</span>
-                        </div>
-                        <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-lg">PRO</span>
-                      </Link>
-
-                      {/* 1. Accessibility Mode Button (Elastic min-h-[64px] h-auto) */}
-                      <div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 px-1">
-                          {t.accessibility}
-                        </span>
-                        <button
-                          type="button"
-                          id="btn-accessibility"
-                          onClick={() => {
-                            onToggleHighContrast();
-                          }}
-                          className={`w-full min-h-[64px] h-auto p-3.5 rounded-2xl border transition-all text-left flex items-center justify-between gap-3 ${
-                            isHighContrast
-                              ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold ring-2 ring-amber-300 shadow-sm'
-                              : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200 text-slate-900 font-semibold'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-xl shadow-sm border shrink-0 flex items-center justify-center ${isHighContrast ? 'bg-amber-500 text-white border-amber-400' : 'bg-white text-blue-600 border-slate-100'}`}>
-                            <Eye className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-                            <p className="text-sm font-bold text-slate-900 leading-snug break-words">
-                              {t.highContrastMode}
-                            </p>
-                            <p className="text-xs text-slate-500 font-normal leading-normal break-words">
-                              {t.highContrastDesc}
-                            </p>
-                          </div>
-                          <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all ${isHighContrast ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-200 text-transparent'}`}>
-                            <Check className="w-3.5 h-3.5 text-white" />
-                          </span>
-                        </button>
-                      </div>
-
-                      {/* 2. Currency & 3. Language Row */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* Currency Switcher */}
-                        <div>
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 px-1 flex items-center gap-1">
-                            <Coins className="w-3.5 h-3.5 text-blue-600" /> {t.currency}
-                          </span>
-                          <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 min-h-[44px] items-center">
-                            {(['RUB', 'USD', 'EUR'] as Currency[]).map((curr) => (
-                              <button
-                                key={curr}
-                                type="button"
-                                id={`btn-currency-${curr.toLowerCase()}`}
-                                onClick={() => onCurrencyChange(curr)}
-                                className={`h-9 text-xs font-bold rounded-lg transition-all flex items-center justify-center ${
-                                  currentCurrency === curr
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-700 hover:text-blue-600'
-                                }`}
-                              >
-                                {curr === 'RUB' ? '₽' : curr === 'USD' ? '$' : '€'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Language Switcher */}
-                        <div>
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 px-1 flex items-center gap-1">
-                            <Globe className="w-3.5 h-3.5 text-blue-600" /> {t.language}
-                          </span>
-                          <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 min-h-[44px] items-center">
-                            {(['ru', 'en'] as Language[]).map((lang) => (
-                              <button
-                                key={lang}
-                                type="button"
-                                id={`btn-lang-${lang}`}
-                                onClick={() => onLanguageChange(lang)}
-                                className={`h-9 text-xs font-bold rounded-lg transition-all flex items-center justify-center ${
-                                  currentLanguage === lang
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-700 hover:text-blue-600'
-                                }`}
-                              >
-                                {lang.toUpperCase()}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 4, 5, 6. Services Links */}
-                      <div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 px-1">
-                          {t.servicesAndInfo}
-                        </span>
-                        <div className="space-y-1">
-                          <button
-                            type="button"
-                            id="btn-info-stpc"
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              onOpenInfoModal('stpc');
-                            }}
-                            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm transition-colors text-left"
-                          >
-                            <Hotel className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span className="leading-snug">{t.stpcTitle}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            id="btn-info-twov"
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              onOpenInfoModal('twov');
-                            }}
-                            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm transition-colors text-left"
-                          >
-                            <Plane className="w-4 h-4 text-sky-600 shrink-0" />
-                            <span className="leading-snug">{t.twovTitle}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            id="btn-info-split"
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              onOpenInfoModal('split');
-                            }}
-                            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm transition-colors text-left"
-                          >
-                            <Info className="w-4 h-4 text-indigo-600 shrink-0" />
-                            <span className="leading-snug">{t.splitTitle}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(true)}
+              aria-expanded={isMenuOpen}
+              aria-haspopup="dialog"
+              aria-label={t.settingsTitle}
+              title={t.settingsTitle}
+              id="menu-button"
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-200 shrink-0 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
+            >
+              <LayoutGrid className="w-5 h-5 text-blue-600" />
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Settings Modal (Fullscreen Portal / Fixed Backdrop Bottom Sheet) */}
+      <SettingsModal
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        isAccessibility={isHighContrast}
+        onToggleAccessibility={onToggleHighContrast}
+        currency={currentCurrency}
+        onSelectCurrency={(c) => onCurrencyChange(c as Currency)}
+        onOpenInfoModal={onOpenInfoModal}
+      />
 
       {/* Auth Modal (Google 1-Click + Email) */}
       <AuthModal
