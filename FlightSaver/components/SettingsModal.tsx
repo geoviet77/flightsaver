@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { X, Eye, Check, Globe, HelpCircle, Shield, Plane, Coins } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { InfoModalType } from "./InfoModal";
+import { Language } from "@/lib/types";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ interface SettingsModalProps {
   onToggleAccessibility: () => void;
   currency: string;
   onSelectCurrency: (curr: string) => void;
+  currentLanguage?: Language;
+  onLanguageChange?: (lang: Language) => void;
   onOpenInfoModal?: (type: InfoModalType) => void;
 }
 
@@ -28,9 +31,17 @@ export function SettingsModal({
   onToggleAccessibility,
   currency,
   onSelectCurrency,
+  currentLanguage,
+  onLanguageChange,
   onOpenInfoModal,
 }: SettingsModalProps) {
-  const { lang, setLang } = useI18n();
+  const { lang: hookLang, setLang } = useI18n();
+  const activeLang = currentLanguage || hookLang;
+
+  const handleSetLanguage = (newLang: Language) => {
+    setLang(newLang);
+    onLanguageChange?.(newLang);
+  };
 
   // Блокировка прокрутки страницы при открытом окне
   useEffect(() => {
@@ -56,10 +67,10 @@ export function SettingsModal({
         className="w-[calc(100%-8px)] sm:w-[360px] max-w-sm bg-white rounded-3xl p-4 sm:p-5 shadow-2xl max-h-[92vh] overflow-y-auto transform transition-all duration-200 ease-out border border-slate-200/80 mr-1 sm:mr-2 animate-fadeIn"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Шапка модального окна: крестик точно на позиции кнопки меню */}
+        {/* Шапка модального окна */}
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
           <h3 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
-            {lang === "ru" ? "Настройки и доступность" : "Settings & Accessibility"}
+            {activeLang === "ru" ? "Настройки и доступность" : "Settings & Accessibility"}
           </h3>
           <button
             type="button"
@@ -76,7 +87,7 @@ export function SettingsModal({
           {/* Блок 1: Доступность */}
           <div>
             <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-2 px-0.5">
-              {lang === "ru" ? "ДОСТУПНОСТЬ" : "ACCESSIBILITY"}
+              {activeLang === "ru" ? "ДОСТУПНОСТЬ" : "ACCESSIBILITY"}
             </div>
             <div
               onClick={onToggleAccessibility}
@@ -91,10 +102,10 @@ export function SettingsModal({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm leading-tight text-slate-900">
-                  {lang === "ru" ? "Режим для слабовидящих" : "High Contrast & Large Font"}
+                  {activeLang === "ru" ? "Режим для слабовидящих" : "High Contrast & Large Font"}
                 </div>
                 <div className="text-xs text-slate-500 leading-snug mt-0.5">
-                  {lang === "ru" ? "Крупный шрифт 118% и контраст" : "118% larger text & bold borders"}
+                  {activeLang === "ru" ? "Крупный шрифт 118% и контраст" : "118% larger text & bold borders"}
                 </div>
               </div>
               <div
@@ -113,7 +124,7 @@ export function SettingsModal({
             <div>
               <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-2 px-0.5 flex items-center gap-1">
                 <Coins size={12} className="text-blue-600" />
-                <span>{lang === "ru" ? "ВАЛЮТА" : "CURRENCY"}</span>
+                <span>{activeLang === "ru" ? "ВАЛЮТА" : "CURRENCY"}</span>
               </div>
               <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                 {CURRENCIES.map((c) => (
@@ -137,14 +148,14 @@ export function SettingsModal({
             <div>
               <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-2 px-0.5 flex items-center gap-1">
                 <Globe size={12} className="text-blue-600" />
-                <span>{lang === "ru" ? "ЯЗЫК" : "LANGUAGE"}</span>
+                <span>{activeLang === "ru" ? "ЯЗЫК" : "LANGUAGE"}</span>
               </div>
               <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button
                   type="button"
-                  onClick={() => setLang("ru")}
+                  onClick={() => handleSetLanguage("ru")}
                   className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center ${
-                    lang === "ru"
+                    activeLang === "ru"
                       ? "bg-blue-600 text-white shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
@@ -153,9 +164,9 @@ export function SettingsModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setLang("en")}
+                  onClick={() => handleSetLanguage("en")}
                   className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center ${
-                    lang === "en"
+                    activeLang === "en"
                       ? "bg-blue-600 text-white shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
@@ -169,7 +180,7 @@ export function SettingsModal({
           {/* Блок 3: Сервисы и информация */}
           <div>
             <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-2 px-0.5">
-              {lang === "ru" ? "СЕРВИСЫ И ИНФОРМАЦИЯ" : "SERVICES & INFORMATION"}
+              {activeLang === "ru" ? "СЕРВИСЫ И ИНФОРМАЦИЯ" : "SERVICES & INFORMATION"}
             </div>
             <div className="space-y-1.5">
               <div
@@ -180,7 +191,7 @@ export function SettingsModal({
                 className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer border border-transparent hover:border-slate-200"
               >
                 <Plane size={18} className="text-blue-600 shrink-0" />
-                <span className="leading-snug">{lang === "ru" ? "Бесплатные отели STPC" : "Free STPC Transit Hotels"}</span>
+                <span className="leading-snug">{activeLang === "ru" ? "Бесплатные отели STPC" : "Free STPC Transit Hotels"}</span>
               </div>
               <div
                 onClick={() => {
@@ -190,7 +201,7 @@ export function SettingsModal({
                 className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer border border-transparent hover:border-slate-200"
               >
                 <Shield size={18} className="text-sky-500 shrink-0" />
-                <span className="leading-snug">{lang === "ru" ? "Безвизовый транзит TWOV" : "Visa-Free Transit (TWOV)"}</span>
+                <span className="leading-snug">{activeLang === "ru" ? "Безвизовый транзит TWOV" : "Visa-Free Transit (TWOV)"}</span>
               </div>
               <div
                 onClick={() => {
@@ -200,7 +211,7 @@ export function SettingsModal({
                 className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer border border-transparent hover:border-slate-200"
               >
                 <HelpCircle size={18} className="text-indigo-500 shrink-0" />
-                <span className="leading-snug">{lang === "ru" ? "О технологии Split-Ticketing" : "About Split-Ticketing Tech"}</span>
+                <span className="leading-snug">{activeLang === "ru" ? "О технологии Split-Ticketing" : "About Split-Ticketing Tech"}</span>
               </div>
             </div>
           </div>

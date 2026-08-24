@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Currency, Language } from '@/lib/types';
-import { TRANSLATIONS, formatPrice } from '@/lib/i18n';
+import { TRANSLATIONS, formatPrice, useI18n } from '@/lib/i18n';
 import {
   User,
   History,
@@ -42,17 +42,15 @@ import {
 function DashboardContent() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as 'history' | 'orders') || 'orders';
+  const { lang: currentLanguage, setLang: setCurrentLanguage, t } = useI18n();
 
   const [currentCurrency, setCurrentCurrency] = useState<Currency>('RUB');
-  const [currentLanguage, setCurrentLanguage] = useState<Language>('ru');
   const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'history' | 'orders'>(initialTab);
 
   const [user, setUser] = useState<UserProfile | null>(DEFAULT_USER);
   const [orders, setOrders] = useState<StoredOrder[]>(DEFAULT_ORDERS);
   const [searches, setSearches] = useState<StoredSearch[]>(DEFAULT_SEARCHES);
-
-  const t = TRANSLATIONS[currentLanguage];
 
   // Load updated data from localStorage / Supabase on client mount
   useEffect(() => {
@@ -385,13 +383,13 @@ function DashboardContent() {
           )}
         </main>
 
-        {/* Footer */}
-        <footer className="w-full py-3 px-6 text-center text-xs text-slate-500 font-medium liquid-glass rounded-full mt-4 mb-2 border border-white/80">
+        {/* Crisp, Highly Readable Minimalist Footer */}
+        <footer className="w-full py-3.5 px-4 sm:px-6 text-center text-xs sm:text-sm text-slate-600 font-medium liquid-glass rounded-2xl sm:rounded-full mt-6 mb-2 border border-white/80">
           <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p>{t.footerCopyright}</p>
-            <div className="flex items-center gap-3 text-slate-500">
-              <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                <Headphones className="w-3.5 h-3.5" /> {t.footerSupport}
+            <p className="leading-relaxed">{t.footerCopyright}</p>
+            <div className="flex items-center gap-3 text-slate-600 font-semibold">
+              <span className="flex items-center gap-1.5 text-blue-600">
+                <Headphones className="w-4 h-4" /> {t.footerSupport}
               </span>
               <span>•</span>
               <span>{t.footerFares}</span>

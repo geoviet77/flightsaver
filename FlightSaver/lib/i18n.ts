@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Language, Currency } from './types';
 
 export const CURRENCY_RATES: Record<Currency, { rate: number; symbol: string }> = {
@@ -21,24 +21,44 @@ export function useI18n() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('flightsaver_lang') as Language;
-      if (saved && (saved === 'ru' || saved === 'en')) {
+      if (saved === 'ru' || saved === 'en') {
         setLangState(saved);
       }
+
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'flightsaver_lang' && (e.newValue === 'ru' || e.newValue === 'en')) {
+          setLangState(e.newValue as Language);
+        }
+      };
+
+      const handleCustomLangChange = (e: CustomEvent<Language>) => {
+        if (e.detail === 'ru' || e.detail === 'en') {
+          setLangState(e.detail);
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('languageChange' as any, handleCustomLangChange as any);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('languageChange' as any, handleCustomLangChange as any);
+      };
     }
   }, []);
 
-  const setLang = (newLang: Language) => {
+  const setLang = useCallback((newLang: Language) => {
     setLangState(newLang);
     if (typeof window !== 'undefined') {
       localStorage.setItem('flightsaver_lang', newLang);
-      window.dispatchEvent(new Event('languageChange'));
+      window.dispatchEvent(new CustomEvent('languageChange', { detail: newLang }));
     }
-  };
+  }, []);
 
   return {
     lang,
     setLang,
-    t: TRANSLATIONS[lang],
+    t: TRANSLATIONS[lang] || TRANSLATIONS.ru,
   };
 }
 

@@ -11,19 +11,20 @@ import { InfoModal, InfoModalType } from '@/components/InfoModal';
 import { parseTravelQuery } from '@/lib/nlpParser';
 import { generateMockFlights } from '@/lib/mockFlights';
 import { Flight, ParsedSearchParams, Currency, Language, BookingOrder } from '@/lib/types';
-import { TRANSLATIONS, formatPrice } from '@/lib/i18n';
+import { TRANSLATIONS, formatPrice, useI18n } from '@/lib/i18n';
 import { addStoredSearch, addStoredOrder } from '@/lib/mockStorage';
 import { CheckCircle2, Headphones, Lightbulb, User, RotateCcw } from 'lucide-react';
 
 function HomeContent() {
   const searchParams = useSearchParams();
+  const { lang: currentLanguage, setLang: setCurrentLanguage, t } = useI18n();
+
   const [query, setQuery] = useState<string>('');
   const [activeSearchQuery, setActiveSearchQuery] = useState<string | null>(null);
   const [parsedParams, setParsedParams] = useState<ParsedSearchParams | null>(null);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentCurrency, setCurrentCurrency] = useState<Currency>('RUB');
-  const [currentLanguage, setCurrentLanguage] = useState<Language>('ru');
   const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
 
   // Info Modal state (STPC, TWOV, Split-Ticketing)
@@ -33,8 +34,6 @@ function HomeContent() {
   const [isBookingOpen, setIsBookingOpen] = useState<boolean>(false);
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [bookingSuccessMessage, setBookingSuccessMessage] = useState<string | null>(null);
-
-  const t = TRANSLATIONS[currentLanguage];
 
   // Sync Accessibility Mode (118% font size + high contrast borders on <html>)
   useEffect(() => {
@@ -122,7 +121,7 @@ function HomeContent() {
       {/* Main Container */}
       <div className="max-w-5xl mx-auto w-full flex flex-col relative z-10">
         
-        {/* Floating Minimalist Header (Logo + User Profile + 6-function Google Menu) */}
+        {/* Floating Minimalist Header (Logo + User Profile + Settings Dialog) */}
         <Header
           currentCurrency={currentCurrency}
           onCurrencyChange={(c) => {
@@ -139,7 +138,7 @@ function HomeContent() {
         />
 
         {/* Main Content Body */}
-        <main className="flex-1 w-full px-2 sm:px-4 pt-4 sm:pt-6 pb-4 flex flex-col items-center">
+        <main className="flex-1 w-full px-1 sm:px-4 pt-3 sm:pt-6 pb-4 flex flex-col items-center">
           
           {/* Confirmed Booking Banner */}
           {bookingSuccessMessage && (
@@ -171,7 +170,7 @@ function HomeContent() {
             </h1>
 
             {/* Fixed 32px Hint Badge below Headline */}
-            <div className="inline-flex items-center gap-2 h-8 px-4 rounded-full chat-pill-badge text-xs sm:text-sm font-medium text-slate-600 shadow-sm border border-white">
+            <div className="inline-flex items-center gap-2 h-auto min-h-[32px] py-1 px-4 rounded-full chat-pill-badge text-xs sm:text-sm font-medium text-slate-600 shadow-sm border border-white">
               <div className="w-4 h-4 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center shrink-0 shadow-sm">
                 <Lightbulb className="w-3 h-3 fill-slate-900" />
               </div>
@@ -179,7 +178,7 @@ function HomeContent() {
             </div>
           </section>
 
-          {/* AI Single Input Bar (64px Fixed Height) */}
+          {/* AI Single Input Bar (min-h-[64px] Elastic Height) */}
           <section className="w-full">
             <AIInputBar
               initialQuery={query}
@@ -200,7 +199,7 @@ function HomeContent() {
           {activeSearchQuery && (
             <section className="w-full max-w-3xl mx-auto mt-6 space-y-4 animate-fadeIn">
               {/* Traveler Active Query Chat Bubble */}
-              <div className="flex items-center justify-between pl-6 sm:pl-10">
+              <div className="flex items-center justify-between pl-4 sm:pl-10">
                 <div className="inline-flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/25">
                   <div className="w-7 h-7 rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0">
                     <User className="w-4 h-4" />
@@ -234,13 +233,13 @@ function HomeContent() {
           )}
         </main>
 
-        {/* Minimalist Frosted Footer */}
-        <footer className="w-full py-3 px-6 text-center text-xs text-slate-500 font-medium liquid-glass rounded-full mt-4 mb-2 border border-white/80">
+        {/* Crisp, Highly Readable Minimalist Footer */}
+        <footer className="w-full py-3.5 px-4 sm:px-6 text-center text-xs sm:text-sm text-slate-600 font-medium liquid-glass rounded-2xl sm:rounded-full mt-6 mb-2 border border-white/80">
           <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p>{t.footerCopyright}</p>
-            <div className="flex items-center gap-3 text-slate-500">
-              <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                <Headphones className="w-3.5 h-3.5" /> {t.footerSupport}
+            <p className="leading-relaxed">{t.footerCopyright}</p>
+            <div className="flex items-center gap-3 text-slate-600 font-semibold">
+              <span className="flex items-center gap-1.5 text-blue-600">
+                <Headphones className="w-4 h-4" /> {t.footerSupport}
               </span>
               <span>•</span>
               <span>{t.footerFares}</span>

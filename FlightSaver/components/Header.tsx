@@ -43,7 +43,7 @@ export function Header({
   const [user, setUser] = useState<UserProfile | null>(null);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const t = TRANSLATIONS[currentLanguage];
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.ru;
 
   // Load user on mount
   useEffect(() => {
@@ -81,24 +81,24 @@ export function Header({
 
   return (
     <>
-      <header className="relative z-40 w-full pt-4 pb-2 px-2 sm:px-6 flex items-center justify-between">
-        {/* Floating Pill Glass Container */}
-        <div className="w-full liquid-glass rounded-full px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between shadow-[0_8px_30px_rgba(37,99,235,0.06)] border border-white/90">
+      <header className="relative z-40 w-full pt-3 pb-2 px-1 sm:px-6 flex items-center justify-between">
+        {/* Floating Pill Glass Container (Elastic, fits on all screen sizes) */}
+        <div className="w-full liquid-glass rounded-full px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-4 shadow-[0_8px_30px_rgba(37,99,235,0.06)] border border-white/90">
           
-          {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 shrink-0">
-              <Gem className="w-5 h-5 text-white" />
+          {/* Brand Logo (Elastic with truncate to avoid colliding with profile button) */}
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 shrink-0">
+              <Gem className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-slate-900">
+            <span className="font-extrabold text-sm xs:text-base sm:text-2xl tracking-tight text-slate-900 truncate">
               FLIGHT<span className="text-blue-600">SAVER</span>
             </span>
           </Link>
 
           {/* Right Controls: User Profile / Login + Google-Style 9-Dots Menu Button */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             
-            {/* 1. User Profile or Guest Login (min-h-[44px]) */}
+            {/* 1. User Profile or Guest Login (Compact on mobile) */}
             {user ? (
               <div className="relative shrink-0" ref={userMenuRef}>
                 <button
@@ -107,13 +107,13 @@ export function Header({
                   onClick={() => setIsUserMenuOpen((prev) => !prev)}
                   aria-expanded={isUserMenuOpen}
                   aria-label="Меню пользователя"
-                  className="min-h-[44px] h-auto px-3 sm:px-4 py-1.5 rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-sm flex items-center gap-2 font-bold text-xs sm:text-sm transition-all hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-blue-100"
+                  className="min-h-[38px] sm:min-h-[44px] h-auto p-1 sm:px-3 sm:py-1.5 rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-sm flex items-center gap-1.5 font-bold text-xs sm:text-sm transition-all hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-200 shrink-0"
                 >
                   <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
                     {user.fullName.charAt(0)}
                   </div>
-                  <span className="hidden sm:inline max-w-[120px] truncate">{user.fullName.split(' ')[0]}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="hidden md:inline max-w-[100px] truncate">{user.fullName.split(' ')[0]}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
                 </button>
 
                 {/* User Dropdown Menu */}
@@ -178,7 +178,7 @@ export function Header({
                 type="button"
                 onClick={() => setIsAuthOpen(true)}
                 id="btn-user-login"
-                className="min-h-[44px] h-auto px-4 sm:px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="min-h-[38px] sm:min-h-[44px] h-auto px-3 sm:px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/25 flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
               >
                 <User className="w-4 h-4 shrink-0" />
                 <span>{t.loginBtn}</span>
@@ -194,9 +194,9 @@ export function Header({
               aria-label={t.settingsTitle}
               title={t.settingsTitle}
               id="menu-button"
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-200 shrink-0 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200 shrink-0 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
             >
-              <LayoutGrid className="w-5 h-5 text-blue-600" />
+              <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
             </button>
           </div>
         </div>
@@ -210,6 +210,8 @@ export function Header({
         onToggleAccessibility={onToggleHighContrast}
         currency={currentCurrency}
         onSelectCurrency={(c) => onCurrencyChange(c as Currency)}
+        currentLanguage={currentLanguage}
+        onLanguageChange={onLanguageChange}
         onOpenInfoModal={onOpenInfoModal}
       />
 
