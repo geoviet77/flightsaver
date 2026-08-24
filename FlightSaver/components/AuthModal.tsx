@@ -7,10 +7,10 @@ import { Language } from '../lib/types';
 import { TRANSLATIONS } from '../lib/i18n';
 import { UserProfile } from '../lib/mockStorage';
 
-interface AuthModalProps {
+export interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (user: UserProfile) => void;
+  onSuccess?: (user: UserProfile) => void;
   language?: Language;
 }
 
@@ -231,3 +231,5 @@ export function AuthModal({
     </div>
   );
 }
+
+export default AuthModal;

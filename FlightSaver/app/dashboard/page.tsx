@@ -137,14 +137,14 @@ function DashboardContent() {
             {/* Profile Info */}
             <div className="flex items-center gap-3 p-3 rounded-2xl liquid-glass border border-white shadow-sm">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-md">
-                {user?.fullName ? user.fullName.charAt(0) : 'И'}
+                {user?.fullName ? user.fullName.charAt(0) : (user?.email ? user.email.charAt(0).toUpperCase() : 'U')}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900 leading-tight truncate">
-                  {user?.fullName || 'Игорь Путешественник'}
+                  {user?.fullName || user?.email?.split('@')[0] || (currentLanguage === 'ru' ? 'Личный кабинет' : 'Personal Account')}
                 </p>
                 <p className="text-xs text-slate-500 font-medium truncate">
-                  {user?.email || 'igor.traveler@flightsaver.ai'}
+                  {user?.email || (currentLanguage === 'ru' ? 'Авторизованный пользователь' : 'Authenticated User')}
                 </p>
               </div>
             </div>

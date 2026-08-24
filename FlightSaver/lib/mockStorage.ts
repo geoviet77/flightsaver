@@ -32,14 +32,7 @@ export interface UserProfile {
   isAccessibilityMode: boolean;
 }
 
-export const DEFAULT_USER: UserProfile = {
-  id: 'usr-1',
-  email: 'igor.traveler@flightsaver.ai',
-  fullName: 'Игорь Путешественник',
-  avatarUrl: '',
-  preferredCurrency: 'RUB',
-  isAccessibilityMode: false,
-};
+export const DEFAULT_USER: UserProfile | null = null;
 
 export const DEFAULT_ORDERS: StoredOrder[] = [
   {
@@ -58,45 +51,53 @@ export const DEFAULT_ORDERS: StoredOrder[] = [
   {
     id: 'ord-102',
     pnr: 'FS-451290',
-    route: 'Москва (DME) ➔ Доха (DOH) ➔ Пхукет (HKT)',
-    airline: 'Qatar Airways',
-    departureDate: '10 января 2027',
-    totalPriceRub: 84200,
-    originalPriceRub: 142000,
-    savedAmountRub: 57800,
+    route: 'Москва (VKO) ➔ Манама (BAH) ➔ Пхукет (HKT)',
+    airline: 'Gulf Air',
+    departureDate: '22 декабря 2026',
+    totalPriceRub: 64200,
+    originalPriceRub: 98000,
+    savedAmountRub: 33800,
     stpcHotelIncluded: true,
-    stpcHotelName: 'Oryx Airport Hotel Doha 4★',
-    status: 'confirmed',
+    stpcHotelName: 'The Art Hotel & Resort Bahrain 5★',
+    status: 'completed',
   },
 ];
 
 export const DEFAULT_SEARCHES: StoredSearch[] = [
   {
-    id: 's-1',
+    id: 'sch-1',
     query: 'В Бангкок из Москвы с отелем STPC на 2 недели',
-    inputMode: 'text',
+    inputMode: 'voice',
     timestamp: 'Сегодня, 14:20',
     savingsRub: 49600,
     discountPercent: 39,
   },
   {
-    id: 's-2',
+    id: 'sch-2',
     query: 'На Пхукет с багажом на двоих до 120 000 ₽',
-    inputMode: 'voice',
-    timestamp: 'Вчера, 18:45',
-    savingsRub: 35200,
+    inputMode: 'text',
+    timestamp: 'Вчера, 19:45',
+    savingsRub: 33800,
     discountPercent: 41,
+  },
+  {
+    id: 'sch-3',
+    query: 'В Стамбул на выходные прямой рейс',
+    inputMode: 'text',
+    timestamp: '20 авг, 11:10',
+    savingsRub: 18500,
+    discountPercent: 28,
   },
 ];
 
 // Helper functions for localStorage Mock Provider
 export function getStoredUser(): UserProfile | null {
-  if (typeof window === 'undefined') return DEFAULT_USER;
+  if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem('flightsaver_user');
-    return raw ? JSON.parse(raw) : DEFAULT_USER;
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return DEFAULT_USER;
+    return null;
   }
 }
 
@@ -139,33 +140,33 @@ export function getStoredSearches(): StoredSearch[] {
 export function addStoredSearch(query: string, inputMode: 'text' | 'voice' = 'text') {
   if (typeof window === 'undefined' || !query.trim()) return;
   const current = getStoredSearches();
-  
-  // Prevent immediate duplicates
-  if (current[0]?.query.toLowerCase() === query.trim().toLowerCase()) return;
-
   const newSearch: StoredSearch = {
-    id: `s-${Date.now()}`,
+    id: `sch-${Date.now()}`,
     query: query.trim(),
     inputMode,
     timestamp: 'Только что',
-    savingsRub: Math.floor(Math.random() * 25000) + 25000,
-    discountPercent: Math.floor(Math.random() * 15) + 30,
+    savingsRub: Math.floor(Math.random() * 25000) + 15000,
+    discountPercent: Math.floor(Math.random() * 20) + 25,
   };
-
-  const updated = [newSearch, ...current].slice(0, 10);
+  const updated = [newSearch, ...current.slice(0, 19)];
   localStorage.setItem('flightsaver_searches', JSON.stringify(updated));
 }
 
+// Auto-calculate savings stats for dashboard
 export function calculateStats(orders: StoredOrder[]) {
   const totalSpentRub = orders.reduce((sum, o) => sum + o.totalPriceRub, 0);
   const totalSavedRub = orders.reduce((sum, o) => sum + o.savedAmountRub, 0);
+  const stpcNights = orders.filter((o) => o.stpcHotelIncluded).length;
+  const totalOrders = orders.length;
   const tripsCount = orders.length;
-  const originalSum = orders.reduce((sum, o) => sum + o.originalPriceRub, 0);
-  const avgSavingsPercent = originalSum > 0 ? Math.round((totalSavedRub / originalSum) * 100) : 39;
+  const originalTotal = totalSpentRub + totalSavedRub;
+  const avgSavingsPercent = originalTotal > 0 ? Math.round((totalSavedRub / originalTotal) * 100) : 38;
 
   return {
     totalSpentRub,
     totalSavedRub,
+    stpcNights,
+    totalOrders,
     tripsCount,
     avgSavingsPercent,
   };
