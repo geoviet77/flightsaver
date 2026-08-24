@@ -39,23 +39,18 @@ export function Header({
   const supabase = createClient();
 
   useEffect(() => {
-    // Получение реального пользователя из Supabase
-    const fetchUser = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-      } catch (e) {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+    const supabase = createClient();
 
-    fetchUser();
+    // 1. Получаем текущую сессию
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    // Подписка на изменение авторизации
+    // 2. Слушаем события входа / выхода
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -76,6 +71,7 @@ export function Header({
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
+    user?.email ||
     "Пользователь";
   const displayEmail = user?.email || "";
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
@@ -167,7 +163,7 @@ export function Header({
                           <button
                             type="button"
                             onClick={handleLogout}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 font-semibold text-xs sm:text-sm transition-colors text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 font-semibold text-xs sm:text-sm transition-colors text-left cursor-pointer"
                           >
                             <LogOut className="w-4 h-4 shrink-0" />
                             <span>{t.logoutBtn || "Выйти"}</span>

@@ -9,6 +9,8 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = cookies();
+    let response = NextResponse.redirect(`${origin}${next}`);
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || "https://wdmobwotfitrenvxvbfx.supabase.co",
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_Ec3unvJULowI7TVD0LsLbg_Zay6j",
@@ -18,19 +20,20 @@ export async function GET(request: Request) {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {}
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+              response.cookies.set({ name, value, ...options });
+            });
           },
         },
       }
     );
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return response;
     }
   }
+
   return NextResponse.redirect(`${origin}/`);
 }

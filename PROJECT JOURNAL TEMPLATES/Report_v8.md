@@ -1,32 +1,35 @@
-# 📑 Консолидированный отчет этапа v8.0–v8.10: Полное удаление выдуманных пользователей, модуль lib/auth.ts и чистый Google OAuth
+# 📑 Консолидированный отчет этапа v8.0–v8.11: Сохранение Cookie в OAuth Callback, Next.js ^14.2.24 и мгновенная синхронизация сессии в Header
 
 **Дата:** 2026-08-24  
 **Проект:** [FlightSaver](file:///g:/Мой%20диск/Проект/FlightSaver)  
-**Статус:** 🟢 100% Все выдуманные пользователи («Игорь», «Александр» и т.д.) полностью удалены из проекта. Реализован модуль `lib/auth.ts`, в шапке по умолчанию отображается кнопка «Войти», а профиль формируется строго из данных сессии Google OAuth.
+**Статус:** 🟢 100% В `package.json` обновлена версия Next.js (`^14.2.24`), в `app/auth/callback/route.ts` добавлена прямая запись кук в `response.cookies.set()`, а в `components/Header.tsx` настроен немедленный вызов `supabase.auth.getSession()` и `onAuthStateChange`.
 
 ---
 
 ## 1. Ключевые реализованные модули
 
-1. **Модуль аутентификации ([lib/auth.ts](file:///g:/Мой%20диск/Проект/FlightSaver/lib/auth.ts)):**
-   - Строгое извлечение данных из сессии Supabase Google:
-     - **Имя:** `user.user_metadata?.full_name || user.user_metadata?.name || user.email`
-     - **Аватар:** `user.user_metadata?.avatar_url || user.user_metadata?.picture`
-     - **Email:** `user.email`
+1. **Обновление Next.js ([package.json](file:///g:/Мой%20диск/Проект/FlightSaver/package.json)):**
+   - Установлена версия `"next": "^14.2.24"`.
 
-2. **Шапка по умолчанию ([components/Header.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/components/Header.tsx)):**
-   - Если пользователь не авторизован — `user = null`.
-   - Отображается акцентная синяя кнопка **`[ 👤 Войти ]`** и кнопка настроек **`[ ▦ ]`**.
-   - Никаких фейковых аватаров по умолчанию.
+2. **Гарантированное сохранение Cookie ([app/auth/callback/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/app/auth/callback/route.ts)):**
+   ```typescript
+   setAll(cookiesToSet) {
+     cookiesToSet.forEach(({ name, value, options }) => {
+       cookieStore.set(name, value, options);
+       response.cookies.set({ name, value, ...options });
+     });
+   }
+   ```
 
-3. **Модальное окно и прямой редирект ([components/AuthModal.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/components/AuthModal.tsx)):**
-   - Прямой вызов Google OAuth с `window.location.assign(data.url)`.
+3. **Мгновенное чтение сессии ([components/Header.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/components/Header.tsx)):**
+   - Получение текущей сессии через `supabase.auth.getSession()` при монтировании.
+   - Подписка на события через `supabase.auth.onAuthStateChange()`.
 
 ---
 
 ## 2. Результаты проверки
 
 - **TypeScript Type Check:** 🟢 0 ошибок (`npx tsc --noEmit` код 0).
-- **Стилизация:** 🟢 Все стили Tailwind CSS и Liquid Glass на месте.
-- **Главная страница:** 🟢 [http://localhost:3000](http://localhost:3000) (200 OK, гостевая кнопка «Войти»).
+- **Callback OAuth Flow:** 🟢 `GET /auth/callback?code=...` ➔ `307 Redirect` ➔ `GET / 200`.
+- **Главная страница:** 🟢 [http://localhost:3000](http://localhost:3000) (200 OK).
 - **Личный кабинет:** 🟢 [http://localhost:3000/dashboard](http://localhost:3000/dashboard) (200 OK).
