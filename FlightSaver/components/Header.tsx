@@ -79,7 +79,7 @@ export function Header({
     setUser(null);
     setIsProfileDropdown(false);
     if (typeof window !== "undefined") {
-      window.location.reload();
+      window.location.href = "/";
     }
   };
 

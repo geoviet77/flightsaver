@@ -1,45 +1,65 @@
-# 📑 Консолидированный отчет этапа v8.0–v8.14: Удаление шаблонных данных и подключение реальной базы данных Supabase в Личном кабинете
+# 📑 Консолидированный отчет этапа v8.0–v8.15: Серверная защита маршрутов через middleware.ts и мгновенный редирект при выходе
 
 **Дата:** 2026-08-24  
 **Проект:** [FlightSaver](file:///g:/Мой%20диск/Проект/FlightSaver)  
-**Статус:** 🟢 100% Все шаблонные/выдуманные заказы и статистика полностью удалены. Личный кабинет (`/dashboard`) переведен на реальные запросы к таблицам `orders` и `search_history` в базе данных Supabase с чистыми Empty States и динамическим подсчетом реальной статистики.
+**Статус:** 🟢 100% Создан файл `middleware.ts` для серверной защиты всех приватных маршрутов `/dashboard/*` с перенаправлением неавторизованных пользователей на `/`. В `components/Header.tsx` настроен мгновенный выход и редирект на главную страницу через `window.location.href = "/"`.
 
 ---
 
 ## 1. Ключевые реализованные модули
 
-1. **Реальные запросы к Supabase ([app/dashboard/page.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/app/dashboard/page.tsx)):**
+1. **Серверная защита маршрутов ([middleware.ts](file:///g:/Мой%20диск/Проект/FlightSaver/middleware.ts)):**
    ```typescript
-   const supabase = createClient();
-   const { data: { user } } = await supabase.auth.getUser();
+   import { createServerClient } from "@supabase/ssr";
+   import { NextResponse, type NextRequest } from "next/server";
 
-   // 1. Получаем реальные заказы пользователя
-   const { data: orders } = await supabase
-     .from("orders")
-     .select("*")
-     .eq("user_id", user?.id)
-     .order("created_at", { ascending: false });
+   export async function middleware(request: NextRequest) {
+     let response = NextResponse.next({
+       request: {
+         headers: request.headers,
+       },
+     });
 
-   // 2. Получаем реальную историю поиска
-   const { data: searches } = await supabase
-     .from("search_history")
-     .select("*")
-     .eq("user_id", user?.id)
-     .order("created_at", { ascending: false });
+     const supabase = createServerClient(
+       process.env.NEXT_PUBLIC_SUPABASE_URL || "https://wdmobwotfitrenvxvbfx.supabase.co",
+       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_Ec3unvJULowI7TVD0LsLbg_Zay6j",
+       {
+         cookies: {
+           getAll() {
+             return request.cookies.getAll();
+           },
+           setAll(cookiesToSet) {
+             cookiesToSet.forEach(({ name, value, options }) => {
+               request.cookies.set(name, value);
+               response.cookies.set(name, value, options);
+             });
+           },
+         },
+       }
+     );
+
+     const { data: { user } } = await supabase.auth.getUser();
+
+     // Если неавторизованный пользователь пытается зайти в /dashboard — редирект на главную
+     if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
+       return NextResponse.redirect(new URL("/", request.url));
+     }
+
+     return response;
+   }
+
+   export const config = {
+     matcher: ["/dashboard/:path*"],
+   };
    ```
 
-2. **Очистка шаблонных данных ([lib/mockStorage.ts](file:///g:/Мой%20диск/Проект/FlightSaver/lib/mockStorage.ts)):**
-   - Установлены `DEFAULT_ORDERS = []` и `DEFAULT_SEARCHES = []`.
-   - `calculateStats` корректно возвращает `0 ₽`, `0%` и `0 маршрутов` для новых аккаунтов.
-
-3. **Состояния Empty State:**
-   - Для пустых заказов: плашка «У вас пока нет оформленных заказов» с кнопкой «Найти перелёт».
-   - Для пустой истории: плашка «История поиска пуста» с кнопкой «Начать поиск».
+2. **Мгновенный редирект при выходе ([components/Header.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/components/Header.tsx)):**
+   - При нажатии «Выйти» вызывается `supabase.auth.signOut()`, сбрасывается сессия и происходит прямой переход `window.location.href = "/"`.
 
 ---
 
 ## 2. Результаты проверки
 
 - **TypeScript Type Check:** 🟢 0 ошибок (`npx tsc --noEmit` код 0).
-- **Личный кабинет:** 🟢 [http://localhost:3000/dashboard](http://localhost:3000/dashboard) (200 OK, чистые реальные данные без моков).
+- **Server Middleware Protection:** 🟢 Запрос неавторизованного клиента к `/dashboard` перенаправляется на `/` (307/302 Redirect).
 - **Главная страница:** 🟢 [http://localhost:3000](http://localhost:3000) (200 OK).
