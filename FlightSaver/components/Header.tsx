@@ -16,8 +16,7 @@ import { TRANSLATIONS } from '../lib/i18n';
 import { InfoModalType } from './InfoModal';
 import { AuthModal } from './AuthModal';
 import { SettingsModal } from './SettingsModal';
-import { UserProfile, getStoredUser, setStoredUser } from '../lib/mockStorage';
-import { createClient } from '../lib/supabase/client';
+import { useAuth } from '../hooks/useAuth';
 
 interface HeaderProps {
   currentCurrency: Currency;
@@ -41,60 +40,10 @@ export function Header({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [user, setUser] = useState<UserProfile | null>(null);
 
+  const { user, setUser, logout } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.ru;
-
-  // Sync Supabase Auth session on mount and subscribe to auth state changes
-  useEffect(() => {
-    const supabase = createClient();
-
-    // 1. Initial check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata || {};
-        const profile: UserProfile = {
-          id: session.user.id,
-          email: session.user.email || '',
-          fullName: metadata.full_name || metadata.name || session.user.email?.split('@')[0] || 'Пользователь',
-          avatarUrl: metadata.avatar_url || metadata.picture || '',
-          preferredCurrency: 'RUB',
-          isAccessibilityMode: false,
-        };
-        setUser(profile);
-        setStoredUser(profile);
-      } else {
-        setUser(getStoredUser());
-      }
-    }).catch(() => {
-      setUser(getStoredUser());
-    });
-
-    // 2. Real-time auth listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata || {};
-        const profile: UserProfile = {
-          id: session.user.id,
-          email: session.user.email || '',
-          fullName: metadata.full_name || metadata.name || session.user.email?.split('@')[0] || 'Пользователь',
-          avatarUrl: metadata.avatar_url || metadata.picture || '',
-          preferredCurrency: 'RUB',
-          isAccessibilityMode: false,
-        };
-        setUser(profile);
-        setStoredUser(profile);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setStoredUser(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   // Close user menu on click outside & Escape key
   useEffect(() => {
@@ -120,12 +69,7 @@ export function Header({
   }, []);
 
   const handleLogout = async () => {
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-    } catch {}
-    setUser(null);
-    setStoredUser(null);
+    await logout();
     setIsUserMenuOpen(false);
   };
 

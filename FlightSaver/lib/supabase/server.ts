@@ -4,8 +4,8 @@ import { cookies } from 'next/headers';
 export async function createClient() {
   const cookieStore = cookies();
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock-flight-saver.supabase.co';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key-flightsaver';
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wdmobwotfitrenvxvbfx.supabase.co';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_key';
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {

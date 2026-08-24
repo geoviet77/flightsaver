@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Mail, CheckCircle2, Loader2, Gem, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '../lib/supabase/client';
 import { Language } from '../lib/types';
 import { TRANSLATIONS } from '../lib/i18n';
 import { UserProfile } from '../lib/mockStorage';
@@ -28,15 +28,11 @@ export function AuthModal({
 
   if (!isOpen) return null;
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock-flight-saver.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key-flightsaver'
-  );
-
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const supabase = createClient();
       const redirectTo = typeof window !== 'undefined'
         ? `${window.location.origin}/auth/callback`
         : undefined;
@@ -65,6 +61,7 @@ export function AuthModal({
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const supabase = createClient();
       const redirectTo = typeof window !== 'undefined'
         ? `${window.location.origin}/auth/callback`
         : undefined;

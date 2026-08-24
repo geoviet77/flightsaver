@@ -10,8 +10,8 @@ export async function GET(request: Request) {
   if (code) {
     const cookieStore = cookies();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock-flight-saver.supabase.co',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key-flightsaver',
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wdmobwotfitrenvxvbfx.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_key',
       {
         cookies: {
           getAll() {
