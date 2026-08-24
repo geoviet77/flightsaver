@@ -191,6 +191,12 @@ html.accessibility-mode span {
   line-height: 1.3 !important;
 }
 
+/* Maintain Vivid Accent Color for Support 24/7 in Accessibility Mode */
+html.accessibility-mode .support-blue,
+html.accessibility-mode .support-blue * {
+  color: #2563eb !important;
+}
+
 html.accessibility-mode .text-slate-400,
 html.accessibility-mode .text-slate-500,
 html.accessibility-mode .text-slate-600 {

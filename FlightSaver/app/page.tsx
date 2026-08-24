@@ -233,17 +233,24 @@ function HomeContent() {
           )}
         </main>
 
-        {/* Crisp, Highly Readable Minimalist Footer */}
-        <footer className="w-full py-3.5 px-4 sm:px-6 text-center text-xs sm:text-sm text-slate-600 font-medium liquid-glass rounded-2xl sm:rounded-full mt-6 mb-2 border border-white/80">
-          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p className="leading-relaxed">{t.footerCopyright}</p>
-            <div className="flex items-center gap-3 text-slate-600 font-semibold">
-              <span className="flex items-center gap-1.5 text-blue-600">
-                <Headphones className="w-4 h-4" /> {t.footerSupport}
-              </span>
-              <span>•</span>
-              <span>{t.footerFares}</span>
+        {/* Crisp, Highly Readable Minimalist Footer with 3-Tier Hierarchy */}
+        <footer className="w-full py-4 px-4 sm:px-6 text-center liquid-glass rounded-2xl sm:rounded-3xl mt-6 mb-3 border border-white/90 shadow-sm">
+          <div className="max-w-xl mx-auto flex flex-col items-center justify-center gap-1.5">
+            {/* 1. ПОДДЕРЖКА 24/7 (Blue accent in both standard and accessibility modes) */}
+            <div className="support-blue inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold tracking-wide uppercase text-blue-600">
+              <Headphones className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>{t.footerSupport}</span>
             </div>
+
+            {/* 2. Оптовые тарифы NDC/GDS */}
+            <p className="text-xs sm:text-sm font-semibold text-slate-700">
+              {t.footerFares}
+            </p>
+
+            {/* 3. © 2026 FlightSaver AI Travel. Умный поиск авиабилетов. */}
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-relaxed pt-1 border-t border-slate-200/60 w-full">
+              {t.footerCopyright}
+            </p>
           </div>
         </footer>
       </div>
