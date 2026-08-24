@@ -383,9 +383,9 @@ function DashboardContent() {
           )}
         </main>
 
-        {/* Crisp, Highly Readable Minimalist Footer with 3-Tier Hierarchy */}
-        <footer className="w-full py-4 px-4 sm:px-6 text-center liquid-glass rounded-2xl sm:rounded-3xl mt-6 mb-3 border border-white/90 shadow-sm">
-          <div className="max-w-xl mx-auto flex flex-col items-center justify-center gap-1.5">
+        {/* Crisp, Highly Readable Minimalist Footer (Centered & Slightly narrower than suggestions on PC) */}
+        <footer className="w-full sm:max-w-[660px] mx-auto py-3.5 px-4 sm:px-6 text-center liquid-glass rounded-2xl sm:rounded-3xl mt-6 mb-3 border border-white/90 shadow-sm">
+          <div className="w-full flex flex-col items-center justify-center gap-1.5">
             {/* 1. ПОДДЕРЖКА 24/7 (Blue accent in both standard and accessibility modes) */}
             <div className="support-blue inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold tracking-wide uppercase text-blue-600">
               <Headphones className="w-4 h-4 text-blue-600 shrink-0" />
