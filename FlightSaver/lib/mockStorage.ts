@@ -33,64 +33,10 @@ export interface UserProfile {
 }
 
 export const DEFAULT_USER: UserProfile | null = null;
+export const DEFAULT_ORDERS: StoredOrder[] = [];
+export const DEFAULT_SEARCHES: StoredSearch[] = [];
 
-export const DEFAULT_ORDERS: StoredOrder[] = [
-  {
-    id: 'ord-101',
-    pnr: 'FS-984210',
-    route: 'Москва (SVO) ➔ Дубай (DXB) ➔ Бангкок (BKK)',
-    airline: 'Emirates + Bangkok Airways',
-    departureDate: '15 ноября 2026',
-    totalPriceRub: 78400,
-    originalPriceRub: 128000,
-    savedAmountRub: 49600,
-    stpcHotelIncluded: true,
-    stpcHotelName: 'Millennium Airport Hotel Dubai 4★',
-    status: 'confirmed',
-  },
-  {
-    id: 'ord-102',
-    pnr: 'FS-451290',
-    route: 'Москва (VKO) ➔ Манама (BAH) ➔ Пхукет (HKT)',
-    airline: 'Gulf Air',
-    departureDate: '22 декабря 2026',
-    totalPriceRub: 64200,
-    originalPriceRub: 98000,
-    savedAmountRub: 33800,
-    stpcHotelIncluded: true,
-    stpcHotelName: 'The Art Hotel & Resort Bahrain 5★',
-    status: 'completed',
-  },
-];
-
-export const DEFAULT_SEARCHES: StoredSearch[] = [
-  {
-    id: 'sch-1',
-    query: 'В Бангкок из Москвы с отелем STPC на 2 недели',
-    inputMode: 'voice',
-    timestamp: 'Сегодня, 14:20',
-    savingsRub: 49600,
-    discountPercent: 39,
-  },
-  {
-    id: 'sch-2',
-    query: 'На Пхукет с багажом на двоих до 120 000 ₽',
-    inputMode: 'text',
-    timestamp: 'Вчера, 19:45',
-    savingsRub: 33800,
-    discountPercent: 41,
-  },
-  {
-    id: 'sch-3',
-    query: 'В Стамбул на выходные прямой рейс',
-    inputMode: 'text',
-    timestamp: '20 авг, 11:10',
-    savingsRub: 18500,
-    discountPercent: 28,
-  },
-];
-
-// Helper functions for localStorage Mock Provider
+// Helper functions for localStorage fallback Provider
 export function getStoredUser(): UserProfile | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -111,12 +57,12 @@ export function setStoredUser(user: UserProfile | null) {
 }
 
 export function getStoredOrders(): StoredOrder[] {
-  if (typeof window === 'undefined') return DEFAULT_ORDERS;
+  if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem('flightsaver_orders');
-    return raw ? JSON.parse(raw) : DEFAULT_ORDERS;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return DEFAULT_ORDERS;
+    return [];
   }
 }
 
@@ -128,12 +74,12 @@ export function addStoredOrder(order: StoredOrder) {
 }
 
 export function getStoredSearches(): StoredSearch[] {
-  if (typeof window === 'undefined') return DEFAULT_SEARCHES;
+  if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem('flightsaver_searches');
-    return raw ? JSON.parse(raw) : DEFAULT_SEARCHES;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return DEFAULT_SEARCHES;
+    return [];
   }
 }
 
@@ -145,8 +91,8 @@ export function addStoredSearch(query: string, inputMode: 'text' | 'voice' = 'te
     query: query.trim(),
     inputMode,
     timestamp: 'Только что',
-    savingsRub: Math.floor(Math.random() * 25000) + 15000,
-    discountPercent: Math.floor(Math.random() * 20) + 25,
+    savingsRub: 0,
+    discountPercent: 0,
   };
   const updated = [newSearch, ...current.slice(0, 19)];
   localStorage.setItem('flightsaver_searches', JSON.stringify(updated));
@@ -154,13 +100,13 @@ export function addStoredSearch(query: string, inputMode: 'text' | 'voice' = 'te
 
 // Auto-calculate savings stats for dashboard
 export function calculateStats(orders: StoredOrder[]) {
-  const totalSpentRub = orders.reduce((sum, o) => sum + o.totalPriceRub, 0);
-  const totalSavedRub = orders.reduce((sum, o) => sum + o.savedAmountRub, 0);
+  const totalSpentRub = orders.reduce((sum, o) => sum + (o.totalPriceRub || 0), 0);
+  const totalSavedRub = orders.reduce((sum, o) => sum + (o.savedAmountRub || 0), 0);
   const stpcNights = orders.filter((o) => o.stpcHotelIncluded).length;
   const totalOrders = orders.length;
   const tripsCount = orders.length;
   const originalTotal = totalSpentRub + totalSavedRub;
-  const avgSavingsPercent = originalTotal > 0 ? Math.round((totalSavedRub / originalTotal) * 100) : 38;
+  const avgSavingsPercent = originalTotal > 0 ? Math.round((totalSavedRub / originalTotal) * 100) : 0;
 
   return {
     totalSpentRub,

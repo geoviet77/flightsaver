@@ -24,15 +24,13 @@ import {
   CreditCard,
   TrendingUp,
   Mic,
-  FileText
+  FileText,
+  Search
 } from 'lucide-react';
 import {
   UserProfile,
   StoredOrder,
   StoredSearch,
-  DEFAULT_USER,
-  DEFAULT_ORDERS,
-  DEFAULT_SEARCHES,
   getStoredUser,
   getStoredOrders,
   getStoredSearches,
@@ -49,32 +47,92 @@ function DashboardContent() {
   const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'history' | 'orders'>(initialTab);
 
-  const [user, setUser] = useState<UserProfile | null>(DEFAULT_USER);
-  const [orders, setOrders] = useState<StoredOrder[]>(DEFAULT_ORDERS);
-  const [searches, setSearches] = useState<StoredSearch[]>(DEFAULT_SEARCHES);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [orders, setOrders] = useState<StoredOrder[]>([]);
+  const [searches, setSearches] = useState<StoredSearch[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load updated data from localStorage / Supabase on client mount
+  // Load real data from Supabase database for authenticated user
   useEffect(() => {
-    setUser(getStoredUser());
-    setOrders(getStoredOrders());
-    setSearches(getStoredSearches());
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      try {
+        const supabase = createClient();
+        const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    // Check real Supabase session
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata || {};
-        const profile: UserProfile = {
-          id: session.user.id,
-          email: session.user.email || '',
-          fullName: metadata.full_name || metadata.name || session.user.email?.split('@')[0] || 'Пользователь',
-          avatarUrl: metadata.avatar_url || metadata.picture || '',
-          preferredCurrency: 'RUB',
-          isAccessibilityMode: false,
-        };
-        setUser(profile);
+        if (authUser) {
+          const metadata = authUser.user_metadata || {};
+          const profile: UserProfile = {
+            id: authUser.id,
+            email: authUser.email || '',
+            fullName: metadata.full_name || metadata.name || authUser.email?.split('@')[0] || 'Пользователь',
+            avatarUrl: metadata.avatar_url || metadata.picture || '',
+            preferredCurrency: 'RUB',
+            isAccessibilityMode: false,
+          };
+          setUser(profile);
+
+          // 1. Получаем реальные заказы пользователя из базы данных Supabase
+          const { data: dbOrders, error: ordersError } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .order('created_at', { ascending: false });
+
+          if (!ordersError && dbOrders && dbOrders.length > 0) {
+            const mappedOrders: StoredOrder[] = dbOrders.map((o: any) => ({
+              id: o.id,
+              pnr: o.e_ticket_number || o.pnr || `FS-${o.id.slice(0, 6).toUpperCase()}`,
+              route: o.route || '',
+              airline: o.airline || '',
+              departureDate: o.departure_date ? new Date(o.departure_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+              totalPriceRub: Number(o.total_price || 0),
+              originalPriceRub: Number(o.original_price || 0),
+              savedAmountRub: Number(o.savings_amount || 0),
+              stpcHotelIncluded: Boolean(o.stpc_hotel_included),
+              stpcHotelName: o.stpc_hotel_name || (o.stpc_hotel_included ? 'Отель STPC 4★' : undefined),
+              status: o.status || 'confirmed',
+            }));
+            setOrders(mappedOrders);
+          } else {
+            setOrders(getStoredOrders());
+          }
+
+          // 2. Получаем реальную историю поиска из базы данных Supabase
+          const { data: dbSearches, error: searchError } = await supabase
+            .from('search_history')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .order('created_at', { ascending: false });
+
+          if (!searchError && dbSearches && dbSearches.length > 0) {
+            const mappedSearches: StoredSearch[] = dbSearches.map((s: any) => ({
+              id: s.id,
+              query: s.query_text || s.query || '',
+              inputMode: s.input_mode || 'text',
+              timestamp: s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'Недавно',
+              savingsRub: 0,
+              discountPercent: 0,
+            }));
+            setSearches(mappedSearches);
+          } else {
+            setSearches(getStoredSearches());
+          }
+        } else {
+          setUser(null);
+          setOrders([]);
+          setSearches([]);
+        }
+      } catch {
+        setUser(getStoredUser());
+        setOrders(getStoredOrders());
+        setSearches(getStoredSearches());
+      } finally {
+        setIsLoading(false);
       }
-    }).catch(() => {});
+    };
+
+    fetchDashboardData();
   }, []);
 
   // Update tab if URL param changes
@@ -137,7 +195,7 @@ function DashboardContent() {
             {/* Profile Info */}
             <div className="flex items-center gap-3 p-3 rounded-2xl liquid-glass border border-white shadow-sm">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-md">
-                {user?.fullName ? user.fullName.charAt(0) : (user?.email ? user.email.charAt(0).toUpperCase() : 'U')}
+                {user?.fullName ? user.fullName.charAt(0).toUpperCase() : (user?.email ? user.email.charAt(0).toUpperCase() : 'U')}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900 leading-tight truncate">
@@ -150,7 +208,7 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* 1. Виджет статистики (Hero Stats): 3 Карточки с авто-подсчетом */}
+          {/* 1. Виджет реальной статистики: 3 Карточки с авто-подсчетом */}
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
             
             {/* Card 1: 💳 Всего потрачено */}
@@ -159,7 +217,7 @@ function DashboardContent() {
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Всего потрачено
                 </span>
-                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                   <CreditCard className="w-4 h-4" />
                 </div>
               </div>
@@ -168,12 +226,12 @@ function DashboardContent() {
                   {formattedTotalSpent}
                 </p>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  Прямые тарифы GDS/NDC
+                  Сумма оформленных заказов
                 </p>
               </div>
             </div>
 
-            {/* Card 2: 💎 Чистая экономия + % выгоды */}
+            {/* Card 2: 📈 Чистая экономия */}
             <div className="liquid-glass-card rounded-3xl p-5 border border-white/90 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -188,9 +246,11 @@ function DashboardContent() {
                   <span className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">
                     {formattedTotalSaved}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs">
-                    -{stats.avgSavingsPercent}%
-                  </span>
+                  {stats.avgSavingsPercent > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs">
+                      -{stats.avgSavingsPercent}%
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-emerald-700 font-medium mt-0.5">
                   Сэкономлено на билетах и отелях
@@ -210,10 +270,10 @@ function DashboardContent() {
               </div>
               <div>
                 <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                  {stats.tripsCount} {stats.tripsCount === 1 ? 'маршрут' : 'маршрута'}
+                  {stats.tripsCount} {stats.tripsCount === 1 ? 'маршрут' : (stats.tripsCount >= 2 && stats.tripsCount <= 4 ? 'маршрута' : 'маршрутов')}
                 </p>
                 <p className="text-xs text-blue-600 font-semibold mt-0.5">
-                  100% подтвержденные перелёты
+                  {stats.tripsCount > 0 ? '100% подтвержденные перелёты' : 'Нет активных бронирований'}
                 </p>
               </div>
             </div>
@@ -254,7 +314,7 @@ function DashboardContent() {
             </button>
           </div>
 
-          {/* 2. История заказов (/dashboard/orders) */}
+          {/* 2. Реальная история заказов (/dashboard/orders) */}
           {activeTab === 'orders' && (
             <div className="space-y-4 animate-fadeIn">
               {orders.length > 0 ? (
@@ -287,9 +347,11 @@ function DashboardContent() {
                           <span className="text-2xl sm:text-3xl font-black text-slate-900">
                             {formattedPriceVal}
                           </span>
-                          <p className="text-xs font-bold text-emerald-600">
-                            {t.savedText} {formattedSavedVal}
-                          </p>
+                          {order.savedAmountRub > 0 && (
+                            <p className="text-xs font-bold text-emerald-600">
+                              {t.savedText} {formattedSavedVal}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -300,9 +362,11 @@ function DashboardContent() {
                             <Plane className="w-4 h-4 text-blue-600 shrink-0" /> Авиакомпании:
                           </p>
                           <p className="text-slate-700 font-semibold">{order.airline}</p>
-                          <p className="text-slate-500 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" /> Вылет: {order.departureDate}
-                          </p>
+                          {order.departureDate && (
+                            <p className="text-slate-500 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" /> Вылет: {order.departureDate}
+                            </p>
+                          )}
                         </div>
 
                         {order.stpcHotelIncluded && (
@@ -322,7 +386,7 @@ function DashboardContent() {
                           <button
                             type="button"
                             onClick={() => alert(`Загрузка электронного билета #${order.pnr} (PDF)...`)}
-                            className="min-h-[44px] h-auto px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all"
+                            className="min-h-[44px] h-auto px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
                           >
                             <FileText className="w-4 h-4 shrink-0" />
                             <span>Электронный билет (PDF / Маршрутная квитанция)</span>
@@ -332,7 +396,7 @@ function DashboardContent() {
                             <button
                               type="button"
                               onClick={() => alert(`Загрузка ваучера отеля STPC #${order.pnr}...`)}
-                              className="min-h-[44px] h-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all"
+                              className="min-h-[44px] h-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer"
                             >
                               <Download className="w-4 h-4 shrink-0" />
                               <span>{t.hotelVoucherBtn}</span>
@@ -348,14 +412,31 @@ function DashboardContent() {
                   );
                 })
               ) : (
-                <div className="p-12 text-center liquid-glass rounded-3xl">
-                  <p className="text-base font-bold text-slate-700">{t.noOrdersYet}</p>
+                <div className="p-12 text-center liquid-glass rounded-3xl space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-sm">
+                    <Ticket className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-base font-bold text-slate-800">
+                      {t.noOrdersYet || 'У вас пока нет оформленных билетов'}
+                    </p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      {currentLanguage === 'ru' ? 'Найдите выгодные билеты с экономией до 50% и бесплатным отелем STPC' : 'Find split-tickets with up to 50% savings and free STPC hotel'}
+                    </p>
+                  </div>
+                  <Link
+                    href="/"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>{currentLanguage === 'ru' ? 'Найти перелёт' : 'Search Flights'}</span>
+                  </Link>
                 </div>
               )}
             </div>
           )}
 
-          {/* 3. История запросов к ИИ (/dashboard/history) */}
+          {/* 3. Реальная история запросов к ИИ (/dashboard/history) */}
           {activeTab === 'history' && (
             <div className="space-y-3 animate-fadeIn">
               {searches.length > 0 ? (
@@ -377,7 +458,7 @@ function DashboardContent() {
                           «{item.query}»
                         </p>
                         <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                          {item.timestamp} • Экономия: ~{item.savingsRub.toLocaleString('ru-RU')} ₽ (-{item.discountPercent}%)
+                          {item.timestamp}
                         </p>
                       </div>
                     </div>
@@ -393,8 +474,25 @@ function DashboardContent() {
                   </div>
                 ))
               ) : (
-                <div className="p-12 text-center liquid-glass rounded-3xl">
-                  <p className="text-base font-bold text-slate-700">{t.noSearchesYet}</p>
+                <div className="p-12 text-center liquid-glass rounded-3xl space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto shadow-sm">
+                    <History className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-base font-bold text-slate-800">
+                      {t.noSearchesYet || 'История поиска пуста'}
+                    </p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      {currentLanguage === 'ru' ? 'Задайте голосовой или текстовый запрос на главной странице' : 'Search for any flight using voice or text on the home page'}
+                    </p>
+                  </div>
+                  <Link
+                    href="/"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>{currentLanguage === 'ru' ? 'Начать поиск' : 'Start Searching'}</span>
+                  </Link>
                 </div>
               )}
             </div>
@@ -433,4 +531,3 @@ export default function DashboardPage() {
     </Suspense>
   );
 }
-
