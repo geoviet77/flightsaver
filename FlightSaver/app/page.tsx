@@ -10,7 +10,7 @@ import { BookingModal } from '@/components/BookingModal';
 import { InfoModal, InfoModalType } from '@/components/InfoModal';
 import { parseTravelQuery } from '@/lib/nlpParser';
 import { generateMockFlights } from '@/lib/mockFlights';
-import { Flight, ParsedSearchParams, Currency, Language, BookingOrder, AccumulatedSearchParams } from '@/lib/types';
+import { Flight, ParsedSearchParams, Currency, Language, BookingOrder, AccumulatedSearchParams, ChatMessage } from '@/lib/types';
 import { TRANSLATIONS, formatPrice, useI18n } from '@/lib/i18n';
 import { addStoredSearch, addStoredOrder } from '@/lib/mockStorage';
 import { CheckCircle2, Headphones, Lightbulb, User, RotateCcw } from 'lucide-react';

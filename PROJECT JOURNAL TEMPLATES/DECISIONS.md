@@ -2,8 +2,8 @@
 
 **Проект:** FlightSaver (Smart Split-Ticketing & Transit STPC/TWOV Flight Search Platform)  
 **Дата обновления:** 2026-08-25  
-**Версия документа:** v8.33.0  
-**Статус проекта:** В разработке / Чистый обработчик Gemini 2.0 Flash, устранение дефолтов в nlpParser и регламент отчетов в PROJECT JOURNAL TEMPLATES.
+**Версия документа:** v8.34.0  
+**Статус проекта:** В разработке / Восстановление пакета @types/node и явная привязка typeRoots в tsconfig.json.
 
 ---
 
@@ -228,6 +228,15 @@
     - Все отчеты хранятся исключительно в `PROJECT JOURNAL TEMPLATES` под именем `Report_v<день>_<номер_отчета>.md` (например, `Report_v8_33.md`).
     - В конце дня выполняется автоматическое суточное объединение в `Report_v<день>.md`.
 - **Статус:** Реализовано в v8.33.0.
+
+### ADR-068: Восстановление пакета @types/node и явная привязка typeRoots в tsconfig.json
+- **Контекст:** Ошибка VSCode / TypeScript Language Server: `Cannot find type definition file for 'node'`. В папке `node_modules/@types/node` отсутствовали декларации типов `index.d.ts`.
+- **Решение:**
+  - Восстановлен полный пакет `@types/node` (включая все встроенные модули Node.js и глобальные типы) в директорию `FlightSaver/node_modules/@types/node/`.
+  - В `FlightSaver/tsconfig.json` в `compilerOptions` явно добавлен параметр `"typeRoots": ["./node_modules/@types"]`.
+  - Изменения зафиксированы и отправлены в ветку `main` в GitHub.
+- **Статус:** Реализовано в v8.34.0.
+
 
 
 

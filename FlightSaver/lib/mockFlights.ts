@@ -1,4 +1,4 @@
-import { Flight, ParsedSearchParams, CabinClass, Currency } from './types';
+import { Flight, ParsedSearchParams, CabinClass, Currency, PricingBreakdown, SegmentPriceDetail } from './types';
 
 interface AirportMeta {
   fullName: string;

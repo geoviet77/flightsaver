@@ -1,4 +1,4 @@
-import { ParsedSearchParams, Currency, CabinClass, TimePreference } from './types';
+import { ParsedSearchParams, Currency, CabinClass, TimePreference, QuickReplyOption } from './types';
 
 interface CityEntity {
   nameRu: string;
