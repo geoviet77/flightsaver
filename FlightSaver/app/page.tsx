@@ -127,11 +127,12 @@ function HomeContent() {
         const assistantMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
           role: 'assistant',
-          text: newParsed.aiResponse || newParsed.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
+          text: data.replyText || newParsed.replyText || newParsed.aiResponse || newParsed.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           parsedParams: newParsed,
           flightsCount: newFlights.length,
           quickReplies: data.quickReplies || newParsed.quickReplies || [],
+          missingQuestions: newParsed.missingQuestions || data.missingQuestions || [],
         };
         setConversationHistory([...currentHistory, assistantMsg]);
 

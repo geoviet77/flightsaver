@@ -50,6 +50,13 @@ export interface ParsedSearchParams {
   isRoundTrip?: boolean;
   missingFields?: MissingField[];
   quickReplies?: QuickReplyOption[];
+  missingQuestions?: MissingQuestion[];
+}
+
+export interface MissingQuestion {
+  field: 'passengers' | 'cabinClass' | 'luggage' | 'returnDate' | string;
+  question: string;
+  options: string[];
 }
 
 export interface QuickReplyOption {
@@ -220,6 +227,7 @@ export interface ChatMessage {
   parsedParams?: ParsedSearchParams;
   flightsCount?: number;
   quickReplies?: QuickReplyOption[];
+  missingQuestions?: MissingQuestion[];
 }
 
 export interface ConversationSession {

@@ -24,7 +24,37 @@ const CITY_DATABASE: CityEntity[] = [
     nameRu: 'Мюнхен',
     nameEn: 'Munich',
     iata: 'MUC',
-    variations: ['мюнхен', 'мюнхена', 'мюнхене', 'мюнхену', 'мюнхеном', 'muc', 'munich', 'münchen']
+    variations: ['мюнхен', 'мюнхена', 'мюнхене', 'мюнхену', 'мюнхеном', 'мунхен', 'мунхена', 'muc', 'munich', 'münchen']
+  },
+  {
+    nameRu: 'Екатеринбург',
+    nameEn: 'Yekaterinburg',
+    iata: 'SVX',
+    variations: ['екатеринбург', 'екатеринбурга', 'екатеринбурге', 'екатиринбург', 'екатиринбурга', 'екб', 'кольцово', 'svx', 'yekaterinburg', 'ekaterinburg']
+  },
+  {
+    nameRu: 'Самара',
+    nameEn: 'Samara',
+    iata: 'KUF',
+    variations: ['самара', 'самары', 'самаре', 'самару', 'самарой', 'kuf', 'samara', 'курумоч']
+  },
+  {
+    nameRu: 'Люксембург',
+    nameEn: 'Luxembourg',
+    iata: 'LUX',
+    variations: ['люксембург', 'люксембурга', 'люксенбург', 'люксенбурга', 'люксенбурге', 'lux', 'luxembourg']
+  },
+  {
+    nameRu: 'Париж',
+    nameEn: 'Paris',
+    iata: 'CDG',
+    variations: ['париж', 'парижа', 'париже', 'парижу', 'cdg', 'paris']
+  },
+  {
+    nameRu: 'Рим',
+    nameEn: 'Rome',
+    iata: 'FCO',
+    variations: ['рим', 'рима', 'риме', 'риму', 'fco', 'rome', 'roma']
   },
   {
     nameRu: 'Берлин',
