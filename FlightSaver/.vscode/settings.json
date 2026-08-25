@@ -1,0 +1,6 @@
+{
+  "antigravity.agent.autoExecution": "always",
+  "antigravity.agent.reviewPolicy": "alwaysProceed",
+  "antigravity.agent.terminal.autoApprove": true,
+  "terminal.integrated.allowChaining": true
+}

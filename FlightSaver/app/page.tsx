@@ -10,7 +10,7 @@ import { BookingModal } from '@/components/BookingModal';
 import { InfoModal, InfoModalType } from '@/components/InfoModal';
 import { parseTravelQuery } from '@/lib/nlpParser';
 import { generateMockFlights } from '@/lib/mockFlights';
-import { Flight, ParsedSearchParams, Currency, Language, BookingOrder } from '@/lib/types';
+import { Flight, ParsedSearchParams, Currency, Language, BookingOrder, AccumulatedSearchParams } from '@/lib/types';
 import { TRANSLATIONS, formatPrice, useI18n } from '@/lib/i18n';
 import { addStoredSearch, addStoredOrder } from '@/lib/mockStorage';
 import { CheckCircle2, Headphones, Lightbulb, User, RotateCcw } from 'lucide-react';
@@ -26,6 +26,23 @@ function HomeContent() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentCurrency, setCurrentCurrency] = useState<Currency>('RUB');
   const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
+
+  // Accumulated Search Parameters state for persistent conversation memory
+  const [accumulatedSearchParams, setAccumulatedSearchParams] = useState<AccumulatedSearchParams>({
+    origin: null,
+    originName: null,
+    destination: null,
+    destinationName: null,
+    departureDate: null,
+    returnDate: null,
+    isOneWay: null,
+    passengers: null,
+    cabinClass: null,
+    hasLuggage: null,
+  });
+
+  // Conversation History state for multi-turn AI Concierge dialogue
+  const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
 
   // Info Modal state (STPC, TWOV, Split-Ticketing)
   const [activeInfoModal, setActiveInfoModal] = useState<InfoModalType>(null);
@@ -50,30 +67,114 @@ function HomeContent() {
     }
   }, [searchParams]);
 
-  const handlePerformSearch = (searchQuery: string) => {
+  const handlePerformSearch = async (searchQuery: string) => {
+    const cleanQuery = searchQuery.trim();
+    if (!cleanQuery) return;
+
+    // 1. Immediately clear the input field after sending
+    setQuery('');
     setIsLoading(true);
-    setQuery(searchQuery);
-    setActiveSearchQuery(searchQuery);
+    setActiveSearchQuery(cleanQuery);
 
-    // Auto-save to search history (Mock Storage / Supabase)
-    addStoredSearch(searchQuery, 'text');
+    // 2. Append user message to conversation history
+    const userMsg: ChatMessage = {
+      id: `usr-${Date.now()}`,
+      role: 'user',
+      text: cleanQuery,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    const currentHistory = [...conversationHistory, userMsg];
+    setConversationHistory(currentHistory);
 
-    setTimeout(() => {
-      const parsed = parseTravelQuery(searchQuery);
-      parsed.currency = currentCurrency;
-      const results = generateMockFlights(parsed);
+    try {
+      const response = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: cleanQuery,
+          query: cleanQuery,
+          currentParams: accumulatedSearchParams,
+          accumulatedSearchParams,
+          previousParams: parsedParams,
+          currency: currentCurrency,
+          history: currentHistory.map((m) => ({ role: m.role, text: m.text })),
+        }),
+      });
 
-      setParsedParams(parsed);
+      if (response.ok) {
+        const data = await response.json();
+        const newParsed = data.parsed;
+        const newFlights = data.flights || [];
+        setParsedParams(newParsed);
+        setFlights(newFlights);
+
+        if (data.accumulatedSearchParams) {
+          setAccumulatedSearchParams(data.accumulatedSearchParams);
+        }
+
+        const assistantMsg: ChatMessage = {
+          id: `ast-${Date.now()}`,
+          role: 'assistant',
+          text: newParsed.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          parsedParams: newParsed,
+          flightsCount: newFlights.length,
+          quickReplies: data.quickReplies || newParsed.quickReplies || [],
+        };
+        setConversationHistory([...currentHistory, assistantMsg]);
+
+        if (newParsed.originCity && newParsed.destinationCity) {
+          addStoredSearch(cleanQuery, 'text', `${newParsed.originCity} ➔ ${newParsed.destinationCity}`);
+        }
+      } else {
+        throw new Error('API search error');
+      }
+    } catch (err) {
+      console.warn('[Search] API error, performing exact local extraction:', err);
+      const fallback = parseTravelQuery(cleanQuery, parsedParams);
+      fallback.currency = currentCurrency;
+      const results = (fallback.originIata && fallback.destinationIata) ? generateMockFlights(fallback) : [];
+      setParsedParams(fallback);
       setFlights(results);
+
+      const assistantMsg: ChatMessage = {
+        id: `ast-${Date.now()}`,
+        role: 'assistant',
+        text: fallback.originCity && fallback.destinationCity
+          ? (fallback.aiSummary || `Подобрал маршруты ${fallback.originCity} ➔ ${fallback.destinationCity}.`)
+          : 'Пожалуйста, укажите город вылета и прилета для точного подбора рейсов (например: "Екатеринбург конго 17 октября").',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        parsedParams: fallback,
+        flightsCount: results.length,
+        quickReplies: fallback.quickReplies || [],
+      };
+      setConversationHistory([...currentHistory, assistantMsg]);
+      if (fallback.originCity && fallback.destinationCity) {
+        addStoredSearch(cleanQuery, 'text', `${fallback.originCity} ➔ ${fallback.destinationCity}`);
+      }
+    } finally {
       setIsLoading(false);
-    }, 400);
+    }
   };
 
   const handleResetSearch = () => {
     setActiveSearchQuery(null);
     setParsedParams(null);
     setFlights([]);
+    setConversationHistory([]);
     setQuery('');
+    setAccumulatedSearchParams({
+      origin: null,
+      originName: null,
+      destination: null,
+      destinationName: null,
+      departureDate: null,
+      returnDate: null,
+      isOneWay: null,
+      passengers: null,
+      cabinClass: null,
+      hasLuggage: null,
+    });
   };
 
   const handleSelectFlight = (flight: Flight) => {
@@ -198,34 +299,15 @@ function HomeContent() {
           {/* Mode B: Seamless Conversational Stream (User Message -> AI Results) */}
           {activeSearchQuery && (
             <section className="w-full max-w-3xl mx-auto mt-6 space-y-4 animate-fadeIn">
-              {/* Traveler Active Query Chat Bubble */}
-              <div className="flex items-center justify-between pl-4 sm:pl-10">
-                <div className="inline-flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/25">
-                  <div className="w-7 h-7 rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs sm:text-sm font-bold">
-                    «{activeSearchQuery}»
-                  </p>
-                </div>
-
-                {/* Reset / New Search Button */}
-                <button
-                  type="button"
-                  onClick={handleResetSearch}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-xs font-semibold transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>{t.newSearchBtn}</span>
-                </button>
-              </div>
-
-              {/* AI Results & Flight Cards Stream */}
+              {/* AI Results & Multi-Turn Chat Cards Stream */}
               <FlightResultsList
+                conversationHistory={conversationHistory}
                 parsedParams={parsedParams}
                 flights={flights}
                 isLoading={isLoading}
                 onSelectFlight={handleSelectFlight}
+                onClarificationReply={handlePerformSearch}
+                onResetSearch={handleResetSearch}
                 currency={currentCurrency}
                 language={currentLanguage}
               />

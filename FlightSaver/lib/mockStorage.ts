@@ -5,8 +5,10 @@ export interface StoredSearch {
   query: string;
   inputMode: 'text' | 'voice';
   timestamp: string;
+  createdAtTimestamp?: number;
   savingsRub: number;
   discountPercent: number;
+  routeTitle?: string;
 }
 
 export interface StoredOrder {
@@ -73,7 +75,32 @@ export function addStoredOrder(order: StoredOrder) {
   localStorage.setItem('flightsaver_orders', JSON.stringify(updated));
 }
 
+// 90 days filter (3 months) and strictly 10 items display limit
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const MAX_CLIENT_SEARCHES_LIMIT = 10;
+
 export function getStoredSearches(): StoredSearch[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('flightsaver_searches');
+    if (!raw) return [];
+    const allSearches: StoredSearch[] = JSON.parse(raw);
+    const now = Date.now();
+
+    // 1. Filter only searches created within the last 90 days
+    const recentSearches = allSearches.filter((item) => {
+      const created = item.createdAtTimestamp || now;
+      return now - created <= NINETY_DAYS_MS;
+    });
+
+    // 2. Client limit: return exactly 10 most recent active chats
+    return recentSearches.slice(0, MAX_CLIENT_SEARCHES_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+export function getAllRawStoredSearches(): StoredSearch[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem('flightsaver_searches');
@@ -83,18 +110,28 @@ export function getStoredSearches(): StoredSearch[] {
   }
 }
 
-export function addStoredSearch(query: string, inputMode: 'text' | 'voice' = 'text') {
+export function addStoredSearch(
+  query: string,
+  inputMode: 'text' | 'voice' = 'text',
+  routeTitle?: string
+) {
   if (typeof window === 'undefined' || !query.trim()) return;
-  const current = getStoredSearches();
+  const allCurrent = getAllRawStoredSearches();
+  const now = Date.now();
+
   const newSearch: StoredSearch = {
-    id: `sch-${Date.now()}`,
+    id: `sch-${now}`,
     query: query.trim(),
     inputMode,
     timestamp: 'Только что',
+    createdAtTimestamp: now,
     savingsRub: 0,
     discountPercent: 0,
+    routeTitle,
   };
-  const updated = [newSearch, ...current.slice(0, 19)];
+
+  // Physically persist all searches in storage, keeping up to 100 entries for long-term database history
+  const updated = [newSearch, ...allCurrent.filter(s => s.query !== query.trim()).slice(0, 99)];
   localStorage.setItem('flightsaver_searches', JSON.stringify(updated));
 }
 

@@ -2,16 +2,20 @@ export type Currency = 'RUB' | 'USD' | 'EUR' | 'THB' | 'AED';
 
 export type Language = 'ru' | 'en';
 
-export type CabinClass = 'Economy' | 'Premium Economy' | 'Business';
+export type CabinClass = 'Economy' | 'Premium Economy' | 'Business' | 'First';
 
 export type TimePreference = 'morning' | 'day' | 'evening' | 'night';
+
+export type MissingField = 'tripType' | 'passengers' | 'cabinClass' | 'luggage';
 
 export interface ParsedSearchParams {
   query: string;
   originCity: string;
   originIata: string;
+  originName?: string;
   destinationCity: string;
   destinationIata: string;
+  destinationName?: string;
   departureMonth?: string;
   departureDate?: string;
   returnDate?: string;
@@ -30,13 +34,31 @@ export interface ParsedSearchParams {
   needsClarification: boolean;
   clarificationMessage?: string;
   confidenceScore: number;
+  aiSummary?: string;
+  hasLuggage?: boolean;
   
   // Advanced semantic filters
   stpcHotelOnly: boolean;
+  wantsStpcHotel?: boolean;
   visaFreeOnly: boolean;
   baggageIncluded: boolean;
   cabinClass: CabinClass;
   timePreference?: TimePreference;
+  isGroupBooking?: boolean;
+  isCorporateAccount?: boolean;
+  isOneWay?: boolean;
+  isRoundTrip?: boolean;
+  missingFields?: MissingField[];
+  quickReplies?: QuickReplyOption[];
+}
+
+export interface QuickReplyOption {
+  id: string;
+  label: string;
+  queryText: string;
+  category?: 'tripType' | 'passengers' | 'cabinClass' | 'luggage' | 'corporate' | 'general';
+  isCustomInputPrompt?: boolean;
+  promptText?: string;
 }
 
 export interface FlightSegment {
@@ -89,6 +111,23 @@ export interface PricingBreakdown {
   splitSavingsReason: string;
 }
 
+export type FlightSortOption = 'cheap' | 'fast' | 'best' | 'stpc';
+export type FlightStopsFilter = 'all' | 'direct' | '1stop' | 'stpc';
+export type FlightTimeFilter = 'all' | 'morning' | 'day' | 'evening';
+
+export interface AccumulatedSearchParams {
+  origin: string | null;
+  originName: string | null;
+  destination: string | null;
+  destinationName: string | null;
+  departureDate: string | null;
+  returnDate: string | null;
+  isOneWay: boolean | null;
+  passengers: number | null;
+  cabinClass: string | null;
+  hasLuggage: boolean | null;
+}
+
 export interface Flight {
   id: string;
   originCity: string;
@@ -98,6 +137,7 @@ export interface Flight {
   departureDate: string;
   returnDate?: string;
   totalDuration: string;
+  totalDurationMinutes?: number;
   segments: FlightSegment[];
   transit: TransitInfo;
   pricing: PricingBreakdown;
@@ -106,6 +146,11 @@ export interface Flight {
   isStpcEligible: boolean;
   baggageIncluded: boolean;
   baggageDescription: string;
+  isCorporate?: boolean;
+  passengersCount?: number;
+  cabinClass?: CabinClass;
+  departureTimeOfDay?: 'morning' | 'day' | 'evening' | 'night';
+  stopsCount?: number;
   tags: string[];
 }
 
@@ -151,3 +196,39 @@ export interface BookingOrder {
   status: 'confirmed' | 'pending_payment' | 'issued';
   splitTicketGuaranteeId: string;
 }
+
+// Places & Airports Autocomplete
+export interface PlaceSuggestion {
+  id: string;
+  name: string;
+  iataCode: string;
+  cityName: string;
+  countryCode: string;
+  type: string;
+}
+
+export interface AirportSuggestionsResponse {
+  places: PlaceSuggestion[];
+  error?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  parsedParams?: ParsedSearchParams;
+  flightsCount?: number;
+  quickReplies?: QuickReplyOption[];
+}
+
+export interface ConversationSession {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  messages: ChatMessage[];
+  lastParams?: ParsedSearchParams;
+}
+
+

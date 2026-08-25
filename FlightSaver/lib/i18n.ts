@@ -139,6 +139,13 @@ export const TRANSLATIONS = {
     footerFares: 'Оптовые тарифы NDC/GDS',
     modalClose: 'Закрыть',
     modalSearchBtn: 'Подобрать такие рейсы',
+
+    // Places & Airports Autocomplete
+    cityBadge: 'Город',
+    airportBadge: 'Аэропорт',
+    searchingAirports: 'Поиск городов и аэропортов...',
+    noAirportsFound: 'Города и аэропорты не найдены',
+    selectAirportHint: 'Выберите направление',
   },
   en: {
     brandName: 'FLIGHTSAVER',
@@ -216,5 +223,12 @@ export const TRANSLATIONS = {
     footerFares: 'Wholesale NDC/GDS fares',
     modalClose: 'Close',
     modalSearchBtn: 'Find these flights',
+
+    // Places & Airports Autocomplete
+    cityBadge: 'City',
+    airportBadge: 'Airport',
+    searchingAirports: 'Searching cities and airports...',
+    noAirportsFound: 'No cities or airports found',
+    selectAirportHint: 'Select destination',
   },
 };

@@ -1,73 +1,73 @@
-# 📑 Консолидированный отчет этапа v8.0–v8.16: Отказоустойчивый Middleware с защитой try/catch и устранение ошибки 500
+# 🏆 Сводный консолидированный отчет за 8-й день разработки: FlightSaver (v8.0 — v8.32)
 
-**Дата:** 2026-08-24  
-**Проект:** [FlightSaver](file:///g:/Мой%20диск/Проект/FlightSaver)  
-**Статус:** 🟢 100% В `middleware.ts` внедрен официальный отказоустойчивый шаблон с пересозданием `supabaseResponse` внутри `setAll`, полной защитой `try / catch` и безопасным фоллбэком `NextResponse.next({ request })`.
-
----
-
-## 1. Ключевые реализованные модули
-
-1. **Отказоустойчивый Middleware ([middleware.ts](file:///g:/Мой%20диск/Проект/FlightSaver/middleware.ts)):**
-   ```typescript
-   import { createServerClient } from "@supabase/ssr";
-   import { NextResponse, type NextRequest } from "next/server";
-
-   export async function middleware(request: NextRequest) {
-     try {
-       let supabaseResponse = NextResponse.next({
-         request,
-       });
-
-       const supabase = createServerClient(
-         process.env.NEXT_PUBLIC_SUPABASE_URL || "https://wdmobwotfitrenvxvbfx.supabase.co",
-         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_Ec3unvJULowI7TVD0LsLbg_Zay6j",
-         {
-           cookies: {
-             getAll() {
-               return request.cookies.getAll();
-             },
-             setAll(cookiesToSet) {
-               cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-               supabaseResponse = NextResponse.next({
-                 request,
-               });
-               cookiesToSet.forEach(({ name, value, options }) =>
-                 supabaseResponse.cookies.set(name, value, options)
-               );
-             },
-           },
-         }
-       );
-
-       const {
-         data: { user },
-       } = await supabase.auth.getUser();
-
-       // Если пользователь не авторизован и заходит в /dashboard — редирект на главную
-       if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
-         const url = request.nextUrl.clone();
-         url.pathname = "/";
-         return NextResponse.redirect(url);
-       }
-
-       return supabaseResponse;
-     } catch (error) {
-       // Fallback: при ошибке Edge Runtime пропускаем запрос, клиентский guard в page.tsx обработает проверку
-       return NextResponse.next({ request });
-     }
-   }
-
-   export const config = {
-     matcher: ["/dashboard/:path*"],
-   };
-   ```
+**Дата:** 25 августа 2026 г.  
+**Рабочий день:** День 8  
+**Расположение:** [PROJECT JOURNAL TEMPLATES/Report_v8.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8.md)  
+**Проект:** FlightSaver (Smart Split-Ticketing & Transit STPC/TWOV Flight Search Platform)
 
 ---
 
-## 2. Результаты проверки
+## 📌 Главные итоги и достижения 8-го дня
 
-- **TypeScript Type Check:** 🟢 0 ошибок (`npx tsc --noEmit` код 0).
-- **Middleware Execution:** 🟢 0 исключений, корректный редирект без 500 ошибок.
-- **Главная страница:** 🟢 [http://localhost:3000](http://localhost:3000) (200 OK).
-- **Личный кабинет:** 🟢 [http://localhost:3000/dashboard](http://localhost:3000/dashboard) (Защищен).
+За 8-й рабочий день проект совершил качественный эволюционный скачок от статических макетов к **полноценной интеллектуальной системе ИИ Консьержа**, работающей в режиме реального времени.
+
+### 1. Серверные API и Places Suggestions (v8.0 – v8.17)
+- Реализован роут автодополнения городов и аэропортов `app/api/airports/route.ts` на базе Duffel Places API.
+- Настроена клиентская валидация и моментальная фильтрация подсказок.
+
+### 2. Интеллектуальный ИИ Консьерж и Gemini NLP (v8.18 – v8.23)
+- Перевод поисковой строки на режим естественного языка (Cyrillic + Latin).
+- Полнотекстовое извлечение параметров перелета: города, IATA-коды, точные ISO-даты, класс, багаж, число пассажиров.
+- Устранена автопрокрутка страницы, чтобы пользователь комфортно вел диалог с ИИ.
+
+### 3. Проактивный диалог и динамические подсказки (v8.24 – v8.28)
+- Внедрены интерактивные кнопки быстрых ответов (`Quick Replies`):
+  * Выбор возврата: «🛫 В одну сторону», «🔄 Обратно через 7 дней», «🔄 Обратно через 14 дней», «✏️ Свой вариант».
+  * Пассажиры: «👤 1 пассажир», «👥 2 пассажира», «👨‍👩‍👧 3 пассажира».
+  * Класс: «🎫 Эконом», «✨ Комфорт», «💎 Бизнес», «👑 Первый класс».
+  * Багаж: «🎒 Только ручная кладь», «🧳 Багаж 23 кг».
+- Динамическое скрытие уже отвеченных вопросов (`missingFields`).
+
+### 4. Накопительная память и фильтрация билетов (v8.29 – v8.30)
+- Реализовано сохранение состояния сессии `accumulatedSearchParams`.
+- Интегрирована панель фильтров `liquid-glass` (сортировка по цене/скорости/STPC, пересадки, время суток).
+- Внедрена плавная пагинация билетов по 10 штук с кнопкой «Показать еще 10 билетов» и сохранением точного скролла.
+
+### 5. Реалистичная маршрутная сетка и правила санкций (v8.31)
+- Реализовано строгое правило отсутствия прямых рейсов из РФ в Европу: все 16 маршрутов следуют со стыковками через Стамбул (IST/SAW), Дубай (DXB со включенным отелем STPC 4★), Ереван (EVN), Баку (GYD), Доху (DOH), Белград (BEG).
+
+### 6. Тотальная зачистка от заглушек и глобальный поиск (v8.32)
+- Полностью удалены любые дефолтные города-заглушки (Москва, Бангкок, Лондон).
+- Прямой поиск в реальном времени для любых городов и стран мира (например, Екатеринбург `[SVX]` ➔ Браззавиль/Конго `[BZV]`).
+- Карточки рейсов генерируются строго под реальный маршрут пользователя.
+
+---
+
+## 🗂️ Хронологический реестр отчетов 8-го дня (PROJECT JOURNAL TEMPLATES)
+
+| Файл отчета | Тема этапа | Статус |
+| :--- | :--- | :---: |
+| [Report_v8_17.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_17.md) | Duffel Places Suggestions API & автодополнение | 🟢 Завершено |
+| [Report_v8_18.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_18.md) | Переход на ИИ Консьержа и Gemini NLP | 🟢 Завершено |
+| [Report_v8_19.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_19.md) | Контекст диалога и история поиска | 🟢 Завершено |
+| [Report_v8_20.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_20.md) | Очистка строки ввода и корпоративные тарифы | 🟢 Завершено |
+| [Report_v8_21.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_21.md) | Проактивные уточнения и кнопки диалога | 🟢 Завершено |
+| [Report_v8_22.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_22.md) | UX диалога и плашка «Свой вариант» | 🟢 Завершено |
+| [Report_v8_23.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_23.md) | Исправление ReferenceError (t, primaryCabin) | 🟢 Завершено |
+| [Report_v8_24.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_24.md) | Рефакторинг Gemini Live State & missingFields | 🟢 Завершено |
+| [Report_v8_25.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_25.md) | Дата-парсер (14.09 ➔ 2026-09-14) и Лондон | 🟢 Завершено |
+| [Report_v8_26.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_26.md) | Динамическое скрытие отвеченных вопросов | 🟢 Завершено |
+| [Report_v8_27.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_27.md) | Обновление бейджей багажа и форматирование дат | 🟢 Завершено |
+| [Report_v8_28.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_28.md) | Дифференциация тарифов с багажом / без | 🟢 Завершено |
+| [Report_v8_29.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_29.md) | Синхронизация `accumulatedSearchParams` | 🟢 Завершено |
+| [Report_v8_30.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_30.md) | Панель фильтров, сортировка и пагинация по 10 | 🟢 Завершено |
+| [Report_v8_31.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_31.md) | Маршруты РФ ➔ Европа без прямых рейсов | 🟢 Завершено |
+| [Report_v8_32.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/Report_v8_32.md) | Тотальное удаление заглушек и глобальный поиск | 🟢 Завершено |
+
+---
+
+## 🧪 Результаты контрольного тестирования кодовой базы
+- **TypeScript:** 0 ошибок (`npx tsc --noEmit` — 100% валидно).
+- **Сквозной тест поиска Екатеринбург ➔ Конго (17.10):** 🟢 Пройден.
+- **Удержание накопительного контекста диалога:** 🟢 Пройдено.
+- **Веб-сервер:** 🟢 `http://localhost:3000` (Status 200 OK).
