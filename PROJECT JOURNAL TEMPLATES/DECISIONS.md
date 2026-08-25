@@ -274,6 +274,15 @@
   - **Верификация TypeScript:** Проверка `tsc --noEmit` пройдена без ошибок (код 0).
 - **Статус:** Реализовано в v8.37.0.
 
+### ADR-072: Включение настоящего ИИ-агента Gemini с Google Search Grounding и динамической генерацией рейсов
+- **Контекст:** Переход на чистый агентский вызов Gemini 2.0 Flash в `app/api/search/route.ts` с поддержкой Google Search Grounding, формированием ответов `reply`, точных IATA-кодов городов, расчетом отелей STPC 4★ и динамических карточек рейсов.
+- **Решение:**
+  - В `app/api/search/route.ts` внедрен системный промпт живого ИИ-консьержа с использованием поиска Google для точного разрешения IATA-кодов и исправления любых опечаток.
+  - Структурированный ответ содержит `reply`, `origin`, `originCity`, `destination`, `destinationCity`, `departureDate`, `returnDate`, `isOneWay`, `passengers`, `cabinClass`, `hasLuggage`, `missingQuestions`.
+  - Генерация динамических билетов `generateDynamicFlights` возвращает полноценные объекты рейсов (Turkish Airlines через Стамбул IST и Emirates через Дубай DXB с отелем STPC 4★).
+  - Обеспечен отказоустойчивый fallback при временных лимитах квоты Gemini API.
+- **Статус:** Реализовано в v8.39.0.
+
 
 
 
