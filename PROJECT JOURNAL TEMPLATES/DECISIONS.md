@@ -416,6 +416,14 @@
   - Выполнен коммит `refactor: replace mock flight engine with live Gemini Concierge` и push в ветку `main`.
 - **Статус:** Реализовано в v8.55.0.
 
+### ADR-089: Авторизация ключа Gemini (включая AQ.) через заголовки x-goog-api-key и Authorization
+- **Контекст:** Предотвратить ошибку 401 Unauthenticated при вызове Gemini API, настроив передачу ключа API (включая префиксы `AQ.`) в заголовках `x-goog-api-key` и `Authorization: Bearer ${apiKey}`.
+- **Решение:**
+  - В `app/api/search/route.ts` добавлены заголовки `'x-goog-api-key': apiKey` и `'Authorization': \`Bearer \${apiKey}\``.
+  - Проверена компиляция TypeScript (0 ошибок).
+  - Выполнен коммит `fix: pass AQ. api key in headers to prevent 401 unauthenticated` и push в ветку `main`.
+- **Статус:** Реализовано в v8.56.0.
+
 
 
 
