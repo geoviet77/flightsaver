@@ -4,7 +4,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 1. Извлекаем текст запроса из любого формата
+    // 1. Извлекаем текст запроса из любого входящего формата
     let userQuery = '';
     if (body.query) {
       userQuery = body.query;
@@ -30,25 +30,31 @@ export async function POST(req: Request) {
 
     const apiKey = (process.env.GEMINI_API_KEY || '').trim();
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is missing in environment variables');
+      return NextResponse.json({
+        status: 'needs_clarification',
+        message: 'Ключ GEMINI_API_KEY не найден в переменных окружения Vercel.',
+        searchState: {},
+        flights: []
+      });
     }
 
-    // 2. Системный промпт для Gemini
-    const systemPrompt = `Ты — живой и внимательный ИИ-консьерж сервиса FlightSaver.
+    // 2. Системный промпт
+    const prompt = `Ты — живой, опытный ИИ-консьерж сервиса FlightSaver.
 Текущий год: 2026. Сегодня: 25 августа 2026 года.
 
+ЗАПРОС ПОЛЬЗОВАТЕЛЯ: "${userQuery}".
+
 ТВОЯ ЗАДАЧА:
-1. Проанализируй запрос пользователя: "${userQuery}".
-2. Распознай любые города и страны мира:
-   - origin (город и 3-буквенный IATA код, например: Москва -> MOW/SVO/DME, Сочи -> AER, Минск -> MSQ, Челябинск -> CEK, Самара -> KUF).
-   - destination (город и 3-буквенный IATA код, например: Мельбурн -> MEL, Сиэтл -> SEA, Нью-Йорк -> JFK, Токио -> NRT/HND, Монако -> NCE, Люксембург -> LUX).
-   - departureDate (YYYY-MM-DD, например: 20 октября -> 2026-10-20).
-   - returnDate (если указана).
+1. Распознай любые города и страны мира:
+   - origin (город и 3-буквенный IATA код, например: Южно-Сахалинск -> UUS, Москва -> MOW, Сочи -> AER, Минск -> MSQ, Челябинск -> CEK).
+   - destination (город и 3-буквенный IATA код, например: Дананг -> DAD, Мельбурн -> MEL, Токио -> NRT, Сиэтл -> SEA, Монако -> NCE, Люксембург -> LUX).
+   - departureDate (YYYY-MM-DD, например: 20 сентября -> 2026-09-20).
+   - returnDate (если указана, иначе null).
    - tripType ('one_way' или 'round_trip').
-   - passengers (число пассажиров, по умолчанию 1).
+   - passengers (число, по умолчанию 1).
    - baggage ('cabin_only' или 'checked_baggage').
 
-3. ПРАВИЛА ОБЩЕНИЯ:
+2. ПРАВИЛА:
    - КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать технические названия переменных (tripType, baggage, route, dates, passengers) и шаблоны.
    - Если параметров недостаточно (например, названы только города и дата вылета):
      * status = "needs_clarification"
@@ -59,10 +65,10 @@ export async function POST(req: Request) {
      * message = краткое резюме найденных билетов со Split-Ticketing
      * flights = массив из 2-3 реалистичных маршрутов с ценами в рублях, авиакомпаниями и отелями STPC при стыковках от 8ч.
 
-Верни ответ строго в формате JSON:
+Верни ответ ТОЛЬКО в формате JSON:
 {
   "status": "needs_clarification" | "ready",
-  "message": "текст ответа",
+  "message": "текст ответа пользователю",
   "searchState": {
     "originCity": "город",
     "originIata": "IATA",
@@ -80,17 +86,17 @@ export async function POST(req: Request) {
       "routeTitle": "Маршрут",
       "departureDate": "YYYY-MM-DD",
       "duration": "Время в пути",
-      "airlines": ["Turkish Airlines"],
-      "price": 65000,
-      "marketPrice": 92000,
-      "savingsAmount": 27000,
+      "airlines": ["Авиакомпания 1", "Авиакомпания 2"],
+      "price": 54000,
+      "marketPrice": 78000,
+      "savingsAmount": 24000,
       "hasStpcHotel": true,
       "stpcDetails": "Бесплатный 4★ отель STPC при стыковке"
     }
   ]
 }`;
 
-    // 3. Вызов Gemini с передачей ключа AQ. в заголовках и fallback моделями
+    // 3. Вызов Gemini REST API без конфликтующих заголовков
     const candidateModels = [
       'gemini-2.0-flash',
       'gemini-3.6-flash',
@@ -103,18 +109,21 @@ export async function POST(req: Request) {
     for (const model of candidateModels) {
       try {
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        
+
         const apiRes = await fetch(geminiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey,
-            'Authorization': `Bearer ${apiKey}`
+            'x-goog-api-key': apiKey
           },
           body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+            contents: [
+              {
+                parts: [{ text: prompt }]
+              }
+            ],
             generationConfig: {
-              responseMimeType: 'application/json'
+              temperature: 0.4
             }
           })
         });
@@ -122,45 +131,35 @@ export async function POST(req: Request) {
         if (apiRes.ok) {
           geminiData = await apiRes.json();
           break;
-        } else {
-          // Попытка без query param, только заголовки
-          const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-          const headerRes = await fetch(directUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey,
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-              generationConfig: {
-                responseMimeType: 'application/json'
-              }
-            })
-          });
-          if (headerRes.ok) {
-            geminiData = await headerRes.json();
-            break;
-          }
         }
       } catch (e) {}
     }
 
     if (!geminiData) {
-      throw new Error('Gemini API error: unable to generate content');
+      throw new Error('Google API Error: unable to connect to Gemini endpoints');
     }
 
-    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    let result: any = {};
+    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // 4. Безопасное извлечение чистого JSON (защита от markdown-блоков ```json)
+    let parsedResult: any;
     try {
-      result = JSON.parse(rawText);
-    } catch (e) {
-      const match = rawText.match(/\{[\s\S]*\}/);
-      if (match) result = JSON.parse(match[0]);
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedResult = JSON.parse(jsonMatch[0]);
+      } else {
+        parsedResult = JSON.parse(rawText);
+      }
+    } catch (parseErr) {
+      parsedResult = {
+        status: 'needs_clarification',
+        message: rawText.replace(/```json|```/g, '').trim() || 'Уточните, пожалуйста, детали перелета.',
+        searchState: {},
+        flights: []
+      };
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(parsedResult);
   } catch (error: any) {
     console.error('Search Route Error:', error);
     return NextResponse.json({
@@ -168,6 +167,6 @@ export async function POST(req: Request) {
       message: 'Ошибка сервиса: ' + (error?.message || 'Повторите попытку'),
       searchState: {},
       flights: []
-    }, { status: 500 });
+    });
   }
 }

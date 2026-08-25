@@ -424,6 +424,14 @@
   - Выполнен коммит `fix: pass AQ. api key in headers to prevent 401 unauthenticated` и push в ветку `main`.
 - **Статус:** Реализовано в v8.56.0.
 
+### ADR-090: Робастное извлечение JSON и чистые заголовки для Gemini REST API
+- **Контекст:** Реализовать робастное извлечение JSON из текстового ответа Gemini (включая очистку от markdown-тегов \`\`\`json) и вызов с чистыми заголовками `x-goog-api-key`.
+- **Решение:**
+  - В `app/api/search/route.ts` добавлен regex-парсинг `/\{[\s\S]*\}/` с безопасным fallback.
+  - Настроен вызов REST API с заголовками `'Content-Type': 'application/json'` и `'x-goog-api-key': apiKey`.
+  - Верифицирована компиляция TypeScript (0 ошибок).
+- **Статус:** Реализовано в v8.57.0.
+
 
 
 
