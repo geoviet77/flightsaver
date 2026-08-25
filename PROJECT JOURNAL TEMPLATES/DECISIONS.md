@@ -2,8 +2,8 @@
 
 **Проект:** FlightSaver (Smart Split-Ticketing & Transit STPC/TWOV Flight Search Platform)  
 **Дата обновления:** 2026-08-25  
-**Версия документа:** v8.35.0  
-**Статус проекта:** В разработке / Логика живых ответов Gemini aiResponse, строгий учет пассажиров и zero-scroll пагинация.
+**Версия документа:** v8.36.0  
+**Статус проекта:** В разработке / Восстановление модульных деклараций Next.js и чистая компиляция TypeScript.
 
 ---
 
@@ -251,6 +251,15 @@
   - **Пагинация без скролла (`components/FlightResultsList.tsx`):**
     - Кнопка «Показать еще 10 билетов» использует `(e) => { e.preventDefault(); e.stopPropagation(); setVisibleCount(prev => prev + 10); }` без любых вызовов `scrollIntoView`/`scrollTo`.
 - **Статус:** Реализовано в v8.35.0.
+
+### ADR-070: Восстановление модульных деклараций Next.js и чистая компиляция TypeScript
+- **Контекст:** Ошибка VSCode / IDE `@[current_problems]`: `Cannot find module 'next/navigation' or its corresponding type declarations.` в файле `app/page.tsx`. В `node_modules/next/` отсутствовали файлы экспорта деклараций верхнего уровня (`navigation.d.ts`, `server.d.ts`, `link.d.ts`, `headers.d.ts`, `image.d.ts` и папка `types/`).
+- **Решение:**
+  - Полностью восстановлены модульные декларации и типы `next` (`navigation.d.ts`, `server.d.ts`, `link.d.ts`, `headers.d.ts`, `image.d.ts`, `next/types`), `@supabase/ssr`, `tailwindcss` в `FlightSaver/node_modules/`.
+  - Запущена проверка компилятором `tsc --noEmit` — получено 0 ошибок (код выхода 0).
+  - Изменения зафиксированы в репозитории.
+- **Статус:** Реализовано в v8.36.0.
+
 
 
 
