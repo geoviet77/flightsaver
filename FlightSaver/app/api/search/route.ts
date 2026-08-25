@@ -3,68 +3,73 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const query = body.query || body.message || (Array.isArray(body.messages) ? body.messages[body.messages.length - 1]?.content || body.messages[body.messages.length - 1]?.text : '');
-    const currentParams = body.currentParams || body.searchState || {};
+    const query = body.query || body.message || (Array.isArray(body.messages) ? body.messages[body.messages.length - 1]?.content || body.messages[body.messages.length - 1]?.text || body.messages[body.messages.length - 1]?.parts?.[0]?.text : '');
+    const currentParams = body.searchState || body.currentParams || body.accumulatedSearchParams || {};
     const history = body.history || (Array.isArray(body.messages) ? body.messages.slice(0, -1) : []);
+    const messages = Array.isArray(body.messages) ? body.messages : [];
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json({
-        error: 'GEMINI_API_KEY не найден в переменных окружения',
-        replyText: 'Внимание: GEMINI_API_KEY не найден. Пожалуйста, добавьте его в настройках проекта Vercel.',
+        status: 'needs_clarification',
+        message: 'Внимание: GEMINI_API_KEY не найден в переменных окружения. Пожалуйста, добавьте его в настройках проекта Vercel.',
+        replyText: 'Внимание: GEMINI_API_KEY не найден в переменных окружения.',
+        searchState: currentParams,
         parsed: null,
         flights: []
       }, { status: 500 });
     }
 
-    const systemPrompt = `Пользователь ищет перелет: "${query}".
-Текущая дата: 25 августа 2026 года.
-Ранее сохраненные параметры: ${JSON.stringify(currentParams || {})}
-История диалога: ${JSON.stringify(history || [])}
+    const prompt = `Ты — профессиональный, дружелюбный и внимательный ИИ-консьерж сервиса FlightSaver.
+Твоя задача — помочь пользователю спланировать и забронировать авиаперелёт с максимальной экономией (Split-Ticketing и бесплатные транзитные отели STPC при стыковках от 8 часов).
 
-ТВОЯ ЗАДАЧА:
-1. Распарси параметры: origin (город), originIata (IATA код), destination (город), destinationIata (IATA код), departureDate (YYYY-MM-DD), returnDate (YYYY-MM-DD или null), passengers (число), cabinClass (economy/business), baggage (строка).
-   - Если указан город без собственного аэропорта (например, Монако), автоматически используй ближайший международный хаб (Ницца, NCE).
-   - "Челябинск" -> CEK, "Самара" -> KUF, "Люксембург" -> LUX, "Лос-Анджелес" -> LAX.
-   - Обязательно сохраняй контекст предыдущих параметров и сообщений диалога!
-2. Подбери 2-3 реалистичных маршрута (со Split-Ticketing пересадками через Стамбул [IST] или Дубай [DXB], STPC отелями 4★ если стыковка >8ч, расчетом Net Fare и экономии).
+Текущая дата: 25 августа 2026 года.
+
+ОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ ДЛЯ ПОДБОРА РЕЙСОВ (ВСЕГО 5):
+1. tripType: в одну сторону ('one_way') или туда-обратно ('round_trip').
+2. route: город/аэропорт вылета (origin) и назначения (destination). Если в городе нет аэропорта (например, Монако), автоматически привяжи ближайший международный хаб (Ницца, NCE).
+3. dates: точная дата вылета (departureDate в формате YYYY-MM-DD), и дата возвращения (returnDate), если выбран туда-обратно.
+4. passengers: количество пассажиров (взрослые, дети).
+5. baggage: багаж (только ручная кладь или включенный багаж 23+ кг).
+
+ПРАВИЛА ДИАЛОГА:
+1. НЕ используй шаблонные фразы и канцеляризмы. Общайся живым языком, как опытный тревел-агент.
+2. Проанализируй всю историю диалога и текущее состояние searchState: ${JSON.stringify(currentParams || {})}.
+3. Если хотя бы одного из 5 обязательных параметров нет:
+   - Установи status = "needs_clarification".
+   - В поле message ответь естественно: подтверди то, что уже понял, и мягко задай 1-2 вопроса про недостающие параметры.
+   - Массив flights оставь пустым ([]).
+4. Если ВСЕ 5 параметров известны:
+   - Установи status = "ready".
+   - В поле message напиши экспертный комментарий по найденным билетам, отметь экономию и детали пересадок/отелей.
+   - В массив flights сгенерируй 2-3 реалистичных маршрута под запрошенные даты и города.
 
 Верни результат СТРОГО в JSON следующей структуры:
 {
-  "summaryText": "Твой живой экспертный ответ клиенту на русском с анализом маршрута и советом по стыковке",
-  "reply": "Твой живой ответ",
-  "parsedParams": {
+  "status": "needs_clarification",
+  "message": "Живой ответ консьержа пользователю",
+  "reply": "Живой ответ",
+  "missingParams": ["tripType", "route", "dates", "passengers", "baggage"],
+  "searchState": {
+    "tripType": "one_way",
     "origin": "Город вылета",
     "originIata": "IATA код",
     "destination": "Город прилета",
     "destinationIata": "IATA код",
     "departureDate": "YYYY-MM-DD",
-    "returnDate": "YYYY-MM-DD или null",
+    "returnDate": "YYYY-MM-DD",
     "passengers": 1,
-    "cabinClass": "economy",
-    "baggage": "hand_luggage / 23kg"
+    "baggage": "23kg",
+    "cabinClass": "economy"
   },
   "missingQuestions": [
     {
-      "id": "departureDate" | "returnDate" | "passengers" | "cabinClass" | "luggage",
+      "id": "departureDate",
       "question": "Текст вопроса",
       "options": ["Вариант 1", "Вариант 2", "Вариант 3"]
     }
   ],
-  "flights": [
-    {
-      "id": "fl_1",
-      "routeTitle": "Маршрут",
-      "departureDate": "YYYY-MM-DD",
-      "duration": "11ч 30м",
-      "airlines": ["Turkish Airlines"],
-      "price": 42000,
-      "marketPrice": 56700,
-      "savingsAmount": 14700,
-      "hasStpcHotel": false,
-      "stpcDetails": ""
-    }
-  ]
+  "flights": []
 }`;
 
     const candidateModels = [
@@ -77,6 +82,14 @@ export async function POST(req: Request) {
     let geminiData: any = null;
     let groundingMetadata: any = null;
 
+    const contentsPayload = [
+      { role: 'user', parts: [{ text: prompt }] },
+      ...messages.map((m: any) => ({
+        role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
+        parts: Array.isArray(m.parts) ? m.parts : [{ text: m.text || m.content || '' }]
+      }))
+    ];
+
     for (const modelName of candidateModels) {
       try {
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -85,7 +98,7 @@ export async function POST(req: Request) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: systemPrompt }] }],
+            contents: contentsPayload,
             tools: [{ googleSearch: {} }],
             generationConfig: { responseMimeType: 'application/json' }
           })
@@ -100,7 +113,7 @@ export async function POST(req: Request) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: systemPrompt }] }],
+              contents: contentsPayload,
               generationConfig: { responseMimeType: 'application/json' }
             })
           });
@@ -125,20 +138,42 @@ export async function POST(req: Request) {
       }
     }
 
+    // Если квота временно исчерпана или Gemini вернул null — семантическая обработка 5 параметров
     if (!parsedResult) {
       const prev = currentParams || {};
+      const hasOrigin = !!(prev.origin || prev.originName);
+      const hasDest = !!(prev.destination || prev.destinationName);
+      const hasDepDate = !!prev.departureDate;
+      const hasTripType = prev.tripType != null || prev.isOneWay != null;
+      const hasPass = !!prev.passengers;
+      const hasBag = prev.baggage != null || prev.hasLuggage != null;
+
+      const missing: string[] = [];
+      if (!hasTripType) missing.push('tripType');
+      if (!hasOrigin || !hasDest) missing.push('route');
+      if (!hasDepDate) missing.push('dates');
+      if (!hasPass) missing.push('passengers');
+      if (!hasBag) missing.push('baggage');
+
+      const isReady = missing.length === 0;
+
       const orig = prev.originName || prev.origin || 'Челябинск';
-      const origIata = prev.origin || 'CEK';
+      const origIata = prev.originIata || prev.origin || 'CEK';
       const dest = prev.destinationName || prev.destination || 'Монако (Ницца NCE)';
-      const destIata = prev.destination || 'NCE';
+      const destIata = prev.destinationIata || prev.destination || 'NCE';
       const dep = prev.departureDate || '2026-10-15';
       const pass = prev.passengers || 1;
       const cabin = prev.cabinClass || 'economy';
+      const bag = prev.baggage || (prev.hasLuggage === false ? 'hand_luggage' : '23kg');
 
       parsedResult = {
-        summaryText: `Подобрал оптимальные составные маршруты ${orig} ➔ ${dest} со Split-Ticketing и отелями STPC.`,
-        reply: `Подобрал оптимальные составные маршруты ${orig} ➔ ${dest} со Split-Ticketing и отелями STPC.`,
-        parsedParams: {
+        status: isReady ? 'ready' : 'needs_clarification',
+        message: isReady
+          ? `Подобрал отличные варианты ${orig} ➔ ${dest} со Split-Ticketing пересадками и отелями STPC.`
+          : `Маршрут ${orig} ➔ ${dest}. Уточните, пожалуйста, ${missing.join(', ')} для точного подбора билетов.`,
+        missingParams: missing,
+        searchState: {
+          tripType: prev.tripType || (prev.isOneWay ? 'one_way' : 'round_trip'),
           origin: orig,
           originIata: origIata,
           destination: dest,
@@ -147,53 +182,55 @@ export async function POST(req: Request) {
           returnDate: prev.returnDate || null,
           passengers: pass,
           cabinClass: cabin,
-          baggage: prev.hasLuggage === false ? 'hand_luggage' : '23kg'
+          baggage: bag
         },
         missingQuestions: [],
         flights: []
       };
     }
 
-    const parsedParams = parsedResult.parsedParams || {
-      origin: parsedResult.origin || currentParams?.origin || 'Челябинск',
-      originIata: parsedResult.originIata || parsedResult.origin || 'CEK',
-      destination: parsedResult.destination || currentParams?.destination || 'Монако (Ницца NCE)',
-      destinationIata: parsedResult.destinationIata || parsedResult.destination || 'NCE',
-      departureDate: parsedResult.departureDate || currentParams?.departureDate || '2026-10-15',
-      passengers: parsedResult.passengers || currentParams?.passengers || 1,
-      cabinClass: parsedResult.cabinClass || currentParams?.cabinClass || 'economy',
-      baggage: parsedResult.baggage || '23kg'
-    };
+    const state = parsedResult.searchState || {};
+    const status = parsedResult.status || (state.origin && state.destination && state.departureDate ? 'ready' : 'needs_clarification');
+    const msgText = parsedResult.message || parsedResult.summaryText || parsedResult.reply || 'Информация по вашему запросу обновлена.';
 
-    const flights = enrichFlights(parsedResult.flights, parsedParams);
-    const summary = parsedResult.summaryText || parsedResult.reply || 'Подобрал подходящие варианты перелета.';
+    const finalFlights = status === 'ready'
+      ? enrichFlights(parsedResult.flights, state)
+      : [];
 
     return NextResponse.json({
-      summaryText: summary,
-      replyText: summary,
-      text: summary,
-      reply: summary,
-      parsedParams,
+      status,
+      message: msgText,
+      replyText: msgText,
+      text: msgText,
+      missingParams: parsedResult.missingParams || [],
+      searchState: state,
+      parsedParams: state,
       parsed: {
-        ...parsedParams,
-        originCity: parsedParams.origin,
-        destinationCity: parsedParams.destination,
+        ...state,
+        originCity: state.origin,
+        destinationCity: state.destination,
         missingQuestions: parsedResult.missingQuestions || []
       },
-      flights,
+      flights: finalFlights,
       groundingMetadata
     });
   } catch (error: any) {
-    console.error('API Error:', error);
-    return NextResponse.json({ error: 'Search failed', replyText: `Ошибка: ${error.message}`, flights: [] }, { status: 500 });
+    console.error('Concierge API Error:', error);
+    return NextResponse.json({
+      status: 'needs_clarification',
+      message: 'Извините, возникла небольшая заминка при обработке запроса. Уточните, пожалуйста, куда и в какие даты вы планируете поездку?',
+      replyText: 'Извините, возникла небольшая заминка при обработке запроса. Уточните, пожалуйста, куда и в какие даты вы планируете поездку?',
+      searchState: {},
+      flights: []
+    }, { status: 500 });
   }
 }
 
 function enrichFlights(rawFlights: any[], params: any) {
   const originName = params.origin || 'Челябинск';
-  const originIata = params.originIata || 'CEK';
+  const originIata = params.originIata || params.origin || 'CEK';
   const destinationName = params.destination || 'Монако (Ницца NCE)';
-  const destinationIata = params.destinationIata || 'NCE';
+  const destinationIata = params.destinationIata || params.destination || 'NCE';
   const depDate = params.departureDate || '2026-10-15';
   const retDate = params.returnDate || undefined;
   const pass = params.passengers || 1;

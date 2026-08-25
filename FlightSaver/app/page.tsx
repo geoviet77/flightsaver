@@ -138,7 +138,7 @@ function HomeContent() {
           }));
         }
 
-        const replyContent = data.text || data.replyText || newParsed?.reply || newParsed?.replyText || newParsed?.aiResponse || newParsed?.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.';
+        const replyContent = data.message || data.text || data.replyText || newParsed?.reply || newParsed?.replyText || newParsed?.aiResponse || newParsed?.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.';
 
         const assistantMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
