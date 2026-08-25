@@ -392,6 +392,14 @@
   - Выполнен коммит `feat: universal zero-mock Gemini flight concierge` и push в ветку `main`.
 - **Статус:** Реализовано в v8.52.0.
 
+### ADR-086: Вынос systemInstruction в config и устранение 400 role sequence error
+- **Контекст:** Устранить ошибку HTTP 400 (недопустимая последовательность ролей), вынеся `systemInstruction` из массива `contents` в конфигурацию вызова (`system_instruction`), и обеспечив строгое чередование ролей `user` / `model` в `formattedContents`.
+- **Решение:**
+  - В `app/api/search/route.ts` системная инструкция перенесена в поле `system_instruction`.
+  - Массив `messages` валидируется и преобразуется строго в формат `{ role: 'model' | 'user', parts: [{ text }] }`.
+  - Проверена компиляция TypeScript (0 ошибок).
+- **Статус:** Реализовано в v8.53.0.
+
 
 
 
