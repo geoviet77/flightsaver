@@ -358,6 +358,14 @@
   - Верифицирована компиляция TypeScript (0 ошибок).
 - **Статус:** Реализовано в v8.48.0.
 
+### ADR-082: Поддержка путей src/app и синхронизация репозитория GitHub
+- **Контекст:** Предоставить зеркальные пути `src/app/api/search/route.ts` и `src/components/ConciergeChat.tsx` для обратной совместимости, зафиксировать коммит `fix: natural conversational Russian and dynamic city slot filling` и отправить изменения в ветку `main` GitHub.
+- **Решение:**
+  - Созданы зеркальные модули `src/app/api/search/route.ts` и `src/components/ConciergeChat.tsx` с прямой реэкспортировкой.
+  - Проверена компиляция TypeScript (0 ошибок).
+  - Выполнен коммит и пуш в GitHub `main`.
+- **Статус:** Реализовано в v8.49.0.
+
 
 
 
