@@ -299,6 +299,14 @@
   - Ответ сервера возвращает `replyText`, `text`, `parsed`, `flights` и `groundingMetadata`.
 - **Статус:** Реализовано в v8.41.0.
 
+### ADR-075: Накопление и сквозная передача сообщений и searchState на клиенте
+- **Контекст:** Реализовать сохранение контекста, истории диалога `messages` (`role: 'user' | 'model'`, `parts: [{ text }]`) и параметров поиска `searchState` на клиенте с их сквозной передачей на сервер `/api/search`.
+- **Решение:**
+  - В `app/page.tsx` функция `handlePerformSearch` обновлена для поддержки параметров `searchState` (`origin`, `destination`, `passengers`, `cabinClass`, `hasLuggage` / `baggage`) и формирования массива `messages`.
+  - При получении ответа `data.text` / `data.replyText` ответ ИИ ассистента (`role: 'assistant' / 'model'`) сохраняется в истории диалога.
+  - Проверена компиляция TypeScript (0 ошибок).
+- **Статус:** Реализовано в v8.42.0.
+
 
 
 

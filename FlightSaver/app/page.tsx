@@ -67,7 +67,7 @@ function HomeContent() {
     }
   }, [searchParams]);
 
-  const handlePerformSearch = async (searchQuery: string) => {
+  const handlePerformSearch = async (searchQuery: string, updatedParams?: Partial<AccumulatedSearchParams>) => {
     const cleanQuery = searchQuery.trim();
     if (!cleanQuery) return;
 
@@ -75,6 +75,12 @@ function HomeContent() {
     setQuery('');
     setIsLoading(true);
     setActiveSearchQuery(cleanQuery);
+
+    const newParams: AccumulatedSearchParams = {
+      ...accumulatedSearchParams,
+      ...(updatedParams || {}),
+    };
+    setAccumulatedSearchParams(newParams);
 
     // 2. Append user message to conversation history
     const userMsg: ChatMessage = {
@@ -86,6 +92,12 @@ function HomeContent() {
     const currentHistory = [...conversationHistory, userMsg];
     setConversationHistory(currentHistory);
 
+    // Convert messages to Gemini format: [{ role: 'user' | 'model', parts: [{ text }] }]
+    const messagesPayload = currentHistory.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.text }]
+    }));
+
     try {
       const response = await fetch('/api/search', {
         method: 'POST',
@@ -93,8 +105,10 @@ function HomeContent() {
         body: JSON.stringify({
           message: cleanQuery,
           query: cleanQuery,
-          currentParams: accumulatedSearchParams,
-          accumulatedSearchParams,
+          messages: messagesPayload,
+          searchState: newParams,
+          currentParams: newParams,
+          accumulatedSearchParams: newParams,
           previousParams: parsedParams,
           currency: currentCurrency,
           history: currentHistory.map((m) => ({ role: m.role, text: m.text })),
@@ -124,10 +138,12 @@ function HomeContent() {
           }));
         }
 
+        const replyContent = data.text || data.replyText || newParsed?.reply || newParsed?.replyText || newParsed?.aiResponse || newParsed?.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.';
+
         const assistantMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
           role: 'assistant',
-          text: data.replyText || newParsed?.reply || newParsed?.replyText || newParsed?.aiResponse || newParsed?.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
+          text: replyContent,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           parsedParams: newParsed,
           flightsCount: newFlights.length,
