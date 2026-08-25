@@ -307,6 +307,14 @@
   - Проверена компиляция TypeScript (0 ошибок).
 - **Статус:** Реализовано в v8.42.0.
 
+### ADR-076: Передача распарсенных параметров и структурированная генерация вариантов перелета в Gemini API
+- **Контекст:** Реализовать структурированный ответ Gemini со схемой `summaryText`, `parsedParams` (origin, originIata, destination, destinationIata, departureDate, returnDate, passengers, cabinClass, baggage) и массивом `flights` (routeTitle, duration, airlines, price, marketPrice, savingsAmount, hasStpcHotel, stpcDetails) строго под запрошенные города.
+- **Решение:**
+  - В `app/api/search/route.ts` обновлена системная инструкция с правилами извлечения параметров и подбора составных маршрутов со Split-Ticketing пересадками (Стамбул IST, Дубай DXB) и отелями STPC 4★.
+  - Функция `enrichFlights` генерирует полноценные объекты рейсов, поддерживая как переданные от Gemini данные, так и fallback-варианты при временных лимитах квот.
+  - Верифицирована компиляция TypeScript (0 ошибок).
+- **Статус:** Реализовано в v8.43.0.
+
 
 
 
