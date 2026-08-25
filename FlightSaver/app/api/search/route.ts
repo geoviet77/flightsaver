@@ -142,28 +142,25 @@ export async function POST(req: Request) {
 
     if (!parsedResult) {
       const prev = searchState || {};
-      const orig = prev.origin || 'Минск';
-      const origIata = prev.originIata || 'MSQ';
-      const dest = prev.destination || 'Сиэтл';
-      const destIata = prev.destinationIata || 'SEA';
-      const dep = prev.departureDate || '2026-09-11';
       const isReady = !!(prev.origin && prev.destination && prev.departureDate && prev.passengers && prev.baggage && prev.tripType);
 
       parsedResult = {
         status: isReady ? 'ready' : 'needs_clarification',
         message: isReady
-          ? `Подобрал отличные маршруты ${orig} → ${dest} на ${dep} с выгодными стыковками и отелями STPC.`
-          : `Принято: ${orig} → ${dest} на ${dep} 2026 года. Уточните, пожалуйста: вам нужен билет в одну сторону или туда-обратно, сколько человек летит и потребуется ли багаж?`,
+          ? `Подобрал отличные маршруты ${prev.origin} → ${prev.destination} на ${prev.departureDate} с выгодными стыковками и отелями STPC.`
+          : (prev.origin && prev.destination
+              ? `Принято: ${prev.origin} → ${prev.destination}${prev.departureDate ? ` на ${prev.departureDate}` : ''}. Уточните, пожалуйста: вам нужен билет в одну сторону или туда-обратно, сколько человек летит и потребуется ли багаж?`
+              : 'Уточните, пожалуйста, город вылета, назначения и желаемую дату поездки.'),
         searchState: {
-          origin: orig,
-          originIata: origIata,
-          destination: dest,
-          destinationIata: destIata,
-          departureDate: dep,
+          origin: prev.origin || null,
+          originIata: prev.originIata || null,
+          destination: prev.destination || null,
+          destinationIata: prev.destinationIata || null,
+          departureDate: prev.departureDate || null,
           returnDate: prev.returnDate || null,
-          tripType: prev.tripType || 'one_way',
-          passengers: prev.passengers || 1,
-          baggage: prev.baggage || '23kg'
+          tripType: prev.tripType || null,
+          passengers: prev.passengers || null,
+          baggage: prev.baggage || null
         },
         flights: []
       };
