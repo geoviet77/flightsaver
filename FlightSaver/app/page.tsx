@@ -127,16 +127,16 @@ function HomeContent() {
         const assistantMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
           role: 'assistant',
-          text: data.replyText || newParsed.replyText || newParsed.aiResponse || newParsed.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
+          text: data.replyText || newParsed?.reply || newParsed?.replyText || newParsed?.aiResponse || newParsed?.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           parsedParams: newParsed,
           flightsCount: newFlights.length,
-          quickReplies: data.quickReplies || newParsed.quickReplies || [],
-          missingQuestions: newParsed.missingQuestions || data.missingQuestions || [],
+          quickReplies: data.quickReplies || newParsed?.quickReplies || [],
+          missingQuestions: newParsed?.missingQuestions || data.missingQuestions || [],
         };
         setConversationHistory([...currentHistory, assistantMsg]);
 
-        if (newParsed.originCity && newParsed.destinationCity) {
+        if (newParsed?.originCity && newParsed?.destinationCity) {
           addStoredSearch(cleanQuery, 'text', `${newParsed.originCity} ➔ ${newParsed.destinationCity}`);
         }
       } else {
