@@ -21,6 +21,9 @@
         "./*"
       ]
     },
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
     "incremental": true,
     "plugins": [
       {
