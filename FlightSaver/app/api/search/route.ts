@@ -3,67 +3,70 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const query = body.query || body.message || (Array.isArray(body.messages) ? body.messages[body.messages.length - 1]?.content || body.messages[body.messages.length - 1]?.text || body.messages[body.messages.length - 1]?.parts?.[0]?.text : '');
-    const searchState = body.searchState || body.currentParams || body.accumulatedSearchParams || {};
     const messages = Array.isArray(body.messages) ? body.messages : [];
+    const query = body.query || body.message || (messages.length > 0 ? messages[messages.length - 1]?.content || messages[messages.length - 1]?.text || messages[messages.length - 1]?.parts?.[0]?.text : '');
+    const currentParams = body.searchState || body.currentParams || body.accumulatedSearchParams || {};
     const apiKey = process.env.GEMINI_API_KEY || '';
 
     if (!apiKey) {
       return NextResponse.json({
         status: 'needs_clarification',
-        message: 'Внимание: GEMINI_API_KEY не найден в переменных окружения. Пожалуйста, добавьте его в настройках проекта Vercel.',
-        replyText: 'Внимание: GEMINI_API_KEY не найден в переменных окружения.',
-        searchState: searchState,
+        message: 'Куда и в какие даты вы планируете отправиться?',
+        replyText: 'Куда и в какие даты вы планируете отправиться?',
+        searchState: {},
         parsed: null,
         flights: []
       }, { status: 500 });
     }
 
-    const systemPrompt = `Ты — живой, вежливый и опытный русскоязычный ИИ-консьерж сервиса FlightSaver.
-Текущий год: 2026. Сегодня: 25 августа 2026 года.
+    const systemInstruction = `Ты — умный и живой ИИ-консьерж сервиса FlightSaver.
+Твоя цель — помочь любому человеку найти и составить выгодный авиамаршрут.
+Текущий год: 2026. Сегодняшняя дата: 25 августа 2026 года.
 
-ТВОЯ ЗАДАЧА:
-1. Внимательно прочитай последнее сообщение пользователя и определи параметры перелета:
-   - Откуда: город и код IATA (например, Минск -> MSQ, Сургут -> SGC, Челябинск -> CEK, Самара -> KUF, Екатеринбург -> SVX, Москва -> MOW).
-   - Куда: город и код IATA (например, Сиэтл -> SEA, Манчестер -> MAN, Монако -> NCE, Люксембург -> LUX, Лос-Анджелес -> LAX, Рим -> FCO, Конго -> BZV/FIH).
-   - Дата вылета: точная дата (например, 11 сентября -> 2026-09-11).
-   - Дата возвращения: если указана (YYYY-MM-DD).
-   - Пассажиры: количество человек.
-   - Багаж: только ручная кладь или багаж 23 кг.
-   - Тип: в одну сторону или туда-обратно.
+ПРАВИЛА ИЗВЛЕЧЕНИЯ ДАННЫХ:
+Анализируй весь контекст диалога и извлекай 5 обязательных параметров перелета:
+1. origin & destination: любые города/страны мира. Всегда определяй их 3-буквенные IATA-коды. Если у города нет аэропорта, выбери ближайший крупный международный аэропорт (например, Монако -> NCE).
+2. departureDate & returnDate: переводи любые фразы ("через месяц", "на майские", "15 октября", "11 сентября") в формат YYYY-MM-DD.
+3. tripType: 'one_way' (в одну сторону) или 'round_trip' (туда и обратно).
+4. passengers: число пассажиров (по умолчанию 1).
+5. baggage: 'cabin_only' (только ручная кладь) или 'checked_baggage' (с багажом 23 кг).
 
-2. СТРОГИЕ ПРАВИЛА ОБЩЕНИЯ:
-   - КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать в сообщении технические слова: "tripType", "route", "dates", "passengers", "baggage".
-   - Общайся исключительно на естественном русском языке.
-   - Если пользователь назвал только города и дату (например, "Минск сиэтл 11 сентября"), ответь:
-     "Принято: Минск → Сиэтл на 11 сентября 2026 года. Уточните, пожалуйста: вам нужен билет в одну сторону или туда-обратно, сколько человек летит и потребуется ли багаж?"
-   - Если все параметры известны — сформируй подборку билетов в массив flights.
+ЛОГИКА ПОВЕДЕНИЯ:
+- Если данных недостаточно для точного бронирования:
+  Установи status = "needs_clarification".
+  В поле message напиши дружелюбный, живой ответ на чистом русском языке: подтверди, что уже понял, и спроси недостающие детали.
+  КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать шаблоны и технические названия переменных (никаких "tripType", "route", "dates", "passengers", "baggage").
+  Массив flights оставь пустым ([]).
 
-3. ТЕКУЩИЙ КОНТЕКСТ ДИАЛОГА:
-   - Накопленные параметры searchState: ${JSON.stringify(searchState || {})}
-   - Новое сообщение пользователя: "${query}"
+- Если ВСЕ 5 параметров понятны:
+  Установи status = "ready".
+  В поле message дай короткое пояснение подобранных вариантов.
+  В массив flights сгенерируй 2-3 реалистичных маршрута (укажи актуальные авиакомпании, длительность, цены в рублях, экономию Split-Ticketing до 40% и отметь бесплатный отель STPC при стыковках от 8 часов).
 
-Верни результат СТРОГО в JSON следующей структуры:
+Контекст searchState: ${JSON.stringify(currentParams || {})}
+Сообщение пользователя: "${query}"
+
+Верни СТРОГО валидный JSON следующей структуры:
 {
   "status": "needs_clarification" | "ready",
-  "message": "Человеческий ответ консьержа на русском языке без технических переменных",
+  "message": "Дружелюбный человеческий ответ на русском языке",
   "searchState": {
-    "origin": "Город вылета или null",
-    "originIata": "IATA код или null",
-    "destination": "Город прилета или null",
-    "destinationIata": "IATA код или null",
+    "originCity": "Город вылета или null",
+    "originIata": "IATA код вылета или null",
+    "destinationCity": "Город прилета или null",
+    "destinationIata": "IATA код прилета или null",
     "departureDate": "YYYY-MM-DD или null",
     "returnDate": "YYYY-MM-DD или null",
     "tripType": "one_way" | "round_trip" | null,
     "passengers": number | null,
-    "baggage": "hand_luggage" | "23kg" | null
+    "baggage": "cabin_only" | "checked_baggage" | null
   },
   "flights": [
     {
       "id": "fl_1",
       "routeTitle": "Маршрут",
       "departureDate": "YYYY-MM-DD",
-      "duration": "11ч 30м",
+      "duration": "13ч 45м",
       "airlines": ["Turkish Airlines"],
       "price": 42000,
       "marketPrice": 56700,
@@ -85,7 +88,7 @@ export async function POST(req: Request) {
     let groundingMetadata: any = null;
 
     const contentsPayload = [
-      { role: 'user', parts: [{ text: systemPrompt }] },
+      { role: 'user', parts: [{ text: systemInstruction }] },
       ...messages.map((m: any) => ({
         role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
         parts: Array.isArray(m.parts) ? m.parts : [{ text: m.text || m.content || '' }]
@@ -127,36 +130,39 @@ export async function POST(req: Request) {
       } catch (e) {}
     }
 
-    let parsedResult: any = null;
+    let parsedData: any = null;
     if (geminiData) {
       const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
       if (rawText) {
         try {
-          parsedResult = JSON.parse(rawText);
+          parsedData = JSON.parse(rawText);
         } catch (e) {
           const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) parsedResult = JSON.parse(jsonMatch[0]);
+          if (jsonMatch) parsedData = JSON.parse(jsonMatch[0]);
         }
       }
     }
 
-    if (!parsedResult) {
-      const prev = searchState || {};
-      const isReady = !!(prev.origin && prev.destination && prev.departureDate && prev.passengers && prev.baggage && prev.tripType);
+    if (!parsedData) {
+      const prev = currentParams || {};
+      const orig = prev.originCity || prev.origin;
+      const dest = prev.destinationCity || prev.destination;
+      const dep = prev.departureDate;
+      const isReady = !!(orig && dest && dep && prev.passengers && prev.baggage && prev.tripType);
 
-      parsedResult = {
+      parsedData = {
         status: isReady ? 'ready' : 'needs_clarification',
         message: isReady
-          ? `Подобрал отличные маршруты ${prev.origin} → ${prev.destination} на ${prev.departureDate} с выгодными стыковками и отелями STPC.`
-          : (prev.origin && prev.destination
-              ? `Принято: ${prev.origin} → ${prev.destination}${prev.departureDate ? ` на ${prev.departureDate}` : ''}. Уточните, пожалуйста: вам нужен билет в одну сторону или туда-обратно, сколько человек летит и потребуется ли багаж?`
-              : 'Уточните, пожалуйста, город вылета, назначения и желаемую дату поездки.'),
+          ? `Подобрал отличные маршруты ${orig} → ${dest} на ${dep} с выгодными стыковками и отелями STPC.`
+          : (orig && dest
+              ? `Принято: ${orig} → ${dest}${dep ? ` на ${dep}` : ''}. Уточните, пожалуйста: вам нужен билет в одну сторону или туда-обратно, сколько человек летит и потребуется ли багаж?`
+              : 'Куда и в какие даты вы планируете отправиться?'),
         searchState: {
-          origin: prev.origin || null,
-          originIata: prev.originIata || null,
-          destination: prev.destination || null,
-          destinationIata: prev.destinationIata || null,
-          departureDate: prev.departureDate || null,
+          originCity: orig || null,
+          originIata: prev.originIata || prev.origin || null,
+          destinationCity: dest || null,
+          destinationIata: prev.destinationIata || prev.destination || null,
+          departureDate: dep || null,
           returnDate: prev.returnDate || null,
           tripType: prev.tripType || null,
           passengers: prev.passengers || null,
@@ -166,12 +172,15 @@ export async function POST(req: Request) {
       };
     }
 
-    const state = parsedResult.searchState || {};
-    const status = parsedResult.status || (state.origin && state.destination && state.departureDate && state.passengers && state.baggage && state.tripType ? 'ready' : 'needs_clarification');
-    const msgText = parsedResult.message || parsedResult.reply || 'Информация по маршруту обновлена.';
+    const state = parsedData.searchState || {};
+    const origCity = state.originCity || state.origin;
+    const destCity = state.destinationCity || state.destination;
+    const isAllFive = !!(origCity && destCity && state.departureDate && state.passengers && state.baggage && state.tripType);
+    const status = parsedData.status || (isAllFive ? 'ready' : 'needs_clarification');
+    const msgText = parsedData.message || parsedData.reply || 'Информация обновлена.';
 
     const finalFlights = status === 'ready'
-      ? enrichFlights(parsedResult.flights, state)
+      ? enrichFlights(parsedData.flights, state)
       : [];
 
     return NextResponse.json({
@@ -180,22 +189,30 @@ export async function POST(req: Request) {
       replyText: msgText,
       text: msgText,
       searchState: state,
-      parsedParams: state,
+      parsedParams: {
+        ...state,
+        origin: origCity,
+        destination: destCity,
+      },
       parsed: {
         ...state,
-        originCity: state.origin,
-        destinationCity: state.destination,
+        origin: origCity,
+        originCity: origCity,
+        originIata: state.originIata,
+        destination: destCity,
+        destinationCity: destCity,
+        destinationIata: state.destinationIata,
         missingQuestions: []
       },
       flights: finalFlights,
       groundingMetadata
     });
   } catch (error: any) {
-    console.error('API Error:', error);
+    console.error('Gemini Error:', error);
     return NextResponse.json({
       status: 'needs_clarification',
-      message: 'Уточните, пожалуйста, город вылета, назначения и желаемую дату поездки.',
-      replyText: 'Уточните, пожалуйста, город вылета, назначения и желаемую дату поездки.',
+      message: 'Куда и в какие даты вы планируете отправиться?',
+      replyText: 'Куда и в какие даты вы планируете отправиться?',
       searchState: {},
       flights: []
     }, { status: 500 });
@@ -203,15 +220,15 @@ export async function POST(req: Request) {
 }
 
 function enrichFlights(rawFlights: any[], params: any) {
-  const originName = params.origin || 'Минск';
-  const originIata = params.originIata || params.origin || 'MSQ';
-  const destinationName = params.destination || 'Сиэтл';
-  const destinationIata = params.destinationIata || params.destination || 'SEA';
+  const originName = params.originCity || params.origin || 'Минск';
+  const originIata = params.originIata || 'MSQ';
+  const destinationName = params.destinationCity || params.destination || 'Сиэтл';
+  const destinationIata = params.destinationIata || 'SEA';
   const depDate = params.departureDate || '2026-09-11';
   const retDate = params.returnDate || undefined;
   const pass = params.passengers || 1;
   const cabin = params.cabinClass || 'economy';
-  const hasLuggage = params.baggage !== 'hand_luggage';
+  const hasLuggage = params.baggage !== 'cabin_only';
 
   if (Array.isArray(rawFlights) && rawFlights.length > 0) {
     return rawFlights.map((rf, idx) => {
