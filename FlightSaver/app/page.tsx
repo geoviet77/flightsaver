@@ -108,14 +108,26 @@ function HomeContent() {
         setParsedParams(newParsed);
         setFlights(newFlights);
 
-        if (data.accumulatedSearchParams) {
-          setAccumulatedSearchParams(data.accumulatedSearchParams);
+        if (data.accumulatedSearchParams || newParsed) {
+          const incoming = data.accumulatedSearchParams || newParsed;
+          setAccumulatedSearchParams((prev) => ({
+            origin: incoming.origin || prev.origin,
+            originName: incoming.originName || prev.originName,
+            destination: incoming.destination || prev.destination,
+            destinationName: incoming.destinationName || prev.destinationName,
+            departureDate: incoming.departureDate || prev.departureDate,
+            returnDate: incoming.returnDate || prev.returnDate,
+            isOneWay: incoming.isOneWay != null ? incoming.isOneWay : prev.isOneWay,
+            passengers: incoming.passengers != null ? incoming.passengers : prev.passengers,
+            cabinClass: incoming.cabinClass || prev.cabinClass,
+            hasLuggage: incoming.hasLuggage != null ? incoming.hasLuggage : prev.hasLuggage,
+          }));
         }
 
         const assistantMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
           role: 'assistant',
-          text: newParsed.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
+          text: newParsed.aiResponse || newParsed.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           parsedParams: newParsed,
           flightsCount: newFlights.length,

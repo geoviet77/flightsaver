@@ -228,12 +228,17 @@ export function FlightResultsList({
                     </div>
 
                     <div className="space-y-3 pt-0.5">
-                      {(!params.missingFields || params.missingFields.includes('tripType')) && params.quickReplies?.some(q => q.category === 'tripType') && (
+                      {params?.missingFields?.includes('tripType') && (
                         <div className="space-y-1.5 animate-fadeIn">
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Нужен ли обратный билет?</span>
                           <div className="flex flex-wrap gap-1.5">
-                            {params.quickReplies.filter(q => q.category === 'tripType').map(q => (
-                              <button key={q.id} type="button" onClick={() => handleReplyClick(q)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-blue-200/80 bg-white text-blue-900 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                            {(params.quickReplies?.filter(q => q.category === 'tripType').length ? params.quickReplies.filter(q => q.category === 'tripType') : [
+                              { id: 'oneway', label: '🛫 В одну сторону', queryText: 'в одну сторону', category: 'tripType' },
+                              { id: 'ret-7d', label: '🔄 Обратно через 7 дней', queryText: 'обратно через 7 дней', category: 'tripType' },
+                              { id: 'ret-14d', label: '🔄 Обратно через 14 дней', queryText: 'обратно через 14 дней', category: 'tripType' },
+                              { id: 'custom-dates', label: '✏️ Свой вариант', queryText: 'свой вариант дат', category: 'tripType', isCustomInputPrompt: true, promptText: 'Укажите дату возврата (например: 25 октября)' }
+                            ]).map(q => (
+                              <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-blue-200/80 bg-white text-blue-900 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                 <span>{q.label}</span>
                               </button>
                             ))}
@@ -241,12 +246,17 @@ export function FlightResultsList({
                         </div>
                       )}
 
-                      {(!params.missingFields || params.missingFields.includes('passengers')) && params.quickReplies?.some(q => q.category === 'passengers') && (
+                      {params?.missingFields?.includes('passengers') && (
                         <div className="space-y-1.5 animate-fadeIn">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Количество пассажиров:</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Сколько пассажиров летит?</span>
                           <div className="flex flex-wrap gap-1.5">
-                            {params.quickReplies.filter(q => q.category === 'passengers').map(q => (
-                              <button key={q.id} type="button" onClick={() => handleReplyClick(q)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                            {(params.quickReplies?.filter(q => q.category === 'passengers').length ? params.quickReplies.filter(q => q.category === 'passengers') : [
+                              { id: 'pass-1', label: '👤 1 пассажир', queryText: '1 пассажир', category: 'passengers' },
+                              { id: 'pass-2', label: '👥 2 пассажира', queryText: 'на двоих', category: 'passengers' },
+                              { id: 'pass-fam', label: '👨‍👩‍👧 Семья (2+1)', queryText: '2 взрослых и 1 ребенок', category: 'passengers' },
+                              { id: 'custom-pass', label: '✏️ Свой вариант', queryText: 'свой вариант пассажиров', category: 'passengers', isCustomInputPrompt: true, promptText: 'Укажите число пассажиров (например: 3 пассажира)' }
+                            ]).map(q => (
+                              <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                 <span>{q.label}</span>
                               </button>
                             ))}
@@ -254,12 +264,17 @@ export function FlightResultsList({
                         </div>
                       )}
 
-                      {(!params.missingFields || params.missingFields.includes('cabinClass')) && params.quickReplies?.some(q => q.category === 'cabinClass') && (
+                      {params?.missingFields?.includes('cabinClass') && (
                         <div className="space-y-1.5 animate-fadeIn">
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Класс обслуживания:</span>
                           <div className="flex flex-wrap gap-1.5">
-                            {params.quickReplies.filter(q => q.category === 'cabinClass').map(q => (
-                              <button key={q.id} type="button" onClick={() => handleReplyClick(q)} className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                            {(params.quickReplies?.filter(q => q.category === 'cabinClass').length ? params.quickReplies.filter(q => q.category === 'cabinClass') : [
+                              { id: 'cab-eco', label: '🎫 Эконом', queryText: 'эконом-класс', category: 'cabinClass' },
+                              { id: 'cab-prem', label: '✨ Комфорт', queryText: 'премиум-эконом', category: 'cabinClass' },
+                              { id: 'cab-biz', label: '💎 Бизнес', queryText: 'бизнес-класс', category: 'cabinClass' },
+                              { id: 'cab-first', label: '👑 Первый класс', queryText: 'первый класс', category: 'cabinClass' }
+                            ]).map(q => (
+                              <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                 <span>{q.label}</span>
                               </button>
                             ))}
@@ -267,12 +282,16 @@ export function FlightResultsList({
                         </div>
                       )}
 
-                      {(!params.missingFields || params.missingFields.includes('luggage')) && params.quickReplies?.some(q => q.category === 'luggage') && (
+                      {params?.missingFields?.includes('luggage') && (
                         <div className="space-y-1.5 animate-fadeIn">
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Багаж:</span>
                           <div className="flex flex-wrap gap-1.5">
-                            {params.quickReplies.filter(q => q.category === 'luggage').map(q => (
-                              <button key={q.id} type="button" onClick={() => handleReplyClick(q)} className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                            {(params.quickReplies?.filter(q => q.category === 'luggage').length ? params.quickReplies.filter(q => q.category === 'luggage') : [
+                              { id: 'lug-hand', label: '🎒 Только ручная кладь', queryText: 'только ручная кладь', category: 'luggage' },
+                              { id: 'lug-23kg', label: '🧳 С багажом 23 кг', queryText: 'с багажом 23 кг', category: 'luggage' },
+                              { id: 'lug-2bags', label: '🧳🧳 2 места багажа', queryText: '2 места багажа', category: 'luggage' }
+                            ]).map(q => (
+                              <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                 <span>{q.label}</span>
                               </button>
                             ))}
@@ -476,7 +495,11 @@ export function FlightResultsList({
         <div className="flex flex-col items-center justify-center pt-2 pb-4 space-y-2 animate-fadeIn">
           <button
             type="button"
-            onClick={() => setVisibleCount((prev) => prev + 10)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setVisibleCount((prev) => prev + 10);
+            }}
             className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
           >
             <span>Показать еще 10 билетов</span>

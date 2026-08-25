@@ -13,22 +13,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'GEMINI_API_KEY не задан в .env.local' }, { status: 500 });
     }
 
-    const systemPrompt = `Ты — ИИ Консьерж авиабилетов FlightSaver. Текущий год: 2026.
-Строго извлеки параметры перелета из текста пользователя:
+    const systemPrompt = `Ты — ИИ Консьерж FlightSaver. Пиши развернутый живой ответ своими словами в поле aiResponse (объясни особенности маршрута, стыковки и задай оставшиеся вопросы). Текущий год: 2026.
+
 Текущее состояние: ${JSON.stringify(currentParams || {})}
 История диалога: ${JSON.stringify(history || [])}
 Новое сообщение: "${message}"
 
-ПРАВИЛА:
+Правила извлечения параметров:
 1. origin/destination: Определи реальные города и их IATA-коды (например: Екатеринбург -> SVX, Парма -> PMF, Рим -> FCO/ROM, Мюнхен -> MUC, Конго -> BZV/FIH, Санкт-Петербург/Питер -> LED, Хабаровск -> KHV). Если город не указан — null. НИКОГДА не подставляй Москву или Бангкок, если пользователь их не вводил!
 2. departureDate/returnDate: Формат YYYY-MM-DD. Если указан день и месяц (11.09, 11 сентября), ставь 2026-09-11.
-3. passengers: число пассажиров или null.
-4. cabinClass: "economy" | "premium_economy" | "business" | "first" | null.
-5. hasLuggage: true | false | null.
-6. isOneWay: true | false | null.
-7. missingFields: список не заполненных полей из ["origin", "destination", "departureDate", "tripType", "passengers", "cabinClass", "luggage"]. Если поле уже известно — НЕ ВКЛЮЧАЙ его!
+3. passengers: Если пассажиры не названы пользователем явно -> passengers: null (НЕ подставляй 1 по умолчанию!). Если названы -> укажи точное число.
+4. cabinClass: "economy" | "premium_economy" | "business" | "first" | null. Если пользователь назвал класс (эконом, бизнес...) -> запиши в cabinClass и НИКОГДА больше не добавляй 'cabinClass' в missingFields.
+5. hasLuggage: true | false | null. Если назван багаж -> запиши в hasLuggage и НИКОГДА больше не добавляй 'luggage' в missingFields.
+6. isOneWay: true | false | null. Если указана обратная дата -> isOneWay: false, и вопрос про обратный билет ЗАКРЫТ (не добавляй 'tripType' в missingFields).
+7. missingFields: список не заполненных полей из ["origin", "destination", "departureDate", "tripType", "passengers", "cabinClass", "luggage"].
+   - Если passengers === null -> ОБЯЗАТЕЛЬНО добавь 'passengers' в missingFields.
+   - Если поле уже известно из текущего состояния или нового сообщения -> НЕ ВКЛЮЧАЙ его!
 8. noFlightsFound: true, если маршрут экзотический/нереальный без пересадок (например, прямых в Парму нет).
-9. aiMessage: Текст ответа консьержа на русском.
+9. aiResponse: Развернутый живой текст ответа консьержа на русском языке (объясни особенности маршрута, стыковки и задай оставшиеся вопросы).
 
 Верни строго JSON:
 {
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
   "hasLuggage": boolean | null,
   "missingFields": string[],
   "noFlightsFound": boolean,
-  "aiMessage": string
+  "aiResponse": string
 }`;
 
     const candidateModels = [
@@ -98,6 +100,18 @@ export async function POST(request: NextRequest) {
         passengersCount: currentParams?.passengers || currentParams?.passengersCount
       };
       const fallback = parseTravelQuery(message, normalizedPrev);
+      const isPassExplicit = currentParams?.passengers != null || /пассажир|человек|взросл/i.test(message);
+      const passVal = currentParams?.passengers != null ? currentParams.passengers : (isPassExplicit ? fallback.passengersCount : null);
+      
+      const missingArr: string[] = [];
+      if (!fallback.originIata && !currentParams?.origin) missingArr.push('origin');
+      if (!fallback.destinationIata && !currentParams?.destination) missingArr.push('destination');
+      if (!fallback.departureDate && !currentParams?.departureDate) missingArr.push('departureDate');
+      if (!fallback.returnDate && !currentParams?.returnDate && currentParams?.isOneWay == null && fallback.isOneWay == null) missingArr.push('tripType');
+      if (passVal == null) missingArr.push('passengers');
+      if (!currentParams?.cabinClass && !fallback.cabinClass) missingArr.push('cabinClass');
+      if (currentParams?.hasLuggage == null && fallback.hasLuggage == null) missingArr.push('luggage');
+
       parsed = {
         origin: fallback.originIata || currentParams?.origin || null,
         originName: fallback.originCity || currentParams?.originName || null,
@@ -106,12 +120,12 @@ export async function POST(request: NextRequest) {
         departureDate: fallback.departureDate || currentParams?.departureDate || null,
         returnDate: fallback.returnDate || currentParams?.returnDate || null,
         isOneWay: (fallback.returnDate || currentParams?.returnDate) ? false : (fallback.isOneWay ?? (currentParams?.isOneWay ?? null)),
-        passengers: fallback.passengersCount ?? (currentParams?.passengers ?? null),
+        passengers: passVal,
         cabinClass: (fallback.cabinClass && typeof fallback.cabinClass === 'string') ? fallback.cabinClass.toLowerCase() : ((currentParams?.cabinClass && typeof currentParams.cabinClass === 'string') ? currentParams.cabinClass.toLowerCase() : null),
         hasLuggage: fallback.hasLuggage ?? (currentParams?.hasLuggage ?? null),
-        missingFields: fallback.missingFields || [],
+        missingFields: missingArr,
         noFlightsFound: false,
-        aiMessage: fallback.aiSummary || (fallback.originCity && fallback.destinationCity ? `Подобрал маршруты ${fallback.originCity} ➔ ${fallback.destinationCity}.` : (fallback.destinationCity ? `Город назначения: ${fallback.destinationCity}. Пожалуйста, укажите город вылета.` : 'Пожалуйста, укажите город вылета и прилета.'))
+        aiResponse: fallback.aiSummary || (fallback.originCity && fallback.destinationCity ? `Подобрал маршруты ${fallback.originCity} ➔ ${fallback.destinationCity}.` : (fallback.destinationCity ? `Город назначения: ${fallback.destinationCity}. Пожалуйста, укажите город вылета.` : 'Пожалуйста, укажите город вылета и прилета.'))
       };
     }
 
@@ -120,13 +134,14 @@ export async function POST(request: NextRequest) {
     parsed.destinationCity = parsed.destinationName || parsed.destination;
     parsed.originIata = parsed.origin;
     parsed.destinationIata = parsed.destination;
+    parsed.aiMessage = parsed.aiResponse || parsed.aiMessage || '';
 
     // Если нет городов — билетов нет
     if (!parsed.origin || !parsed.destination) {
       return NextResponse.json({
         parsed,
         flights: [],
-        aiSummary: parsed.aiMessage || 'Пожалуйста, укажите город вылета и прилета.'
+        aiSummary: parsed.aiResponse || parsed.aiMessage || 'Пожалуйста, укажите город вылета и прилета.'
       });
     }
 
@@ -325,7 +340,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       parsed,
       flights,
-      aiSummary: parsed.aiMessage,
+      aiSummary: parsed.aiResponse || parsed.aiMessage,
       accumulatedSearchParams: {
         origin: parsed.origin,
         originName: parsed.originName,
