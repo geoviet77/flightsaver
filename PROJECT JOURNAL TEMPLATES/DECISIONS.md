@@ -432,6 +432,16 @@
   - Верифицирована компиляция TypeScript (0 ошибок).
 - **Статус:** Реализовано в v8.57.0.
 
+### ADR-091: Интеграция AI Travel сервиса и Gemini 2.5 Flash со Structured JSON
+- **Контекст:** Развернуть модуль AI Travel Assistant (`POST /api/v1/ai/parse-search`) для извлечения сущностей (`origin`, `destination`, `dates`, `duration_days`, `prefer_stpc_hotel`, `max_budget`), настроить модель `gemini-2.5-flash` как приоритетную и устранить хардкод адресов через `process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'`.
+- **Решение:**
+  - Создан эндпоинт `app/api/v1/ai/parse-search/route.ts` и `src/app/api/v1/ai/parse-search/route.ts` с поддержкой Structured JSON и надежным fallback.
+  - Созданы модули `lib/api.ts` и `src/lib/api.ts` для клиентских запросов с динамическим `API_BASE_URL`.
+  - Создан FastAPI сервис `main.py` и `ai_travel_service.py` с `requirements.txt` и `test_main.py`.
+  - Модель `gemini-2.5-flash` добавлена первой в список кандидатов.
+  - Проверена компиляция TypeScript (0 ошибок).
+- **Статус:** Реализовано в v8.58.0.
+
 
 
 
