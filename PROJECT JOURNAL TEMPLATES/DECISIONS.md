@@ -291,6 +291,14 @@
   - Верифицирована компиляция TypeScript (0 ошибок).
 - **Статус:** Реализовано в v8.40.0.
 
+### ADR-074: Подключение Google Search Grounding и Structured Output к Gemini API
+- **Контекст:** Интегрировать инструмент `tools: [{ googleSearch: {} }]` в серверный роут `app/api/search/route.ts` для поиска информации в Google в реальном времени, разрешения городов без собственных аэропортов (Монако -> Ницца NCE) и возврата `groundingMetadata`.
+- **Решение:**
+  - В роуте `app/api/search/route.ts` подключена поддержка `tools: [{ googleSearch: {} }]` и `generationConfig: { responseMimeType: 'application/json' }`.
+  - Системная инструкция инструктирует ИИ-консьержа использовать ближайшие международные хабы при отсутствии аэропорта в городе и подбирать составные маршруты Split-Ticketing с отелями STPC.
+  - Ответ сервера возвращает `replyText`, `text`, `parsed`, `flights` и `groundingMetadata`.
+- **Статус:** Реализовано в v8.41.0.
+
 
 
 

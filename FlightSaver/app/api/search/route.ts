@@ -3,46 +3,51 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, currentParams, history } = body;
+    const message = body.message || body.query || (Array.isArray(body.messages) ? body.messages[body.messages.length - 1]?.content || body.messages[body.messages.length - 1]?.text : '');
+    const currentParams = body.currentParams || body.searchState || {};
+    const history = body.history || (Array.isArray(body.messages) ? body.messages.slice(0, -1) : []);
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json({
-        replyText: 'Внимание: GEMINI_API_KEY не найден в переменных окружения Vercel. Пожалуйста, добавьте его в настройках проекта Vercel.',
+        error: 'GEMINI_API_KEY не найден в переменных окружения',
+        replyText: 'Внимание: GEMINI_API_KEY не найден. Пожалуйста, добавьте его в настройках окружения Vercel.',
         parsed: null,
         flights: []
       }, { status: 500 });
     }
 
-    const promptText = `Ты — живой интеллектуальный ИИ-авиаконсьерж сервиса FlightSaver (2026 год).
-Твоя задача — извлечь точные параметры перелета, проанализировать маршрут и дать развернутый экспертный ответ.
+    const systemPrompt = `Ты — живой ИИ-консьерж сервиса FlightSaver (2026 год).
+Твоя задача — извлекать параметры перелёта и подбирать маршруты со Split-Ticketing и отелями STPC.
+Если указан город без собственного аэропорта (например, Монако), автоматически используй ближайший международный хаб (Ницца, NCE).
+Обязательно сохраняй контекст предыдущих сообщений диалога.
 
 ВХОДНЫЕ ДАННЫЕ:
 - Ранее сохраненные параметры: ${JSON.stringify(currentParams || {})}
 - История диалога: ${JSON.stringify(history || [])}
 - Новое сообщение пользователя: "${message}"
 
-ПРАВИЛА ОБРАБОТКИ:
+ПРАВИЛА ИЗВЛЕЧЕНИЯ:
 1. Города и аэропорты:
-   - "Челябинск" -> origin: "CEK", originCity: "Челябинск".
    - "Монако" -> destination: "NCE", destinationCity: "Монако (Ницца NCE)".
-   - "Самара" -> "KUF", "Лос-Анджелес" -> "LAX", "Люксембург / Люксенбург" -> "LUX".
-   - Если город уже был определен в ранее сохраненных параметрах, СОХРАНЯЙ ЕГО!
+   - "Челябинск" -> origin: "CEK", originCity: "Челябинск".
+   - "Самара" -> "KUF", "Лос-Анджелес" -> "LAX", "Люксембург" -> "LUX".
+   - Если город уже был определен в параметрах, СОХРАНЯЙ ЕГО!
 2. Даты:
-   - departureDate и returnDate в формате YYYY-MM-DD. Если даты не названы — null.
+   - departureDate и returnDate в формате YYYY-MM-DD. Если не названы — null.
 3. Пассажиры (passengers), класс (cabinClass), багаж (hasLuggage):
-   - Сохраняй выбранные значения и не сбрасывай их!
+   - Сохраняй выбранные значения.
 4. Ответ консьержа (reply):
-   - Напиши теплый, грамотный, развернутый ответ на русском языке. Объясни особенности маршрута (например: "Рейс Челябинск → Монако с прилетом в аэропорт Ниццы [NCE] и удобной пересадкой в Стамбуле"). Задай только те вопросы, ответов на которые еще нет.
+   - Развернутый экспертный ответ на русском с пояснением стыковок и отелей STPC 4★.
 5. Недостающие вопросы (missingQuestions):
-   - Включай в массив ТОЛЬКО те поля, которые до сих пор остаются null.
+   - Только те поля, которые остаются null.
 
-Верни СТРОГО валидный JSON без markdown:
+Верни СТРОГО валидный JSON:
 {
   "reply": "Твой живой экспертный ответ клиенту на русском",
-  "origin": "IATA код вылета (например CEK) или null",
+  "origin": "IATA код вылета (например CEK, KUF) или null",
   "originCity": "Город вылета или null",
-  "destination": "IATA код прилета (например NCE) или null",
+  "destination": "IATA код прилета (например NCE, LUX, LAX) или null",
   "destinationCity": "Город прилета или null",
   "departureDate": "YYYY-MM-DD или null",
   "returnDate": "YYYY-MM-DD или null",
@@ -66,39 +71,60 @@ export async function POST(request: NextRequest) {
       'gemini-3.7-flash',
     ];
 
-    let geminiResponse: Response | null = null;
     let geminiData: any = null;
+    let groundingMetadata: any = null;
 
     for (const modelName of candidateModels) {
       try {
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        
+        // Запрос с Google Search Grounding
         const res = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: promptText }] }],
+            contents: [{ parts: [{ text: systemPrompt }] }],
+            tools: [{ googleSearch: {} }],
             generationConfig: { responseMimeType: 'application/json' }
           })
         });
 
         if (res.ok) {
-          geminiResponse = res;
           geminiData = await res.json();
+          groundingMetadata = geminiData.candidates?.[0]?.groundingMetadata || null;
           break;
+        } else {
+          // Fallback без tools, если схема не поддерживает tools в связке с responseMimeType
+          const fallbackRes = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: systemPrompt }] }],
+              generationConfig: { responseMimeType: 'application/json' }
+            })
+          });
+          if (fallbackRes.ok) {
+            geminiData = await fallbackRes.json();
+            break;
+          }
         }
       } catch (e) {}
     }
 
     let parsed: any = null;
     if (geminiData) {
-      const parsedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (parsedText) {
-        parsed = JSON.parse(parsedText);
+      const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawText) {
+        try {
+          parsed = JSON.parse(rawText);
+        } catch (e) {
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+        }
       }
     }
 
     if (!parsed) {
-      // Fallback при временных сбоях квоты API
       const prev = currentParams || {};
       parsed = {
         reply: `Подобрал оптимальные маршруты ${prev.originName || 'Челябинск'} ➔ ${prev.destinationName || 'Монако (Ницца NCE)'}.`,
@@ -121,6 +147,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       replyText: parsed.reply,
+      text: parsed.reply,
       parsed: {
         ...parsed,
         originIata: parsed.origin,
@@ -129,10 +156,13 @@ export async function POST(request: NextRequest) {
         destinationCity: parsed.destinationCity || parsed.destination,
         missingQuestions: parsed.missingQuestions || []
       },
-      flights: flights
+      flights,
+      groundingMetadata
     });
   } catch (error: any) {
+    console.error('Gemini API Error:', error);
     return NextResponse.json({
+      error: 'Failed to process search request',
       replyText: `Ошибка сервера: ${error.message}`,
       parsed: null,
       flights: []
