@@ -79,40 +79,29 @@ export default function HomePage() {
     setError(null);
 
     try {
-      // 1. Отправляем запрос на серверный роут AI-парсинга /api/ai/parse (Gemini 2.0 Flash)
+      // 1. Отправляем запрос на серверный роут AI-парсинга /api/ai/parse (Gemini 2.5 Flash)
       const parsed = await parseWithGemini(text);
 
-      // 2. Обработка параметров и заполнение дефолтных значений при необходимости
-      const origin = (parsed.origin || 'MOW').toUpperCase();
-      const destination = (parsed.destination || 'BKK').toUpperCase();
-      const departureDate = parsed.departureDate || getDefaultDepartureDate();
-      const returnDate = parsed.returnDate || '';
-      const passengers = parsed.passengers && parsed.passengers >= 1 ? parsed.passengers : 1;
-      const cabinClass = parsed.cabinClass || 'economy';
-      const searchStpc = Boolean(parsed.searchStpc);
+      if (parsed && parsed.origin && parsed.destination) {
+        const params = new URLSearchParams({
+          origin: parsed.origin.toUpperCase(),
+          destination: parsed.destination.toUpperCase(),
+          departure_date: parsed.departureDate || getDefaultDepartureDate(),
+          passengers: String(parsed.passengers || 1),
+          cabin_class: parsed.cabinClass || 'economy',
+        });
 
-      // 3. Формирование URL-параметров
-      const params = new URLSearchParams({
-        origin,
-        destination,
-        departure_date: departureDate,
-      });
+        if (parsed.returnDate) {
+          params.set('return_date', parsed.returnDate);
+        }
+        if (parsed.searchStpc) {
+          params.set('stpc', 'true');
+        }
 
-      if (returnDate) {
-        params.set('return_date', returnDate);
+        router.push(`/results?${params.toString()}`);
+      } else {
+        throw new Error('Не удалось извлечь города перелета');
       }
-      if (passengers > 1) {
-        params.set('passengers', String(passengers));
-      }
-      if (cabinClass && cabinClass !== 'economy') {
-        params.set('cabin_class', cabinClass);
-      }
-      if (searchStpc) {
-        params.set('stpc', 'true');
-      }
-
-      // 4. Плавный переход на страницу результатов /results
-      router.push(`/results?${params.toString()}`);
     } catch (err: any) {
       console.error('[HomePage] Ошибка при AI-парсинге:', err);
       setError(

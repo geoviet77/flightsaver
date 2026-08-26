@@ -1255,6 +1255,31 @@
    - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 10/10 страниц)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.11: Полная ликвидация шаблонов и хардкода. 100% Онлайн-распознавание любых маршрутов через Gemini 2.5 Flash и Duffel API
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Чистый динамический LLM-парсер без статических подмен городов, универсальный IATA-маппинг для всего мира (UUS, DAD, CXR, VVO, KZN и др.) и честная выдача Duffel API
+
+1. **Серверный роут AI-парсера ([src/app/api/ai/parse/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/ai/parse/route.ts)):**
+   - **Удалены все искусственные подмены и хардкоды**: исключены принудительные перезаписи `destination = 'TYO'` и статические ограничения по городам.
+   - **Универсальная инструкция Gemini 2.5 Flash**: модель определяет 3-буквенный IATA код для абсолютно любого города, региона и аэропорта мира:
+     * Южно-Сахалинск $\rightarrow$ `UUS`, Дананг $\rightarrow$ `DAD`, Нячанг/Камрань $\rightarrow$ `CXR`, Владивосток $\rightarrow$ `VVO`, Казань $\rightarrow$ `KZN`, Хабаровск $\rightarrow$ `KHV`, Иркутск $\rightarrow$ `IKT`.
+   - **Динамический парсинг дат**: расчет интервалов «на 10 дней», «на 2 недели», праздников относительно актуальной даты (год 2026).
+   - **Прямой возврат клиенту**: сервер возвращает истинные IATA коды, извлеченные Gemini.
+
+2. **Клиентский роутинг ([src/app/page.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/page.tsx)):**
+   - Передача в `/results` параметров напрямую из ответа `parseWithGemini(text)` без локальных подмен.
+
+3. **Верификация и тестирование:**
+   - Запрос *«Найди билеты из южносахалинска в дананг 12 сентября»* $\rightarrow$ `origin: UUS`, `destination: DAD`, `departureDate: 2026-09-12`.
+   - Запрос *«Владивосток Нячанг 20 октября на 10 дней»* $\rightarrow$ `origin: VVO`, `destination: CXR`, `departureDate: 2026-10-20`, `returnDate: 2026-10-30`.
+   - Запрос *«Билеты из Казани в Стамбул на майские праздники»* $\rightarrow$ `origin: KZN`, `destination: IST`, `departureDate: 2027-05-01`, `returnDate: 2027-05-10`.
+   - Production-сборка: `npm.cmd run build` $\rightarrow$ **код выхода 0 (Compiled successfully, 10/10 pages)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 
