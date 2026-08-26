@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Flight, Currency, Language } from '../lib/types';
 import { TRANSLATIONS, formatPrice } from '../lib/i18n';
 import { PriceBreakdownModal } from './PriceBreakdownModal';
@@ -246,11 +247,18 @@ export function FlightCard({
               <button
                 type="button"
                 onClick={() => setIsDetailsOpen(true)}
-                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 transition-colors shrink-0"
+                className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:underline flex items-center gap-1 transition-colors shrink-0"
               >
                 <Info className="w-3.5 h-3.5" />
                 <span>{t.fareDetailsBtn}</span>
               </button>
+              <Link
+                href={`/flight/${encodeURIComponent(flight.id)}`}
+                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 transition-colors shrink-0"
+              >
+                <span>Подробнее о рейсе</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
           </div>
 

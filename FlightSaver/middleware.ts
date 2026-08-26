@@ -32,10 +32,10 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Если пользователь не авторизован и заходит в /dashboard — редирект на главную
-    if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+    // Разрешаем доступ к /dashboard/orders для просмотра локальных и оформленных гостевых заказов
+    if (!user && request.nextUrl.pathname === '/dashboard') {
       const url = request.nextUrl.clone();
-      url.pathname = "/";
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
 
