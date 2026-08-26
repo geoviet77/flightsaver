@@ -1480,6 +1480,24 @@
    - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.20: Фиксация эталонного UI из коммита 4d93f50 (Pristine Layout Lock)
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Восстановление эталонного интерфейса (`page.tsx`, `layout.tsx`, `globals.css`, `components/`) из коммита 4d93f50
+
+1. **Восстановленные файлы интерфейса:**
+   - [`src/app/page.tsx`](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/page.tsx) и [`src/app/layout.tsx`](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/layout.tsx).
+   - [`src/app/globals.css`](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/globals.css).
+   - Полный комплект компонентов [`src/components/`](file:///g:/Мой%20диск/Проект/FlightSaver/src/components/) (`Header.tsx`, `AIInputBar.tsx`, `QuickSuggestions.tsx`, `FlightResultsList.tsx`, `FlightCard.tsx`, `BookingModal.tsx`, `InfoModal.tsx`, `PriceBreakdownModal.tsx`, `SettingsModal.tsx`, `AuthModal.tsx`, `VoiceButton.tsx`).
+
+2. **Верификация и деплой:**
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+   - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 
