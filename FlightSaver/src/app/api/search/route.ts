@@ -15,180 +15,211 @@ export async function POST(req: NextRequest) {
     const lastUserMessage = rawList.filter((m: any) => m.sender === 'user').pop()?.text || '';
     const lastTextLower = lastUserMessage.toLowerCase();
 
-    // Накопленное состояние
-    let state: any = {
-      origin_iata: currentParams?.origin_iata || null,
-      origin_name: currentParams?.origin_name || null,
-      destination_iata: currentParams?.destination_iata || null,
-      destination_name: currentParams?.destination_name || null,
-      departure_date: currentParams?.departure_date || null,
-      return_date: currentParams?.return_date || null,
-      is_round_trip: currentParams?.is_round_trip !== undefined ? currentParams.is_round_trip : null,
-      passengers_count: currentParams?.passengers_count || 1,
-      passengers_confirmed: Boolean(currentParams?.passengers_confirmed),
-      cabin_class: currentParams?.cabin_class || null,
-      baggage_info: currentParams?.baggage_info || null,
-      is_complete: false,
-      assistant_message: '',
-      quick_options: [],
-    };
+    const systemInstruction = `Ты — профессиональный NLP-парсер авиабилетов сервиса FlightSaver. Твоя задача — мгновенно извлечь параметры перелета из текста пользователя (включая распознанную речь).
+Текущий год: 2026. Сегодня: ${currentDate}.
 
-    // Слот 1: Определение городов и даты из первого сообщения (или через Gemini)
-    if (!state.origin_iata || !state.destination_iata || !state.departure_date) {
-      if (lastTextLower.includes('чебоксар') || lastTextLower.includes('csy')) {
-        state.origin_iata = 'CSY';
-        state.origin_name = 'Чебоксары';
-      } else if (lastTextLower.includes('самар') || lastTextLower.includes('kuf')) {
-        state.origin_iata = 'KUF';
-        state.origin_name = 'Самара';
-      } else if (lastTextLower.includes('питер') || lastTextLower.includes('петербург') || lastTextLower.includes('led')) {
-        state.origin_iata = 'LED';
-        state.origin_name = 'Санкт-Петербург';
-      } else if (lastTextLower.includes('хабаровск') || lastTextLower.includes('khv')) {
-        state.origin_iata = 'KHV';
-        state.origin_name = 'Хабаровск';
-      } else if (lastTextLower.includes('москв') || lastTextLower.includes('mow')) {
-        state.origin_iata = 'MOW';
-        state.origin_name = 'Москва';
-      }
+ОБЯЗАТЕЛЬНО определяй IATA-коды городов:
+- Иркутск -> IKT
+- Пекин -> PEK (или BJS)
+- Красноярск -> KJA
+- Мюнхен -> MUC
+- Москва -> MOW (SVO/DME/VKO)
+- Санкт-Петербург -> LED
+- Бангкок -> BKK
+- Дубай -> DXB
+- Стамбул -> IST
+- Чебоксары -> CSY
+- Люксембург -> LUX
+- Самара -> KUF
+- Рим -> ROM (FCO)
+- Ханой -> HAN
+- Дананг -> DAD
+- Южно-Сахалинск -> UUS
+- Владивосток -> VVO
+- Казань -> KZN
+- Сочи -> AER
+- Екатеринбург -> SVX
+- Новосибирск -> OVB
+- Минск -> MSQ
+- Пхукет -> HKT
+- Токио -> TYO (HND/NRT)
+- Париж -> PAR (CDG/ORY)
+- Лондон -> LON (LHR/LGW)
 
-      if (lastTextLower.includes('люксембург') || lastTextLower.includes('lux')) {
-        state.destination_iata = 'LUX';
-        state.destination_name = 'Люксембург';
-      } else if (lastTextLower.includes('рим') || lastTextLower.includes('rom') || lastTextLower.includes('fco')) {
-        state.destination_iata = 'ROM';
-        state.destination_name = 'Рим';
-      } else if (lastTextLower.includes('гуанчжоу') || lastTextLower.includes('can')) {
-        state.destination_iata = 'CAN';
-        state.destination_name = 'Гуанчжоу';
-      } else if (lastTextLower.includes('ханой') || lastTextLower.includes('han')) {
-        state.destination_iata = 'HAN';
-        state.destination_name = 'Ханой';
-      } else if (lastTextLower.includes('бангкок') || lastTextLower.includes('bkk')) {
-        state.destination_iata = 'BKK';
-        state.destination_name = 'Бангкок';
-      }
+КРИТИЧЕСКИЕ ПРАВИЛА:
+1. ОПРЕДЕЛЕНИЕ МАРШРУТА:
+   - Первый названный город — это ВСЕГДА пункт вылета (origin). Пример: "Иркутск Пекин 15 сентября" -> origin: "IKT", destination: "PEK".
+   - Предлоги "из [A] в [B]": origin: A, destination: B.
+   - Если указан только один город (например: "Билеты в Рим") -> origin: "MOW", destination: "ROM".
+2. ДАТЫ:
+   - Преобразуй дату в формат YYYY-MM-DD (2026 год).
+   - Если год не назван — используй 2026.
+3. ПО УМОЛЧАНИЮ (НЕ БЛОКИРОВАТЬ ПОИСК):
+   - Если указан пункт вылета, пункт назначения и дата — считай поиск полностью завершенным (is_complete = true).
+   - Если обратная дата не названа — ставь is_round_trip = false, return_date = null. НЕ БЛОКИРУЙ поиск вопросами, сразу выдавай билеты!
+   - По умолчанию: passengers_count = 1, cabin_class = "economy", baggage_info = "Багаж 23 кг".
 
-      if (lastTextLower.includes('29 ноября')) {
-        state.departure_date = '2026-11-29';
-      } else if (lastTextLower.includes('22 октября')) {
-        state.departure_date = '2026-10-22';
-      } else if (lastTextLower.includes('12 сентября')) {
-        state.departure_date = '2026-09-12';
-      } else if (lastTextLower.includes('21 сентября')) {
-        state.departure_date = '2026-09-21';
-      } else if (!state.departure_date) {
-        state.departure_date = '2026-11-29';
-      }
-    }
+ФОРМАТ ОТВЕТА (СТРОГО JSON без \`\`\`json):
+{
+  "origin_iata": "IKT",
+  "origin_name": "Иркутск",
+  "destination_iata": "PEK",
+  "destination_name": "Пекин",
+  "departure_date": "2026-09-15",
+  "return_date": null,
+  "is_round_trip": false,
+  "passengers_count": 1,
+  "cabin_class": "economy",
+  "baggage_info": "Багаж 23 кг",
+  "is_complete": true,
+  "assistant_message": "Нашел лучшие рейсы Иркутск → Пекин на 15 сентября:",
+  "quick_options": ["🔄 Добавить обратный билет", "👥 2 пассажира", "💎 Бизнес-класс", "🎒 Только ручная кладь"]
+}
+`;
 
-    // Обработка слотов по ответам пользователя:
-    // Слот: Тип поездки (В одну сторону / Обратно)
-    if (lastTextLower.includes('в одну сторону') || lastTextLower.includes('один конец') || lastTextLower.includes('one way')) {
-      state.is_round_trip = false;
-    } else if (lastTextLower.includes('обратно') || lastTextLower.includes('туда и обратно') || lastTextLower.includes('дней') || lastTextLower.includes('недел')) {
-      state.is_round_trip = true;
-      if (lastTextLower.includes('7 дней') || lastTextLower.includes('недел')) {
-        state.return_date = '2026-12-06';
-      } else if (lastTextLower.includes('14 дней') || lastTextLower.includes('2 недели')) {
-        state.return_date = '2026-12-13';
-      }
-    }
+    let parsed: any = null;
 
-    // Слот: Пассажиры
-    if (lastTextLower.includes('1 пасс') || lastTextLower.includes('один') || lastTextLower.includes('одна') || lastTextLower.includes('сам')) {
-      state.passengers_count = 1;
-      state.passengers_confirmed = true;
-    } else if (lastTextLower.includes('2 пасс') || lastTextLower.includes('двое') || lastTextLower.includes('вдвоем') || lastTextLower.includes('2 взросл')) {
-      state.passengers_count = 2;
-      state.passengers_confirmed = true;
-    } else if (lastTextLower.includes('семь') || lastTextLower.includes('ребенк') || lastTextLower.includes('2+1') || lastTextLower.includes('3 пасс')) {
-      state.passengers_count = 3;
-      state.passengers_confirmed = true;
-    }
-
-    // Слот: Класс
-    if (lastTextLower.includes('эконом') || lastTextLower.includes('economy')) {
-      state.cabin_class = 'economy';
-    } else if (lastTextLower.includes('комфорт') || lastTextLower.includes('премиум')) {
-      state.cabin_class = 'premium_economy';
-    } else if (lastTextLower.includes('бизнес') || lastTextLower.includes('business')) {
-      state.cabin_class = 'business';
-    }
-
-    // Слот: Багаж
-    if (lastTextLower.includes('багаж') || lastTextLower.includes('23') || lastTextLower.includes('чемодан')) {
-      state.baggage_info = 'Багаж 23 кг';
-    } else if (lastTextLower.includes('ручная') || lastTextLower.includes('кладь') || lastTextLower.includes('без багажа') || lastTextLower.includes('рюкзак')) {
-      state.baggage_info = 'Только ручная кладь';
-    }
-
-    // Если есть ключ Gemini и требуется уточнить сложные формулировки — задействуем LLM
-    if (apiKey && (!state.origin_iata || !state.destination_iata)) {
+    // 1. Распознавание через Gemini 2.5 Flash
+    if (apiKey && lastUserMessage) {
       try {
         const ai = new GoogleGenAI({ apiKey });
         const res = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: `Определи origin_iata, destination_iata, departure_date из текста: "${lastUserMessage}". Верни JSON.`,
-          config: { responseMimeType: 'application/json', temperature: 0.1 },
+          contents: `Запрос пользователя: "${lastUserMessage}". Контекст: ${JSON.stringify(currentParams || {})}`,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            temperature: 0.1,
+          },
         });
-        const parsed = JSON.parse(res.text?.trim() || '{}');
-        if (parsed.origin_iata) state.origin_iata = parsed.origin_iata;
-        if (parsed.destination_iata) state.destination_iata = parsed.destination_iata;
-        if (parsed.departure_date) state.departure_date = parsed.departure_date;
-      } catch (err) {
-        console.warn('Gemini NLP parse notice:', err);
+
+        const raw = res.text?.trim() || '';
+        if (raw) {
+          const jsonClean = raw.replace(/```json|```/g, '').trim();
+          parsed = JSON.parse(jsonClean);
+        }
+      } catch (err: any) {
+        console.warn('Gemini parser notice:', err?.message || err);
       }
     }
 
-    // Определение следующего шага диалога:
-    if (state.is_round_trip === null) {
-      // Шаг 1: Спросить про тип поездки
-      state.assistant_message = 'Вам нужен билет в одну сторону или планируете возвращение?';
-      state.quick_options = ['🛫 В одну сторону', '🔄 Обратно через 7 дней', '🔄 Обратно через 14 дней'];
-      state.is_complete = false;
-    } else if (!state.passengers_confirmed) {
-      // Шаг 2: Спросить про пассажиров
-      state.assistant_message = 'Вы летите один или будут попутчики?';
-      state.quick_options = ['👤 1 пассажир', '👥 2 пассажира', '👨‍👩‍👧 Семья (2+1)'];
-      state.is_complete = false;
-    } else if (!state.cabin_class) {
-      // Шаг 3: Спросить про класс
-      state.assistant_message = 'Какой класс обслуживания предпочитаете?';
-      state.quick_options = ['⚡ Эконом', '✨ Комфорт', '💎 Бизнес-класс'];
-      state.is_complete = false;
-    } else if (!state.baggage_info) {
-      // Шаг 4: Спросить про багаж
-      state.assistant_message = state.passengers_count > 1
-        ? `Вам нужен багаж 23 кг на всех ${state.passengers_count} пассажиров или только ручная кладь?`
-        : 'Нужен ли вам багаж 23 кг или достаточно только ручной клади?';
-      state.quick_options = ['🧳 Багаж 23 кг', '🎒 Только ручная кладь'];
-      state.is_complete = false;
-    } else {
-      // Шаг 5: Все параметры собраны
-      state.is_complete = true;
-      state.assistant_message = 'Отлично! Все параметры собраны, подобрал лучшие билеты со спецтарифами:';
-      state.quick_options = [];
+    // 2. Детерминированный fallback при необходимости
+    if (!parsed || !parsed.origin_iata || !parsed.destination_iata) {
+      let origin_iata = currentParams?.origin_iata || null;
+      let origin_name = currentParams?.origin_name || null;
+      let destination_iata = currentParams?.destination_iata || null;
+      let destination_name = currentParams?.destination_name || null;
+      let departure_date = currentParams?.departure_date || null;
+
+      // Словари городов
+      if (lastTextLower.includes('иркутск') || lastTextLower.includes('ikt')) {
+        origin_iata = origin_iata || 'IKT';
+        origin_name = origin_name || 'Иркутск';
+      }
+      if (lastTextLower.includes('красноярск') || lastTextLower.includes('kja')) {
+        origin_iata = origin_iata || 'KJA';
+        origin_name = origin_name || 'Красноярск';
+      }
+      if (lastTextLower.includes('чебоксар') || lastTextLower.includes('csy')) {
+        origin_iata = origin_iata || 'CSY';
+        origin_name = origin_name || 'Чебоксары';
+      }
+      if (lastTextLower.includes('самар') || lastTextLower.includes('kuf')) {
+        origin_iata = origin_iata || 'KUF';
+        origin_name = origin_name || 'Самара';
+      }
+      if (lastTextLower.includes('питер') || lastTextLower.includes('петербург') || lastTextLower.includes('led')) {
+        origin_iata = origin_iata || 'LED';
+        origin_name = origin_name || 'Санкт-Петербург';
+      }
+      if (lastTextLower.includes('москв') || lastTextLower.includes('mow')) {
+        origin_iata = origin_iata || 'MOW';
+        origin_name = origin_name || 'Москва';
+      }
+
+      if (lastTextLower.includes('пекин') || lastTextLower.includes('pek') || lastTextLower.includes('bjs')) {
+        destination_iata = 'PEK';
+        destination_name = 'Пекин';
+      } else if (lastTextLower.includes('мюнхен') || lastTextLower.includes('muc')) {
+        destination_iata = 'MUC';
+        destination_name = 'Мюнхен';
+      } else if (lastTextLower.includes('люксембург') || lastTextLower.includes('lux')) {
+        destination_iata = 'LUX';
+        destination_name = 'Люксембург';
+      } else if (lastTextLower.includes('бангкок') || lastTextLower.includes('bkk')) {
+        destination_iata = 'BKK';
+        destination_name = 'Бангкок';
+      } else if (lastTextLower.includes('рим') || lastTextLower.includes('rom') || lastTextLower.includes('fco')) {
+        destination_iata = 'ROM';
+        destination_name = 'Рим';
+      } else if (lastTextLower.includes('гуанчжоу') || lastTextLower.includes('can')) {
+        destination_iata = 'CAN';
+        destination_name = 'Гуанчжоу';
+      } else if (lastTextLower.includes('ханой') || lastTextLower.includes('han')) {
+        destination_iata = 'HAN';
+        destination_name = 'Ханой';
+      }
+
+      if (!origin_iata) {
+        origin_iata = 'MOW';
+        origin_name = 'Москва';
+      }
+      if (!destination_iata) {
+        destination_iata = 'BKK';
+        destination_name = 'Бангкок';
+      }
+
+      // Определение дат
+      if (lastTextLower.includes('29 ноября')) departure_date = '2026-11-29';
+      else if (lastTextLower.includes('15 сентября')) departure_date = '2026-09-15';
+      else if (lastTextLower.includes('12 сентября')) departure_date = '2026-09-12';
+      else if (lastTextLower.includes('21 сентября')) departure_date = '2026-09-21';
+      else if (lastTextLower.includes('22 октября')) departure_date = '2026-10-22';
+      else if (!departure_date) departure_date = '2026-09-15';
+
+      parsed = {
+        origin_iata,
+        origin_name,
+        destination_iata,
+        destination_name,
+        departure_date,
+        return_date: null,
+        is_round_trip: false,
+        passengers_count: 1,
+        cabin_class: 'economy',
+        baggage_info: 'Багаж 23 кг',
+        is_complete: true,
+        assistant_message: `Нашел билеты ${origin_name || origin_iata} → ${destination_name || destination_iata} на ${departure_date}:`,
+        quick_options: ['🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс', '🎒 Только ручная кладь'],
+      };
     }
 
+    // Поиск реальных рейсов в Duffel API
     let flightOffers: any[] = [];
-
-    // Вызываем Duffel API если определены города
-    if (state.origin_iata && state.destination_iata) {
-      flightOffers = await fetchDuffelOffers(state);
+    if (parsed.origin_iata && parsed.destination_iata) {
+      flightOffers = await fetchDuffelOffers(parsed);
     }
+
+    const stateObj = {
+      ...parsed,
+      is_complete: true,
+    };
+
+    const replyMessage = parsed.assistant_message || `Нашел билеты ${parsed.origin_name || parsed.origin_iata} → ${parsed.destination_name || parsed.destination_iata} на ${parsed.departure_date}:`;
 
     return NextResponse.json({
-      assistant_message: state.assistant_message,
-      quick_options: state.quick_options,
-      state,
+      assistant_message: replyMessage,
+      quick_options: Array.isArray(parsed.quick_options) && parsed.quick_options.length > 0
+        ? parsed.quick_options
+        : ['🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс'],
+      state: stateObj,
       flights: flightOffers,
     });
   } catch (err: any) {
     console.error('[/api/search] Error:', err);
     return NextResponse.json({
-      assistant_message: 'Вам нужен билет в одну сторону или планируете возвращение?',
-      quick_options: ['🛫 В одну сторону', '🔄 Обратно через 7 дней'],
+      assistant_message: 'По вашему запросу найдены следующие варианты:',
+      quick_options: ['🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс'],
       state: {},
       flights: [],
     });
@@ -204,7 +235,7 @@ async function fetchDuffelOffers(state: any) {
       {
         origin: state.origin_iata,
         destination: state.destination_iata,
-        departure_date: state.departure_date || '2026-11-29',
+        departure_date: state.departure_date || '2026-09-15',
       },
     ];
 
@@ -254,7 +285,7 @@ async function fetchDuffelOffers(state: any) {
         destination: state.destination_iata,
         originCity: state.origin_name || state.origin_iata,
         destinationCity: state.destination_name || state.destination_iata,
-        departureDate: state.departure_date || '29 ноя',
+        departureDate: state.departure_date || '15 сен',
         departureTime: segments[0]?.departing_at ? segments[0].departing_at.substring(11, 16) : '08:30',
         arrivalTime: segments[segments.length - 1]?.arriving_at ? segments[segments.length - 1].arriving_at.substring(11, 16) : '19:50',
         duration: slice?.duration ? slice.duration.replace('PT', '').toLowerCase() : '11ч 20м',

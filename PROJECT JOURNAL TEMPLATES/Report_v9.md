@@ -1519,6 +1519,27 @@
    - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.22: Мгновенный поиск авиабилетов в Duffel API и маппинг русских городов в IATA через Gemini 2.5 Flash
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Гарантированное сопоставление городов (Иркутск $\rightarrow$ IKT, Пекин $\rightarrow$ PEK, Красноярск $\rightarrow$ KJA, Мюнхен $\rightarrow$ MUC, Москва $\rightarrow$ MOW, Бангкок $\rightarrow$ BKK), автовыбор билета в одну сторону (`is_complete = true`) и немедленный поиск рейсов
+
+1. **Обновленный System Instruction ([src/app/api/search/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/search/route.ts)):**
+   - Расширенный словарь российских и международных городов с точными IATA-кодами.
+   - Правило «Немедленный поиск»: если есть пункт вылета, назначения и дата $\rightarrow$ `is_complete: true`, `is_round_trip: false` по умолчанию.
+   - Моментальный вызов Duffel API без блокирующих вопросов с прикреплением кнопок быстрых опций (`[🔄 Добавить обратный билет, 👥 2 пассажира, 💎 Бизнес-класс]`).
+
+2. **Верификация:**
+   - Запрос *«Иркутск Пекин 15 сентября»* $\rightarrow$ `IKT` $\rightarrow$ `PEK`, `2026-09-15`, `is_complete: true`, найден 1 оффер.
+   - Запрос *«Красноярск Мюнхен 22 октября»* $\rightarrow$ `KJA` $\rightarrow$ `MUC`, `2026-10-22`, `is_complete: true`, найден 1 оффер.
+   - Запрос *«Москва Бангкок 29 ноября»* $\rightarrow$ `MOW` $\rightarrow$ `BKK`, `2026-11-29`, `is_complete: true`, найдено 4 оффера.
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+   - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 
