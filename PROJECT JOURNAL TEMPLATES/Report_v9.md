@@ -1386,6 +1386,27 @@
    - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 10/10 страниц)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.16: Восстановление визуального интерфейса из деплоя 4d93f50 с сохранением Gemini & Duffel API
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Синхронизация визуальных компонентов (Header, AIInputBar, QuickSuggestions, FlightResultsList, InfoModal, BookingModal, globals.css) из эталонного коммита 4d93f50
+
+1. **Восстановленные визуальные компоненты ([FlightSaver/components/](file:///g:/Мой%20диск/Проект/FlightSaver/components/)):**
+   - Восстановлены оригинальные файлы верстки и стилей: `Header.tsx`, `AIInputBar.tsx`, `QuickSuggestions.tsx`, `FlightResultsList.tsx`, `FlightCard.tsx`, `BookingModal.tsx`, `InfoModal.tsx`, `PriceBreakdownModal.tsx`, `SettingsModal.tsx`, `AuthModal.tsx`, `VoiceButton.tsx`.
+   - Сохранена оригинальная стилизация `app/globals.css` с радиальным свечением (`ambient-glow-tl`, `ambient-glow-br`, `liquid-glass`).
+
+2. **Сохраненные API и SDK:**
+   - Серверные маршруты `src/app/api/ai/parse/` (Gemini 2.5 Flash), `src/app/api/flights/search/` (Duffel API) и `src/app/api/orders/create/` (Supabase).
+   - Файлы окружения `.env.local` и конфигурации.
+
+3. **Верификация и деплой:**
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+   - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 10/10 страниц)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 
