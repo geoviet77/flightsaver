@@ -27,11 +27,19 @@ html, body, input, button, select, textarea {
 }
 
 body {
-  background: linear-gradient(180deg, #f0f7ff 0%, #e1effe 35%, #ebf4ff 70%, #f8fafc 100%);
-  background-attachment: fixed;
+  background: #f8fbff;
   color: var(--text-dark);
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+/* Свечение для поисковой строки One-Input */
+.search-glow {
+  box-shadow: 0 0 25px rgba(14, 165, 233, 0.22);
+}
+
+.search-glow:focus-within {
+  box-shadow: 0 0 35px rgba(14, 165, 233, 0.38);
 }
 
 /* Animations */

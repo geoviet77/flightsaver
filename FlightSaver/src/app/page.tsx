@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Header } from '../../components/Header';
-import { VoiceButton } from '../../components/VoiceButton';
+import Header from '../components/Header';
 import { FlightCard } from '../../components/FlightCard';
 import { BookingModal } from '../../components/BookingModal';
-import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { parseWithGemini, searchFlights, DuffelOffer, DuffelOfferSlice, DuffelSliceSegment } from '../lib/api';
 import { addStoredSearch } from '../../lib/mockStorage';
 import { Flight, Currency, Language, BookingOrder } from '../../lib/types';
@@ -24,56 +22,42 @@ import {
   Briefcase,
   Luggage,
   Repeat,
-  Bot,
-  User,
-  CheckCircle2,
-  RefreshCw,
-  Search,
-  ChevronDown
+  RotateCcw,
+  Search
 } from 'lucide-react';
 
-interface ChatMessage {
+interface Message {
   id: string;
-  sender: 'user' | 'assistant';
+  sender: 'user' | 'ai';
   text: string;
-  timestamp: string;
+  time: string;
   isThinking?: boolean;
-  parsedData?: {
-    origin: string;
-    destination: string;
-    departureDate: string;
+  meta?: {
+    origin?: string;
+    destination?: string;
+    date?: string;
     returnDate?: string | null;
-    passengers: number;
-    cabinClass: string;
-    searchStpc: boolean;
+    passengers?: number;
+    cabinClass?: string;
   };
 }
 
-const POPULAR_DIRECTIONS = [
+const POPULAR_PROMPTS = [
   {
-    title: '🏝️ Санкт-Петербург → Гуанчжоу',
+    title: '🏝️ Питер → Гуанчжоу',
     query: 'Питер Гуанчжоу 12 сентября',
-    tag: 'Популярное',
   },
   {
     title: '🏛️ Самара → Рим',
     query: 'Самара Рим 22 октября',
-    tag: 'Европа',
   },
   {
-    title: '🇯🇵 Москва → Токио на Новый год',
+    title: '🇯🇵 Москва → Токио на НГ',
     query: 'Москва Токио новогодние праздники',
-    tag: 'STPC Отель',
   },
   {
     title: '🇹🇭 Южно-Сахалинск → Дананг',
     query: 'Южно-Сахалинск Дананг 12 сентября',
-    tag: 'Пляжный отдых',
-  },
-  {
-    title: '🌴 Владивосток → Нячанг на 10 дней',
-    query: 'Владивосток Нячанг 20 октября на 10 дней',
-    tag: 'Выгода до 40%',
   },
 ];
 
@@ -258,158 +242,126 @@ function transformDuffelOfferToFlight(
 
 export default function HomePage() {
   const [query, setQuery] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const [currency, setCurrency] = useState<Currency>('RUB');
   const [language, setLanguage] = useState<Language>('ru');
 
-  // Quick Filters State
-  const [passengersCount, setPassengersCount] = useState<number>(1);
-  const [cabinClass, setCabinClass] = useState<'economy' | 'business'>('economy');
-  const [isRoundTrip, setIsRoundTrip] = useState<boolean>(false);
-  const [hasBaggage, setHasBaggage] = useState<boolean>(true);
-
-  // Conversational Chat State (Limit natural display to 7 messages with scroll)
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [isParsing, setIsParsing] = useState(false);
-  const [isLoadingFlights, setIsLoadingFlights] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      sender: 'ai',
+      text: 'Куда и в какие даты вы планируете отправиться?',
+      time: '21:23',
+    },
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
   const [flights, setFlights] = useState<Flight[]>([]);
-  const [searchSummary, setSearchSummary] = useState<{
-    origin: string;
-    destination: string;
-    departureDate: string;
-    returnDate?: string | null;
-    passengers: number;
-    cabinClass: string;
-  } | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  // Results filtering & modal
+  // Sorting and selection
   const [sortBy, setSortBy] = useState<FlightSortOption>('cheap');
   const [filterStops, setFilterStops] = useState<FlightStopsFilter>('all');
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const {
-    isListening,
-    transcript,
-    error: speechError,
-    startListening,
-    stopListening,
-    resetTranscript,
-  } = useSpeechRecognition();
+  // Автоскролл чата
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
-  const toggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
+  // Голосовой ввод (Web Speech API)
+  const handleVoiceInput = () => {
+    if (typeof window === 'undefined') return;
+
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      alert('Голосовой ввод не поддерживается в вашем браузере.');
+      return;
     }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = 'ru-RU';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setQuery(transcript);
+      handleSubmitQuery(transcript);
+    };
+
+    recognition.start();
   };
 
-  useEffect(() => {
-    if (transcript) {
-      setQuery(transcript);
-    }
-  }, [transcript]);
+  const handleSubmitQuery = async (searchQuery: string) => {
+    const text = searchQuery.trim();
+    if (!text || isLoading) return;
 
-  useEffect(() => {
-    if (!isListening && transcript && transcript.trim().length > 3) {
-      handleSearch(transcript.trim());
-      resetTranscript();
-    }
-  }, [isListening, transcript]);
+    const now = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-  // Auto-scroll chat container to bottom when new messages arrive
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [chatMessages, isParsing]);
+    // Добавляем сообщение пользователя
+    const userMsg: Message = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      text,
+      time: now,
+    };
 
-  const handleSearch = async (rawQuery: string) => {
-    const text = rawQuery.trim();
-    if (!text || isParsing) return;
-
-    const timeNow = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    const userMsgId = `user-${Date.now()}`;
-    const thinkingMsgId = `thinking-${Date.now()}`;
-
-    // Добавляем сообщение пользователя в чат
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        id: userMsgId,
-        sender: 'user',
-        text,
-        timestamp: timeNow,
-      },
-      {
-        id: thinkingMsgId,
-        sender: 'assistant',
-        text: 'ИИ-консьерж анализирует маршрут через Gemini 2.5 Flash...',
-        timestamp: timeNow,
-        isThinking: true,
-      },
-    ]);
-
-    setIsParsing(true);
-    setIsLoadingFlights(true);
+    setMessages((prev) => [...prev, userMsg]);
+    setQuery('');
+    setIsLoading(true);
     setHasSearched(true);
 
     try {
-      // 1. Отправляем запрос на серверный роут AI-парсинга
+      // 1. Вызываем серверный роут AI-парсера Gemini 2.5 Flash
       const parsed = await parseWithGemini(text);
 
       if (parsed && parsed.origin && parsed.destination) {
-        const finalPassengers = parsed.passengers && parsed.passengers > 1 ? parsed.passengers : passengersCount;
-        const finalCabin = parsed.cabinClass && parsed.cabinClass !== 'economy' ? parsed.cabinClass : cabinClass;
-        const finalReturnDate = parsed.returnDate || (isRoundTrip ? getDefaultDepartureDate() : null);
+        const origin = parsed.origin.toUpperCase();
+        const destination = parsed.destination.toUpperCase();
+        const departureDate = parsed.departureDate || getDefaultDepartureDate();
+        const returnDate = parsed.returnDate || null;
+        const passengers = parsed.passengers || 1;
+        const cabinClass = parsed.cabinClass || 'economy';
 
-        const parsedSummary = {
-          origin: parsed.origin.toUpperCase(),
-          destination: parsed.destination.toUpperCase(),
-          departureDate: parsed.departureDate || getDefaultDepartureDate(),
-          returnDate: finalReturnDate,
-          passengers: finalPassengers,
-          cabinClass: finalCabin,
-          searchStpc: Boolean(parsed.searchStpc),
+        const aiMsg: Message = {
+          id: `ai-${Date.now()}`,
+          sender: 'ai',
+          text: `Анализирую маршрут: «${text}». Ищу варианты со скрытыми оптовыми тарифами и бесплатными транзитными отелями STPC...`,
+          time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+          meta: {
+            origin,
+            destination,
+            date: departureDate,
+            returnDate,
+            passengers,
+            cabinClass,
+          },
         };
 
-        setSearchSummary(parsedSummary);
-
-        // Обновляем сообщение ассистента в диалоге
-        setChatMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === thinkingMsgId
-              ? {
-                  id: `asst-${Date.now()}`,
-                  sender: 'assistant',
-                  text: parsed.message || `Нашел маршрут ${parsedSummary.origin} → ${parsedSummary.destination}. Ищу прямые рейсы и выгодные стыковки.`,
-                  timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-                  isThinking: false,
-                  parsedData: parsedSummary,
-                }
-              : msg
-          )
-        );
-
-        addStoredSearch(text, isListening ? 'voice' : 'text', `${parsedSummary.origin} → ${parsedSummary.destination}`);
+        setMessages((prev) => [...prev, aiMsg]);
+        addStoredSearch(text, isListening ? 'voice' : 'text', `${origin} → ${destination}`);
 
         // 2. Ищем билеты через Duffel API
         const flightRes = await searchFlights({
-          origin: parsedSummary.origin,
-          destination: parsedSummary.destination,
-          departureDate: parsedSummary.departureDate,
-          returnDate: parsedSummary.returnDate || undefined,
-          passengers: parsedSummary.passengers,
-          cabinClass: parsedSummary.cabinClass,
+          origin,
+          destination,
+          departureDate,
+          returnDate: returnDate || undefined,
+          passengers,
+          cabinClass,
         });
 
         if (flightRes.offers && flightRes.offers.length > 0) {
-          // Дедупликация рейсов по уникальным характеристикам
+          // Дедупликация рейсов
           const seenKeys = new Set<string>();
           const uniqueOffers = flightRes.offers.filter((offer: any) => {
             const seg0 = offer.slices?.[0]?.segments?.[0];
@@ -421,54 +373,44 @@ export default function HomePage() {
           });
 
           const transformed = uniqueOffers.map((offer: DuffelOffer, idx: number) =>
-            transformDuffelOfferToFlight(
-              offer,
-              idx,
-              parsedSummary.origin,
-              parsedSummary.destination,
-              parsedSummary.departureDate,
-              parsedSummary.returnDate || undefined
-            )
+            transformDuffelOfferToFlight(offer, idx, origin, destination, departureDate, returnDate || undefined)
           );
           setFlights(transformed);
         } else {
           setFlights([]);
         }
 
-        // Плавный скролл к результатам поиска
         setTimeout(() => {
           resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 150);
       } else {
-        throw new Error('Не удалось распознать города маршрута');
+        throw new Error('Не удалось определить маршрут');
       }
-    } catch (err: any) {
-      console.error('[HomePage] Ошибка при AI-парсинге или поиске:', err);
-      setChatMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === thinkingMsgId
-            ? {
-                id: `err-${Date.now()}`,
-                sender: 'assistant',
-                text: 'Не удалось точно распознать маршрут или загрузить билеты. Пожалуйста, попробуйте уточнить запрос (например: «Самара Рим 22 октября»).',
-                timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-                isThinking: false,
-              }
-            : msg
-        )
-      );
+    } catch (e: any) {
+      console.error('Search error:', e);
+      const errMsg: Message = {
+        id: `err-${Date.now()}`,
+        sender: 'ai',
+        text: 'Не удалось точно распознать маршрут или загрузить билеты. Пожалуйста, попробуйте уточнить запрос (например: «Питер Гуанчжоу 12 сентября»).',
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errMsg]);
     } finally {
-      setIsParsing(false);
-      setIsLoadingFlights(false);
+      setIsLoading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isListening) {
-      toggleListening();
-    }
-    handleSearch(query);
+  const handleResetChat = () => {
+    setMessages([
+      {
+        id: 'welcome',
+        sender: 'ai',
+        text: 'Куда и в какие даты вы планируете отправиться?',
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+    setFlights([]);
+    setHasSearched(false);
   };
 
   const handleSelectFlight = (flight: Flight) => {
@@ -496,7 +438,7 @@ export default function HomePage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f8fbff] flex flex-col font-sans">
       <Header
         currentCurrency={currency}
         onCurrencyChange={setCurrency}
@@ -504,258 +446,182 @@ export default function HomePage() {
         onLanguageChange={setLanguage}
       />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col items-center space-y-6">
-        {/* Hero Title */}
-        <div className="space-y-3 max-w-3xl text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-bold shadow-sm">
-            <Sparkles className="w-4 h-4" />
-            <span>ИИ-консьерж FlightSaver • Скрытые GDS-тарифы и отели STPC</span>
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            Летайте со скидкой <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">до 40%</span> и отелем в подарок
-          </h1>
-          <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
-            Опишите поездку на естественном языке. ИИ-консьерж распознает любые города мира и покажет доступные рейсы прямо в диалоге.
-          </p>
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 pt-12 pb-16 flex flex-col items-center">
+        {/* Заголовок Hero */}
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 text-center tracking-tight leading-tight mb-4">
+          Умный поиск перелётов <br />
+          <span className="text-sky-500">одной фразой</span>
+        </h1>
+
+        {/* Плашка-подсказка */}
+        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-sky-50 border border-sky-100 text-sky-700 text-xs sm:text-sm font-medium mb-8 shadow-sm">
+          <span>💡</span>
+          <span>Напишите или скажите голосом куда и когда вы хотите полететь</span>
         </div>
 
-        {/* AI Search Box */}
-        <div className="w-full max-w-3xl space-y-3">
+        {/* Строка поиска One-Input (64px, Glowing border) */}
+        <div className="w-full max-w-2xl relative mb-6">
           <form
-            onSubmit={handleSubmit}
-            className="relative bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-blue-500/5 border-2 border-slate-200 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 transition-all p-2 sm:p-3 flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmitQuery(query);
+            }}
+            className="relative flex items-center w-full h-16 bg-white rounded-full border-2 border-sky-300 shadow-[0_0_25px_rgba(14,165,233,0.22)] focus-within:border-sky-500 focus-within:shadow-[0_0_30px_rgba(14,165,233,0.35)] transition-all duration-300 px-4"
           >
+            <span className="text-sky-400 pl-2 pr-1 text-lg">✨</span>
             <input
-              ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              disabled={isParsing}
-              placeholder="Например: Самара Рим 22 октября"
-              className="flex-1 bg-transparent px-3 sm:px-4 py-3 sm:py-3.5 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
+              placeholder="Куда и когда вы хотите полететь? (например: Самара Рим 22 октября)"
+              className="flex-1 h-full bg-transparent border-none outline-none text-slate-800 placeholder-slate-400 text-sm sm:text-base px-2"
             />
 
-            <VoiceButton
-              isListening={isListening}
-              onToggle={toggleListening}
-              disabled={isParsing}
-            />
+            {/* Иконка микрофона */}
+            <button
+              type="button"
+              onClick={handleVoiceInput}
+              className={`p-2.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-sky-600 transition-colors ${
+                isListening ? 'text-red-500 animate-pulse bg-red-50' : ''
+              }`}
+              title="Голосовой ввод"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" x2="12" y1="19" y2="22" />
+              </svg>
+            </button>
 
+            {/* Кнопка со стрелкой */}
             <button
               type="submit"
-              disabled={!query.trim() || isParsing}
-              className="px-5 sm:px-7 py-3 sm:py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all flex items-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              disabled={!query.trim()}
+              className="w-10 h-10 ml-1 rounded-full bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white flex items-center justify-center shadow-md shadow-sky-500/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
             >
-              {isParsing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="hidden sm:inline">Анализ...</span>
-                </>
-              ) : (
-                <>
-                  <span>Найти</span>
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
             </button>
           </form>
 
-          {/* Quick Filters Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-700">
-              <Users className="w-3.5 h-3.5 text-blue-600" />
-              <select
-                value={passengersCount}
-                onChange={(e) => setPassengersCount(Number(e.target.value))}
-                className="bg-transparent font-bold focus:outline-none cursor-pointer"
+          {/* Популярные подсказки */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            {POPULAR_PROMPTS.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setQuery(p.query);
+                  handleSubmitQuery(p.query);
+                }}
+                className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-sky-400 hover:bg-sky-50/50 text-xs text-slate-600 hover:text-sky-700 transition shadow-sm font-medium"
               >
-                <option value={1}>1 взрослый</option>
-                <option value={2}>2 пассажира</option>
-                <option value={3}>3 пассажира</option>
-                <option value={4}>Семья (4)</option>
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setCabinClass((prev) => (prev === 'economy' ? 'business' : 'economy'))}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-sm transition font-bold ${
-                cabinClass === 'business'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5" />
-              <span>{cabinClass === 'business' ? 'Бизнес-класс' : 'Эконом'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsRoundTrip((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-sm transition font-bold ${
-                isRoundTrip
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Repeat className="w-3.5 h-3.5" />
-              <span>{isRoundTrip ? 'Туда и обратно' : 'В одну сторону'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setHasBaggage((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-sm transition font-bold ${
-                hasBaggage
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                  : 'bg-white text-slate-500 border-slate-200'
-              }`}
-            >
-              <Luggage className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{hasBaggage ? 'Багаж 23 кг' : 'Только ручная кладь'}</span>
-            </button>
-          </div>
-
-          {/* Popular Directions Chips - Active on Click */}
-          <div className="pt-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 text-center">
-              Популярные направления (кликните для поиска):
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {POPULAR_DIRECTIONS.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setQuery(item.query);
-                    handleSearch(item.query);
-                  }}
-                  disabled={isParsing}
-                  className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-xs text-slate-700 hover:text-blue-700 transition shadow-sm flex items-center gap-1.5 text-left disabled:opacity-50"
-                >
-                  <span className="font-semibold">{item.title}</span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-blue-100/60 text-blue-800 text-[10px] font-bold">
-                    {item.tag}
-                  </span>
-                </button>
-              ))}
-            </div>
+                {p.title}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Conversational Stream: Диалог с ИИ-консьержем (Контейнер на 7 сообщений со скроллом) */}
-        {chatMessages.length > 0 && (
-          <div className="w-full max-w-3xl bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden animate-fadeIn">
-            {/* Header диалога */}
-            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                  <Bot className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Диалог с ИИ-консьержем FlightSaver
-                  </h3>
-                  <p className="text-[10px] text-slate-500">Gemini 2.5 Flash • Онлайн-поиск GDS</p>
-                </div>
-              </div>
-              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Онлайн
-              </span>
+        {/* Блок диалога с ИИ */}
+        <div className="w-full max-w-2xl mt-4">
+          <div className="flex items-center justify-between mb-3 px-2">
+            <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-600 uppercase">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>ДИАЛОГ С ИИ КОНСЬЕРЖЕМ</span>
             </div>
-
-            {/* Контейнер сообщений: фиксированная высота вмещает ровно 7 сообщений */}
-            <div
-              ref={chatScrollRef}
-              className="max-h-[420px] overflow-y-auto p-4 sm:p-5 space-y-3.5 scroll-smooth"
+            <button
+              type="button"
+              onClick={handleResetChat}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-sky-600 font-medium transition-colors"
             >
-              {chatMessages.map((msg) => (
+              <span>🔄</span>
+              <span>Задать новый вопрос</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 flex flex-col gap-4 max-h-[420px] overflow-y-auto">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {msg.sender === 'ai' && (
+                  <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center flex-shrink-0 text-sm shadow-sm">
+                    🤖
+                  </div>
+                )}
                 <div
-                  key={msg.id}
-                  className={`flex items-start gap-2.5 ${
-                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  className={`relative max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.sender === 'user'
+                      ? 'bg-blue-600 text-white rounded-tr-none shadow-sm'
+                      : 'bg-slate-50 text-slate-800 rounded-tl-none border border-slate-100'
                   }`}
                 >
-                  {msg.sender === 'assistant' && (
-                    <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="w-3.5 h-3.5" />
-                    </div>
-                  )}
-
-                  <div
-                    className={`max-w-[85%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed shadow-sm ${
-                      msg.sender === 'user'
-                        ? 'bg-blue-600 text-white rounded-br-none'
-                        : 'bg-slate-50 text-slate-800 border border-slate-200 rounded-bl-none'
-                    }`}
-                  >
-                    {msg.isThinking ? (
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                        <span>{msg.text}</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <p>{msg.text}</p>
-
-                        {/* Плашка подтвержденных параметров */}
-                        {msg.parsedData && (
-                          <div className="pt-2 border-t border-slate-200/80 flex flex-wrap gap-1.5 text-[11px]">
-                            <span className="px-2 py-0.5 rounded-lg bg-blue-100 text-blue-900 font-bold flex items-center gap-1">
-                              <Plane className="w-3 h-3 text-blue-600" />
-                              {msg.parsedData.origin} → {msg.parsedData.destination}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-lg bg-slate-200/70 text-slate-800 font-medium">
-                              🗓️ {msg.parsedData.departureDate}
-                              {msg.parsedData.returnDate ? ` — ${msg.parsedData.returnDate}` : ''}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-lg bg-slate-200/70 text-slate-800 font-medium">
-                              👥 {msg.parsedData.passengers} {msg.parsedData.passengers === 1 ? 'пассажир' : 'пассажира'}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 font-medium">
-                              💺 {msg.parsedData.cabinClass === 'business' ? 'Бизнес' : 'Эконом'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div
-                      className={`text-[10px] mt-1 text-right ${
-                        msg.sender === 'user' ? 'text-blue-200' : 'text-slate-400'
-                      }`}
-                    >
-                      {msg.timestamp}
-                    </div>
+                  <div className="flex items-center justify-between gap-4 mb-1">
+                    <span className="text-[11px] font-semibold opacity-75">
+                      {msg.sender === 'user' ? 'Вы' : '✨ ИИ Консьерж FlightSaver'}
+                    </span>
+                    <span className="text-[10px] opacity-60">{msg.time}</span>
                   </div>
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
 
-                  {msg.sender === 'user' && (
-                    <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 mt-0.5">
-                      <User className="w-3.5 h-3.5" />
+                  {/* Метаданные маршрута при распознавании */}
+                  {msg.meta && msg.meta.origin && msg.meta.destination && (
+                    <div className="mt-2.5 pt-2 border-t border-slate-200/70 flex flex-wrap gap-1.5 text-[11px]">
+                      <span className="px-2 py-0.5 rounded-lg bg-sky-100 text-sky-900 font-bold">
+                        ✈️ {msg.meta.origin} → {msg.meta.destination}
+                      </span>
+                      {msg.meta.date && (
+                        <span className="px-2 py-0.5 rounded-lg bg-slate-200/70 text-slate-700">
+                          🗓️ {msg.meta.date}
+                        </span>
+                      )}
+                      {msg.meta.passengers && (
+                        <span className="px-2 py-0.5 rounded-lg bg-slate-200/70 text-slate-700">
+                          👥 {msg.meta.passengers} пасс.
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="flex gap-3 justify-start items-center text-slate-400 text-xs pl-11">
+                <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce"></span>
+                <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                <span className="ml-1">ИИ-консьерж анализирует тарифы...</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-        )}
+        </div>
 
-        {/* Результаты поиска: Карточки рейсов прямо под диалогом */}
-        <div ref={resultsRef} className="w-full max-w-4xl space-y-4">
-          {isLoadingFlights && (
-            <div className="p-8 bg-white border border-slate-200 rounded-3xl text-center space-y-3 shadow-sm">
-              <Plane className="w-8 h-8 text-blue-600 animate-bounce mx-auto" />
-              <h3 className="text-base font-bold text-slate-900">
-                Загрузка билетов и проверка стыковок STPC...
-              </h3>
-              <p className="text-xs text-slate-500">
-                Сравниваем доступные тарифы GDS и проверяем условия транзита
-              </p>
-            </div>
-          )}
-
-          {!isLoadingFlights && hasSearched && flights.length === 0 && (
+        {/* Результаты поиска: Карточки рейсов */}
+        <div ref={resultsRef} className="w-full max-w-2xl mt-8 space-y-4">
+          {!isLoading && hasSearched && flights.length === 0 && (
             <div className="p-8 bg-white border border-slate-200 rounded-3xl text-center space-y-3 shadow-sm">
               <Search className="w-10 h-10 text-slate-400 mx-auto" />
               <h3 className="text-base font-bold text-slate-900">
@@ -767,69 +633,23 @@ export default function HomePage() {
             </div>
           )}
 
-          {!isLoadingFlights && flights.length > 0 && (
+          {!isLoading && flights.length > 0 && (
             <div className="space-y-4 animate-fadeIn">
-              {/* Панель фильтров и сортировки */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    onClick={() => setFilterStops('all')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      filterStops === 'all'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Все ({flights.length})
-                  </button>
-                  <button
-                    onClick={() => setFilterStops('direct')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      filterStops === 'direct'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Прямые
-                  </button>
-                  <button
-                    onClick={() => setFilterStops('1stop')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      filterStops === '1stop'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    1 пересадка
-                  </button>
-                  <button
-                    onClick={() => setFilterStops('stpc')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                      filterStops === 'stpc'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                    }`}
-                  >
-                    <Hotel className="w-3.5 h-3.5" />
-                    <span>С отелем STPC</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  <span className="text-xs text-slate-400 font-medium">Сортировка:</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as FlightSortOption)}
-                    className="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
-                  >
-                    <option value="cheap">Сначала дешевые</option>
-                    <option value="fast">Самые быстрые</option>
-                    <option value="stpc">С отелем STPC</option>
-                  </select>
-                </div>
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Доступные предложения ({flights.length})
+                </h3>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as FlightSortOption)}
+                  className="text-xs font-semibold px-2.5 py-1 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none"
+                >
+                  <option value="cheap">Сначала дешевые</option>
+                  <option value="fast">Самые быстрые</option>
+                  <option value="stpc">С отелем STPC</option>
+                </select>
               </div>
 
-              {/* Список карточек рейсов */}
               <div className="grid gap-3.5">
                 {filteredFlights.map((flight) => (
                   <FlightCard
@@ -845,47 +665,22 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Feature Cards Grid (Преимущества) */}
-        {!hasSearched && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-4xl pt-4">
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col items-center text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <Hotel className="w-5 h-5" />
-              </div>
-              <h3 className="font-extrabold text-slate-900 text-sm">Бесплатный отель STPC 4★</h3>
-              <p className="text-xs text-slate-500">
-                При стыковках от 8 часов авиакомпания предоставляет гостиничный номер и трансфер.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col items-center text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <h3 className="font-extrabold text-slate-900 text-sm">Гарантия стыковок</h3>
-              <p className="text-xs text-slate-500">
-                Автоматическая проверка безвизового транзита (TWOV) и единый билет на весь маршрут.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col items-center text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Compass className="w-5 h-5" />
-              </div>
-              <h3 className="font-extrabold text-slate-900 text-sm">Прямой GDS-доступ</h3>
-              <p className="text-xs text-slate-500">
-                Поиск по консолидационным тарифам с экономией до 40% по сравнению с розничными сайтами.
-              </p>
-            </div>
+        {/* Футер */}
+        <div className="w-full max-w-2xl mt-12 pt-6 border-t border-slate-200/60 text-center text-xs text-slate-400 space-y-1.5">
+          <div className="flex items-center justify-center gap-2 font-medium text-slate-500">
+            <span>🎧 ПОДДЕРЖКА 24/7</span>
+            <span>•</span>
+            <span>Оптовые тарифы NDC/GDS</span>
           </div>
-        )}
+          <div>© 2026 FlightSaver AI Travel. Умный поиск авиабилетов.</div>
+        </div>
       </main>
 
       {/* Booking Modal */}
       {selectedFlight && (
         <BookingModal
           flight={selectedFlight}
-          passengersCount={searchSummary?.passengers || passengersCount}
+          passengersCount={1}
           isOpen={isBookingOpen}
           onClose={() => {
             setIsBookingOpen(false);

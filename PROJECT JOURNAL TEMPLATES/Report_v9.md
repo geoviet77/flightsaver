@@ -1337,6 +1337,30 @@
    - Production-сборка `npm.cmd run build` $\rightarrow$ **код выхода 0 (Compiled successfully, 10/10 pages)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.14: Обновление дизайна Шапки (Header) и One-Input поиска с эффектом свечения (Glowing Search)
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Фирменный логотип flight<span className="text-sky-500">saver</span>, One-Input строка поиска (64px, Glowing border), Web Speech API и AI-диалог
+
+1. **Шапка сайта ([src/components/Header.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/components/Header.tsx)):**
+   - Градиентная иконка самолета со свечением `shadow-sky-500/20`.
+   - Название бренда: `flight<span className="text-sky-500">saver</span>`.
+   - Кнопка «Поддержка», переключатель языка (RU/EN), валюты (RUB/USD) и кнопка входа в личный кабинет.
+
+2. **One-Input поиск и Conversational UI ([src/app/page.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/page.tsx)):**
+   - Поисковая строка высотой 64px со свечением `shadow-[0_0_25px_rgba(14,165,233,0.22)]` и `focus-within:border-sky-500`.
+   - Голосовой ввод Web Speech API с анимацией микрофона.
+   - Интеграция онлайн AI-парсера Gemini 2.5 Flash и поиска авиабилетов Duffel API.
+   - Вывод ответов в блок «ДИАЛОГ С ИИ КОНСЬЕРЖЕМ» и отображение карточек рейсов прямо на главной странице.
+
+3. **Верификация и деплой:**
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+   - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 10/10 страниц)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 

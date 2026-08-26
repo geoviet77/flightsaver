@@ -10,9 +10,6 @@ export interface HeaderProps {
   onCurrencyChange?: (c: any) => void;
   currentLanguage?: string;
   onLanguageChange?: (l: any) => void;
-  isHighContrast?: boolean;
-  onToggleHighContrast?: () => void;
-  onOpenInfoModal?: (type: any) => void;
 }
 
 export default function Header({
