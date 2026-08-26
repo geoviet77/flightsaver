@@ -117,28 +117,42 @@ function HomeContent() {
 
       if (response.ok) {
         const data = await response.json();
-        const newParsed = data.parsed;
-        const newFlights = data.flights || [];
+        const newParsed = data.parsed || data.state;
+        const newFlights = Array.isArray(data.flights) ? data.flights : [];
         setParsedParams(newParsed);
         setFlights(newFlights);
 
-        if (data.accumulatedSearchParams || newParsed) {
-          const incoming = data.accumulatedSearchParams || newParsed;
+        const incoming = data.state || data.accumulatedSearchParams || data.parsed;
+        if (incoming) {
           setAccumulatedSearchParams((prev) => ({
-            origin: incoming.origin || prev.origin,
-            originName: incoming.originName || prev.originName,
-            destination: incoming.destination || prev.destination,
-            destinationName: incoming.destinationName || prev.destinationName,
-            departureDate: incoming.departureDate || prev.departureDate,
-            returnDate: incoming.returnDate || prev.returnDate,
-            isOneWay: incoming.isOneWay != null ? incoming.isOneWay : prev.isOneWay,
-            passengers: incoming.passengers != null ? incoming.passengers : prev.passengers,
-            cabinClass: incoming.cabinClass || prev.cabinClass,
+            origin: incoming.origin || incoming.origin_iata || incoming.originIata || prev.origin,
+            originName: incoming.originName || incoming.origin_name || incoming.originCity || prev.originName,
+            destination: incoming.destination || incoming.destination_iata || incoming.destinationIata || prev.destination,
+            destinationName: incoming.destinationName || incoming.destination_name || incoming.destinationCity || prev.destinationName,
+            departureDate: incoming.departureDate || incoming.departure_date || prev.departureDate,
+            returnDate: incoming.returnDate || incoming.return_date || prev.returnDate,
+            isOneWay: incoming.isOneWay != null ? incoming.isOneWay : (incoming.is_round_trip != null ? !incoming.is_round_trip : prev.isOneWay),
+            passengers: incoming.passengers != null ? incoming.passengers : (incoming.passengers_count != null ? incoming.passengers_count : prev.passengers),
+            cabinClass: incoming.cabinClass || incoming.cabin_class || prev.cabinClass,
             hasLuggage: incoming.hasLuggage != null ? incoming.hasLuggage : prev.hasLuggage,
           }));
         }
 
-        const replyContent = data.message || data.text || data.replyText || newParsed?.reply || newParsed?.replyText || newParsed?.aiResponse || newParsed?.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.';
+        const replyContent = data.assistant_message || data.message || data.text || data.replyText || newParsed?.reply || newParsed?.replyText || newParsed?.aiResponse || newParsed?.aiSummary || data.aiSummary || 'Нашел подходящие рейсы.';
+        const quickRepliesRaw = Array.isArray(data.quick_options) && data.quick_options.length > 0
+          ? data.quick_options
+          : (Array.isArray(data.quickReplies) ? data.quickReplies : (newParsed?.quickReplies || []));
+
+        const formattedQuickReplies = quickRepliesRaw.map((opt: any, idx: number) => {
+          if (typeof opt === 'string') {
+            return {
+              id: `qr-${idx}-${Date.now()}`,
+              label: opt,
+              queryText: opt.replace(/^[^\w\sа-яёА-ЯЁ]+/gi, '').trim(),
+            };
+          }
+          return opt;
+        });
 
         const assistantMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
@@ -147,7 +161,7 @@ function HomeContent() {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           parsedParams: newParsed,
           flightsCount: newFlights.length,
-          quickReplies: data.quickReplies || newParsed?.quickReplies || [],
+          quickReplies: formattedQuickReplies,
           missingQuestions: newParsed?.missingQuestions || data.missingQuestions || [],
         };
         setConversationHistory([...currentHistory, assistantMsg]);

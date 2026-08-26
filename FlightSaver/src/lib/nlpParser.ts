@@ -45,6 +45,144 @@ const CITY_DATABASE: CityEntity[] = [
     variations: ['люксембург', 'люксембурга', 'люксенбург', 'люксенбурга', 'люксенбурге', 'lux', 'luxembourg']
   },
   {
+    nameRu: 'Иркутск',
+    nameEn: 'Irkutsk',
+    iata: 'IKT',
+    variations: ['иркутск', 'иркутска', 'иркутске', 'иркутску', 'иркутском', 'байкал', 'ikt', 'irkutsk']
+  },
+  {
+    nameRu: 'Красноярск',
+    nameEn: 'Krasnoyarsk',
+    iata: 'KJA',
+    variations: ['красноярск', 'красноярска', 'красноярске', 'красноярску', 'красноярском', 'емельяново', 'kja', 'krasnoyarsk']
+  },
+  {
+    nameRu: 'Дюссельдорф',
+    nameEn: 'Dusseldorf',
+    iata: 'DUS',
+    variations: ['дюссельдорф', 'дюссельдорфа', 'дюссельдорфе', 'дюссельдорфу', 'дюссельдорфом', 'дуссельдорф', 'dus', 'dusseldorf', 'düsseldorf']
+  },
+  {
+    nameRu: 'Пекин',
+    nameEn: 'Beijing',
+    iata: 'PEK',
+    variations: ['пекин', 'пекина', 'пекине', 'пекину', 'пекином', 'дасин', 'шоуду', 'pek', 'pkx', 'bjs', 'beijing']
+  },
+  {
+    nameRu: 'Гуанчжоу',
+    nameEn: 'Guangzhou',
+    iata: 'CAN',
+    variations: ['гуанчжоу', 'байюнь', 'can', 'guangzhou']
+  },
+  {
+    nameRu: 'Чебоксары',
+    nameEn: 'Cheboksary',
+    iata: 'CSY',
+    variations: ['чебоксары', 'чебоксар', 'чебоксарах', 'чебоксарам', 'csy', 'cheboksary']
+  },
+  {
+    nameRu: 'Владивосток',
+    nameEn: 'Vladivostok',
+    iata: 'VVO',
+    variations: ['владивосток', 'владивостока', 'владивостоке', 'владивостоку', 'кневичи', 'vvo', 'vladivostok']
+  },
+  {
+    nameRu: 'Хабаровск',
+    nameEn: 'Khabarovsk',
+    iata: 'KHV',
+    variations: ['хабаровск', 'хабаровска', 'хабаровске', 'хабаровску', 'новый', 'khv', 'khabarovsk']
+  },
+  {
+    nameRu: 'Новосибирск',
+    nameEn: 'Novosibirsk',
+    iata: 'OVB',
+    variations: ['новосибирск', 'новосибирска', 'новосибирске', 'новосибирску', 'толмачево', 'ovb', 'novosibirsk']
+  },
+  {
+    nameRu: 'Минск',
+    nameEn: 'Minsk',
+    iata: 'MSQ',
+    variations: ['минск', 'минска', 'минске', 'минску', 'msq', 'minsk']
+  },
+  {
+    nameRu: 'Астана',
+    nameEn: 'Astana',
+    iata: 'NQZ',
+    variations: ['астана', 'астаны', 'астане', 'нурсултан', 'nqz', 'tse', 'astana']
+  },
+  {
+    nameRu: 'Ташкент',
+    nameEn: 'Tashkent',
+    iata: 'TAS',
+    variations: ['ташкент', 'ташкента', 'ташкенте', 'tas', 'tashkent']
+  },
+  {
+    nameRu: 'Алматы',
+    nameEn: 'Almaty',
+    iata: 'ALA',
+    variations: ['алматы', 'алма-ата', 'ala', 'almaty']
+  },
+  {
+    nameRu: 'Уфа',
+    nameEn: 'Ufa',
+    iata: 'UFA',
+    variations: ['уфа', 'уфы', 'уфе', 'уфу', 'ufa']
+  },
+  {
+    nameRu: 'Калининград',
+    nameEn: 'Kaliningrad',
+    iata: 'KGD',
+    variations: ['калининград', 'калининграда', 'калининграде', 'храброво', 'kgd', 'kaliningrad']
+  },
+  {
+    nameRu: 'Минеральные Воды',
+    nameEn: 'Mineralnye Vody',
+    iata: 'MRV',
+    variations: ['минеральные воды', 'минводы', 'минвод', 'минводах', 'кмв', 'mrv']
+  },
+  {
+    nameRu: 'Абу-Даби',
+    nameEn: 'Abu Dhabi',
+    iata: 'AUH',
+    variations: ['абу-даби', 'абу даби', 'абудаби', 'auh', 'abu dhabi']
+  },
+  {
+    nameRu: 'Сеул',
+    nameEn: 'Seoul',
+    iata: 'ICN',
+    variations: ['сеул', 'сеула', 'сеуле', 'инчхон', 'icn', 'gmp', 'seoul']
+  },
+  {
+    nameRu: 'Сингапур',
+    nameEn: 'Singapore',
+    iata: 'SIN',
+    variations: ['сингапур', 'сингапура', 'сингапуре', 'чанги', 'sin', 'singapore']
+  },
+  {
+    nameRu: 'Куала-Лумпур',
+    nameEn: 'Kuala Lumpur',
+    iata: 'KUL',
+    variations: ['куала-лумпур', 'куала лумпур', 'куалалумпур', 'kul', 'kuala lumpur']
+  },
+  {
+    nameRu: 'Ханой',
+    nameEn: 'Hanoi',
+    iata: 'HAN',
+    variations: ['ханой', 'ханоя', 'ханое', 'нойбай', 'han', 'hanoi']
+  },
+  {
+    nameRu: 'Хошимин',
+    nameEn: 'Ho Chi Minh',
+    iata: 'SGN',
+    variations: ['хошимин', 'хошимина', 'хошимине', 'сайгон', 'таншоннят', 'sgn', 'saigon']
+  },
+  {
+    nameRu: 'Анталья',
+    nameEn: 'Antalya',
+    iata: 'AYT',
+    variations: ['анталья', 'антальи', 'анталье', 'ayt', 'antalya']
+  },
+  {
     nameRu: 'Париж',
     nameEn: 'Paris',
     iata: 'CDG',
@@ -842,15 +980,9 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
       { id: 'corp-b2b', label: '🏢 Как юрлицо (Корпоративный счет)', queryText: 'как юрлицо (корпоративный счет)', category: 'corporate' }
     );
   } else {
-    // 1. Trip type (if only departure date is known and not specified as one-way)
+    // 1. Trip type (Non-blocking instant search: default to one-way, but provide quick options)
     if (!isOneWayExplicit && !isRoundTripExplicit && departureDate && !returnDate) {
-      missingFields.push('tripType');
-      if (!clarificationMessage) {
-        needsClarification = true;
-        clarificationMessage = 'Вам нужен билет в одну сторону или планируете возвращение?';
-      }
       quickReplies.push(
-        { id: 'oneway', label: '🛫 В одну сторону', queryText: 'в одну сторону', category: 'tripType' },
         { id: 'ret-7d', label: '🔄 Обратно через 7 дней', queryText: 'обратно через 7 дней', category: 'tripType' },
         { id: 'ret-14d', label: '🔄 Обратно через 14 дней', queryText: 'обратно через 14 дней', category: 'tripType' },
         { id: 'custom-dates', label: '✏️ Свой вариант', queryText: 'свой вариант дат', category: 'tripType', isCustomInputPrompt: true, promptText: 'Укажите ваши даты или число дней (например: на 18 дней или обратно 25 октября)' }

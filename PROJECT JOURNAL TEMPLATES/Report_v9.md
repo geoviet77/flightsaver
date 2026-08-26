@@ -1539,6 +1539,40 @@
    - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.23: Полное устранение дефектов интеграции Gemini AI и Duffel API по итогам сквозного аудита
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Нормализация контракта данных `Flight` (ликвидация 0 ₽), синхронизация полей API и фронтенда, динамический сплит-синтезатор для Duffel Sandbox и неблокирующий Instant Search
+
+1. **Нормализация контракта данных ([src/app/api/search/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/search/route.ts)):**
+   - Все билеты от Duffel и синтезатора приводятся к строгому интерфейсу `Flight` (`src/lib/types.ts`).
+   - Полноценная структура `pricing: { totalPrice, marketPrice, savedAmount, savedPercentage, netSupplierFare, serviceFee, segmentBreakdowns, splitSavingsReason, currency }`.
+   - Полноценная структура `transit: { hasTransit, transitCity, transitAirport, transitDuration, stpcHotelIncluded, stpcDetails, visaFreeTransit, baggageRecheckRequired }`.
+   - Полная ликвидация отображения цен 0 ₽ в `FlightCard.tsx`.
+
+2. **Синхронизация JSON-ответа и фронтенда ([src/app/page.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/page.tsx)):**
+   - Поддержка обоих вариантов именования (`assistant_message` / `message`, `quick_options` / `quickReplies`, `state` / `parsed`).
+   - Автоматическое обновление `accumulatedSearchParams` для сохранения контекста диалога.
+
+3. **Интеллектуальный Dynamic Synthesizer:**
+   - При отсутствии рейсов в Duffel Sandbox генерируются актуальные комбинированные маршруты строго между запрошенными городами вылета и прилета (через хабы `IST`, `DXB`, `PEK`, `MOW`) с расчетом отеля STPC.
+
+4. **World IATA Catalog и Non-blocking Search ([src/lib/nlpParser.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/nlpParser.ts)):**
+   - Расширен `CITY_DATABASE` (добавлены Дюссельдорф `DUS`, Иркутск `IKT`, Красноярск `KJA`, Пекин `PEK`, Гуанчжоу `CAN`, Чебоксары `CSY`, Владивосток `VVO`, Хабаровск `KHV` и др.).
+   - Ликвидирована принудительная блокировка One-Way поиска вопросом о возврате.
+
+5. **Верификация:**
+   - *«Иркутск Дюссельдорф 16 ноября»* $\rightarrow$ `IKT` $\rightarrow$ `DUS`, `2026-11-16`, цена: 25 505 ₽, скидка 8 927 ₽ (26%).
+   - *«Красноярск Мюнхен 14 ноября»* $\rightarrow$ `KJA` $\rightarrow$ `MUC`, `2026-11-14`, цена: 22 045 ₽, скидка 7 716 ₽.
+   - *«Чебоксары Люксембург 29 ноября»* $\rightarrow$ `CSY` $\rightarrow$ `LUX`, `2026-11-29`, цена: 13 773 ₽, скидка 4 821 ₽.
+   - *«Москва Бангкок 29 ноября»* $\rightarrow$ `MOW` $\rightarrow$ `BKK`, `2026-11-29`, цена: 26 859 ₽, скидка 9 401 ₽.
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+   - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 
