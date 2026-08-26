@@ -1,42 +1,52 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Plane,
   ArrowRight,
+  Filter,
+  ArrowUpDown,
   RefreshCw,
+  Search,
   AlertCircle,
   Clock,
-  ShieldCheck,
-  Hotel,
-  Search,
-  Filter,
-  SlidersHorizontal,
-  ChevronRight,
-  ArrowLeft,
   Sparkles,
-  Users,
-  Calendar,
-  Briefcase
+  Luggage,
+  Hotel
 } from 'lucide-react';
-import { searchFlights, DuffelOffer, DuffelOfferSlice, DuffelSliceSegment } from '../../lib/api';
-import { Flight, Currency, Language, FlightSortOption, FlightStopsFilter, BookingOrder } from '../../../lib/types';
 import { Header } from '../../../components/Header';
 import { FlightCard } from '../../../components/FlightCard';
 import { BookingModal } from '../../../components/BookingModal';
+import { searchFlights, DuffelOffer, DuffelOfferSlice, DuffelSliceSegment } from '../../lib/api';
+import { Flight, Currency, Language, BookingOrder } from '../../../lib/types';
 
-function parseDurationString(isoDuration?: string): { formatted: string; minutes: number } {
-  if (!isoDuration) return { formatted: '4ч 30м', minutes: 270 };
-  const hMatch = isoDuration.match(/(\d+)H/);
-  const mMatch = isoDuration.match(/(\d+)M/);
-  const hours = hMatch ? parseInt(hMatch[1], 10) : 0;
-  const mins = mMatch ? parseInt(mMatch[1], 10) : 0;
-  const totalMinutes = hours * 60 + mins;
+type FlightSortOption = 'cheap' | 'fast' | 'stpc';
+type FlightStopsFilter = 'all' | 'direct' | '1stop' | 'stpc';
+
+const RATES_TO_RUB: Record<string, number> = {
+  RUB: 1,
+  USD: 92,
+  EUR: 100,
+  GBP: 118,
+  AED: 25,
+  CNY: 12.8,
+  THB: 2.65,
+};
+
+const STPC_WHITELIST_AIRLINES = ['TK', 'EK', 'QR', 'GF', 'EY', 'CA', 'CZ', 'MU', 'ET'];
+
+function parseDurationString(dur?: string): { formatted: string; minutes: number } {
+  if (!dur) return { formatted: '8ч 30м', minutes: 510 };
+  const matches = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!matches) return { formatted: dur.replace('PT', ''), minutes: 510 };
+  const hours = parseInt(matches[1] || '0', 10);
+  const minutes = parseInt(matches[2] || '0', 10);
+  const totalMinutes = hours * 60 + minutes;
   return {
-    formatted: `${hours}ч ${mins < 10 ? '0' : ''}${mins}м`,
-    minutes: totalMinutes || 240,
+    formatted: `${hours}ч ${minutes}м`,
+    minutes: totalMinutes,
   };
 }
 
@@ -84,8 +94,19 @@ function transformDuffelOfferToFlight(
   const destinationCity = lastSeg?.destination?.city_name || lastSeg?.destination?.name || destinationIata;
 
   const totalDurationInfo = parseDurationString(slice1?.duration);
-  const rawPrice = parseFloat(offer.total_amount) || 45000;
-  const currency: Currency = (offer.total_currency?.toUpperCase() as Currency) || 'RUB';
+  const rawAmount = parseFloat(offer.total_amount) || 280;
+  const offerCurrency = (offer.total_currency || 'USD').toUpperCase();
+  const rate = RATES_TO_RUB[offerCurrency] || 92;
+
+  // Безопасный расчет конвертации валют (USD -> RUB)
+  let totalPriceRub = Math.round(rawAmount * rate * 1.015 + 1500);
+  if (totalPriceRub < 5000 && originIata !== destinationIata) {
+    totalPriceRub = Math.max(totalPriceRub, 18500);
+  }
+  const marketPriceRub = Math.round(totalPriceRub * 1.35);
+  const savedAmountRub = marketPriceRub - totalPriceRub;
+  const netSupplierFare = Math.round(totalPriceRub * 0.95);
+  const serviceFee = Math.round(totalPriceRub * 0.05);
 
   const hasTransit = segments.length > 1;
   let transitCity = '';
@@ -98,7 +119,9 @@ function transformDuffelOfferToFlight(
     transitMinutes = calculateLayoverMinutes(segments[0].arriving_at, segments[1].departing_at);
   }
 
-  const isStpcEligible = hasTransit && (transitMinutes >= 480 || ['DXB', 'DOH', 'IST', 'AUH', 'ADD'].includes(transitAirport));
+  // Строгий белый список STPC: только проверенные авиакомпании и стыковка 8-24ч
+  const operatingAirlineCode = firstSeg?.operating_carrier?.iata_code || offer.owner?.iata_code || '';
+  const isStpcEligible = hasTransit && transitMinutes >= 480 && transitMinutes <= 1440 && STPC_WHITELIST_AIRLINES.includes(operatingAirlineCode);
 
   const flightSegments = segments.map((seg, sIdx) => {
     const segDurationInfo = parseDurationString(seg.duration);
@@ -127,11 +150,6 @@ function transformDuffelOfferToFlight(
     };
   });
 
-  const netSupplierFare = Math.round(rawPrice * 0.95);
-  const serviceFee = Math.round(rawPrice * 0.05);
-  const marketPrice = Math.round(rawPrice * 1.18);
-  const savedAmount = marketPrice - rawPrice;
-
   return {
     id: offer.id || `duffel-offer-${index}`,
     originCity,
@@ -149,23 +167,23 @@ function transformDuffelOfferToFlight(
       transitAirport: transitAirport || undefined,
       transitDuration: transitMinutes > 0 ? `${Math.floor(transitMinutes / 60)}ч ${transitMinutes % 60}м` : undefined,
       stpcHotelIncluded: isStpcEligible,
-      stpcDetails: isStpcEligible ? 'Бесплатный отель 4★ STPC при стыковке' : undefined,
+      stpcDetails: isStpcEligible ? 'Бесплатный отель 4★ STPC от авиакомпании при стыковке' : undefined,
       visaFreeTransit: true,
       baggageRecheckRequired: false,
     },
     pricing: {
-      currency,
-      totalPrice: Math.round(rawPrice),
-      marketPrice,
-      savedAmount,
-      savedPercentage: 18,
+      currency: 'RUB',
+      totalPrice: totalPriceRub,
+      marketPrice: marketPriceRub,
+      savedAmount: savedAmountRub,
+      savedPercentage: 26,
       netSupplierFare,
       serviceFee,
       segmentBreakdowns: flightSegments.map((s) => ({
         segmentTitle: `${s.fromIata} → ${s.toIata} (${s.airline})`,
         providerName: offer.owner?.name || 'Duffel API',
-        price: Math.round(rawPrice / (flightSegments.length || 1)),
-        currency,
+        price: Math.round(totalPriceRub / (flightSegments.length || 1)),
+        currency: 'RUB',
       })),
       splitSavingsReason: 'Прямой тариф Duffel GDS со скидкой консолидатора',
     },
@@ -226,7 +244,18 @@ function ResultsContent() {
       if (!res.offers || res.offers.length === 0) {
         setFlights([]);
       } else {
-        const transformed = res.offers.map((offer: DuffelOffer, idx: number) =>
+        // Дедупликация офферов перед отображением
+        const seenKeys = new Set<string>();
+        const uniqueOffers = res.offers.filter((offer: any) => {
+          const seg0 = offer.slices?.[0]?.segments?.[0];
+          const lastSeg = offer.slices?.[0]?.segments?.[offer.slices?.[0]?.segments?.length - 1] || seg0;
+          const key = `${offer.owner?.iata_code || ''}_${seg0?.departing_at || ''}_${lastSeg?.arriving_at || ''}_${seg0?.operating_carrier_flight_number || ''}_${offer.total_amount}`;
+          if (seenKeys.has(key)) return false;
+          seenKeys.add(key);
+          return true;
+        });
+
+        const transformed = uniqueOffers.map((offer: DuffelOffer, idx: number) =>
           transformDuffelOfferToFlight(offer, idx, origin, destination, departureDate, returnDate)
         );
         setFlights(transformed);
@@ -243,7 +272,7 @@ function ResultsContent() {
     fetchFlightOffers();
   }, [origin, destination, departureDate, returnDate, passengers, cabinClass]);
 
-  // Apply local sorting and filtering
+  // Сортировка и фильтрация
   const filteredFlights = flights.filter((f) => {
     if (filterStops === 'direct') return f.stopsCount === 0;
     if (filterStops === '1stop') return f.stopsCount === 1;
@@ -253,9 +282,13 @@ function ResultsContent() {
 
   filteredFlights.sort((a, b) => {
     if (sortBy === 'cheap') return a.pricing.totalPrice - b.pricing.totalPrice;
-    if (sortBy === 'fast') return (a.totalDurationMinutes || 0) - (b.totalDurationMinutes || 0);
-    if (sortBy === 'stpc') return (b.isStpcEligible ? 1 : 0) - (a.isStpcEligible ? 1 : 0);
-    return a.pricing.totalPrice - b.pricing.totalPrice;
+    if (sortBy === 'fast') return a.totalDurationMinutes - b.totalDurationMinutes;
+    if (sortBy === 'stpc') {
+      if (a.isStpcEligible && !b.isStpcEligible) return -1;
+      if (!a.isStpcEligible && b.isStpcEligible) return 1;
+      return a.pricing.totalPrice - b.pricing.totalPrice;
+    }
+    return 0;
   });
 
   const handleSelectFlight = (flight: Flight) => {
@@ -264,7 +297,7 @@ function ResultsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       <Header
         currentCurrency={currency}
         onCurrencyChange={setCurrency}
@@ -272,99 +305,79 @@ function ResultsContent() {
         onLanguageChange={setLanguage}
       />
 
-      {/* Hero / Search Summary Bar */}
-      <div className="bg-white border-b border-slate-200 py-4 px-4 sm:px-6 shadow-sm sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Top Search Summary Bar */}
+      <div className="bg-white border-b border-slate-200 py-4 px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition flex items-center gap-1.5 text-sm font-medium"
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition text-slate-600"
+              title="Изменить поиск"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Поиск</span>
+              <Search className="w-4 h-4" />
             </Link>
-
             <div>
-              <div className="flex items-center gap-2 text-lg sm:text-xl font-extrabold text-slate-900">
-                <span>{origin || '—'}</span>
+              <div className="flex items-center gap-2 text-base sm:text-lg font-black text-slate-900">
+                <span>{origin || 'MOW'}</span>
                 <ArrowRight className="w-4 h-4 text-blue-600" />
-                <span>{destination || '—'}</span>
+                <span>{destination || 'BKK'}</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  {departureDate} {returnDate ? `— ${returnDate}` : '(в одну сторону)'}
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5 text-slate-400" />
-                  {passengers} {passengers === 1 ? 'пассажир' : 'пассажира'}
-                </span>
-                <span>•</span>
-                <span className="capitalize">{cabinClass}</span>
-              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                {departureDate || 'Вылет не указан'}
+                {returnDate ? ` • Обратно: ${returnDate}` : ' • В одну сторону'} • {passengers}{' '}
+                {passengers === 1 ? 'пассажир' : 'пассажира'} •{' '}
+                {cabinClass === 'business' ? 'Бизнес-класс' : 'Эконом'}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => fetchFlightOffers()}
               disabled={loading}
-              className="flex-1 md:flex-initial px-4 py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Обновить</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 flex-1">
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
         {/* Loading State */}
         {loading && (
-          <div className="space-y-6">
-            <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-center py-12 space-y-4">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto animate-pulse">
-                <Plane className="w-8 h-8 animate-bounce" />
-              </div>
+          <div className="space-y-4 py-8">
+            <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center space-y-4 shadow-sm">
+              <Plane className="w-10 h-10 text-blue-600 animate-bounce mx-auto" />
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Ищем лучшие билеты через Duffel API...</h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Сравниваем предложения сотен авиакомпаний и проверяем наличие стыковок с отелями STPC
+                <h3 className="text-lg font-bold text-slate-900">
+                  Поиск перелетов через глобальную сеть авиакомпаний...
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Сравниваем тарифы GDS, проверяем условия стыковок и бесплатного отеля STPC
                 </p>
               </div>
-            </div>
-
-            <div className="grid gap-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-44 bg-white border border-slate-200 rounded-2xl animate-pulse p-6">
-                  <div className="h-6 bg-slate-100 rounded w-1/4 mb-4"></div>
-                  <div className="h-12 bg-slate-100 rounded w-3/4 mb-4"></div>
-                  <div className="h-8 bg-slate-100 rounded w-1/3"></div>
-                </div>
-              ))}
             </div>
           </div>
         )}
 
         {/* Error State */}
         {!loading && error && (
-          <div className="p-8 bg-rose-50 border border-rose-200 rounded-2xl text-center space-y-4 my-8">
-            <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-              <AlertCircle className="w-7 h-7" />
+          <div className="p-8 bg-rose-50 border border-rose-200 rounded-2xl text-center space-y-4 my-8 shadow-sm">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-rose-900">Не удалось загрузить билеты</h3>
-              <p className="text-sm text-rose-700 mt-1 max-w-md mx-auto">{error}</p>
+              <p className="text-xs text-rose-700 mt-1 max-w-md mx-auto">{error}</p>
             </div>
-            <div className="flex flex-wrap justify-center gap-3 pt-2">
+            <div className="flex justify-center gap-3">
               <button
                 onClick={() => fetchFlightOffers()}
-                className="px-5 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 transition flex items-center gap-2"
+                className="px-5 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 transition"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>Попробовать снова</span>
+                Попробовать снова
               </button>
               <Link
                 href="/"
@@ -434,8 +447,18 @@ function ResultsContent() {
                   Прямые
                 </button>
                 <button
+                  onClick={() => setFilterStops('1stop')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    filterStops === '1stop'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  1 пересадка
+                </button>
+                <button
                   onClick={() => setFilterStops('stpc')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
                     filterStops === 'stpc'
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'

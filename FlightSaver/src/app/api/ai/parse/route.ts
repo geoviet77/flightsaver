@@ -18,7 +18,9 @@ export interface ParsedFlightParams {
   passengers: number;
   cabinClass: CabinClass;
   searchStpc: boolean;
+  needsRoundTrip?: boolean;
   message: string;
+  suggestedClarifications?: string[];
 }
 
 export interface ParseSuccessResponse {
@@ -37,66 +39,74 @@ function getSystemInstruction(currentDate: string): string {
 Your job is to parse ANY natural language flight query in Russian or English into structured flight parameters.
 Current reference date: ${currentDate} (Year 2026).
 
-You must accurately determine the 3-letter IATA code for ANY city, region, or airport in the world:
-Examples of global IATA codes:
-- "южно-сахалинск" / "южносахалинск" -> origin: "UUS"
-- "дананг" / "da nang" -> destination: "DAD"
-- "нячанг" / "камрань" -> "CXR"
-- "владивосток" -> "VVO"
-- "хабаровск" -> "KHV"
-- "иркутск" -> "IKT"
-- "казань" -> "KZN"
-- "екатеринбург" -> "SVX"
-- "новосибирск" -> "OVB"
-- "москва" -> "MOW" (or SVO, DME, VKO)
-- "санкт-петербург" / "питер" -> "LED"
-- "сочи" -> "AER"
-- "токио" / "япония" -> "TYO"
-- "осака" -> "OSA"
-- "сеул" / "корея" -> "ICN"
-- "бангкок" / "таиланд" -> "BKK"
-- "пхукет" -> "HKT"
-- "самуи" -> "USM"
-- "бали" / "денпасар" / "индонезия" -> "DPS"
-- "дубай" / "оаэ" -> "DXB"
-- "доха" / "катар" -> "DOH"
-- "стамбул" / "турция" -> "IST"
-- "париж" / "франция" -> "PAR" (or CDG)
-- "рим" / "италия" -> "ROM" (or FCO)
-- "лондон" / "великобритания" -> "LON" (or LHR)
-- "лос-анджелес" -> "LAX"
-- "нью-йорк" -> "NYC" (or JFK)
-- "мале" / "мальдивы" -> "MLE"
-- Любой другой город мира -> его реальный 3-буквенный IATA код.
+CRITICAL RULES FOR ORIGIN & DESTINATION:
+1. When two cities/places are mentioned:
+   - The first mentioned city is ALWAYS the ORIGIN (point of departure).
+     Example: "Питер Гуанчжоу 12 сентября" -> origin: "LED", destination: "CAN".
+     Example: "Москва Токио" -> origin: "MOW", destination: "TYO".
+     Example: "Владивосток Нячанг" -> origin: "VVO", destination: "CXR".
+     Example: "Казань Стамбул" -> origin: "KZN", destination: "IST".
+   - If prepositions are used:
+     Example: "из Казани в Стамбул" -> origin: "KZN", destination: "IST".
+     Example: "в Дананг из Южно-Сахалинска" -> origin: "UUS", destination: "DAD".
+   - If only one city is mentioned (e.g. "Билеты в Токио"), assume origin: "MOW" (or default departure) and destination: "TYO".
 
-Rules for Dates:
-- Parse dates relative to 2026 (or 2027 if next year).
-- "12 сентября" -> "2026-09-12"
-- "20 октября на 10 дней" -> departureDate: "2026-10-20", returnDate: "2026-10-30"
-- "в октябре на 10 дней" -> departureDate: "2026-10-10", returnDate: "2026-10-20"
-- "новогодние праздники" -> departureDate: "2026-12-28", returnDate: "2027-01-08"
-- "майские праздники" -> departureDate: "2027-05-01", returnDate: "2027-05-10"
-- "на 2 недели" -> departureDate: (explicit date or 7 days from now), returnDate: (departureDate + 14 days)
+2. Accurate World IATA Code resolution:
+   - "питер" / "петербург" / "санкт-петербург" / "спб" -> "LED"
+   - "москва" -> "MOW" (SVO, DME, VKO)
+   - "сочи" / "адлер" -> "AER"
+   - "гуанчжоу" / "guangzhou" -> "CAN"
+   - "пекин" / "beijing" -> "PEK"
+   - "шанхай" / "shanghai" -> "SHA" (PVG)
+   - "гонконг" / "hong kong" -> "HKG"
+   - "южно-сахалинск" / "южносахалинск" -> "UUS"
+   - "дананг" / "da nang" -> "DAD"
+   - "нячанг" / "камрань" -> "CXR"
+   - "владивосток" -> "VVO"
+   - "хабаровск" -> "KHV"
+   - "иркутск" -> "IKT"
+   - "казань" -> "KZN"
+   - "екатеринбург" -> "SVX"
+   - "новосибирск" -> "OVB"
+   - "токио" / "япония" -> "TYO"
+   - "осака" -> "OSA"
+   - "сеул" / "корея" -> "ICN"
+   - "бангкок" / "таиланд" -> "BKK"
+   - "пхукет" -> "HKT"
+   - "бали" / "денпасар" -> "DPS"
+   - "дубай" / "оаэ" -> "DXB"
+   - "доха" / "катар" -> "DOH"
+   - "стамбул" / "турция" -> "IST"
+   - "париж" -> "PAR" (CDG)
+   - "рим" -> "ROM" (FCO)
+   - "лондон" -> "LON" (LHR)
+   - "лос-анджелес" -> "LAX"
+   - "нью-йорк" -> "NYC" (JFK)
+   - "мале" / "мальдивы" -> "MLE"
+   - ANY other city in the world -> its exact 3-letter IATA code.
 
-Passengers:
-- Parse number of passengers (default: 1). "для двоих" -> 2, "семьей из 4 человек" -> 4.
+3. Dates & Round-Trip Rules:
+   - Relative to Year 2026 (or 2027 if next year).
+   - "12 сентября" -> departureDate: "2026-09-12", returnDate: null
+   - "туда-обратно" / "обратно через 10 дней" / "на 2 недели" -> compute returnDate.
+   - "новогодние праздники" -> departureDate: "2026-12-28", returnDate: "2027-01-08"
+   - "майские праздники" -> departureDate: "2027-05-01", returnDate: "2027-05-10"
 
-Cabin Class:
-- "business" if business/first class mentioned, otherwise "economy".
+4. Passengers & Class:
+   - Default: 1 passenger, "economy" class.
+   - "для двоих" -> 2, "бизнес" -> "business".
 
-searchStpc:
-- true if layover, long transit, hotel, or STPC program mentioned.
-
-Return ONLY a strict JSON object with this structure:
+Return ONLY a strict JSON object:
 {
-  "origin": "UUS",
-  "destination": "DAD",
+  "origin": "LED",
+  "destination": "CAN",
   "departureDate": "2026-09-12",
   "returnDate": null,
   "passengers": 1,
   "cabinClass": "economy",
   "searchStpc": false,
-  "message": "Подбираю билеты из Южно-Сахалинска (UUS) в Дананг (DAD) на 12 сентября 2026."
+  "needsRoundTrip": false,
+  "message": "Маршрут Санкт-Петербург (LED) → Гуанчжоу (CAN) на 12 сентября 2026 года."
 }`;
 }
 
@@ -120,7 +130,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ParseSuccessR
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     const currentDate = new Date().toISOString().split('T')[0];
 
-    // Вызываем Gemini 2.5 Flash онлайн для 100% динамического извлечения IATA кодов
+    // Вызываем Gemini 2.5 Flash онлайн
     if (apiKey) {
       const ai = new GoogleGenAI({ apiKey });
       const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash'];
@@ -166,12 +176,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<ParseSuccessR
 
             const cabinClass: CabinClass = rawParsed.cabinClass === 'business' ? 'business' : 'economy';
             const searchStpc = Boolean(rawParsed.searchStpc);
+            const needsRoundTrip = Boolean(rawParsed.needsRoundTrip || returnDate);
 
             const message = typeof rawParsed.message === 'string' && rawParsed.message.trim()
               ? rawParsed.message.trim()
               : `Поиск билетов ${origin || ''} → ${destination || ''}${departureDate ? ` (${departureDate})` : ''}.`;
 
-            if (origin && destination) {
+            if (origin && destination && origin !== destination) {
               return NextResponse.json({
                 success: true,
                 data: {
@@ -182,7 +193,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<ParseSuccessR
                   passengers,
                   cabinClass,
                   searchStpc,
+                  needsRoundTrip,
                   message,
+                  suggestedClarifications: !returnDate ? ['Добавить обратный билет', 'Выбрать багаж 23 кг'] : undefined,
                 },
               });
             }
@@ -193,7 +206,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ParseSuccessR
       }
     }
 
-    // Универсальный эвристический парсер при недоступности API
+    // Универсальный эвристический парсер с точным определением порядка слов
     const fallbackData = universalFallbackParse(prompt);
     return NextResponse.json({
       success: true,
@@ -226,8 +239,16 @@ function addDaysToDate(dateStr: string, days: number): string {
   }
 }
 
-// Обширная всемирная карта IATA кодов
 const OFFLINE_IATA_MAP: Record<string, string> = {
+  'питер': 'LED',
+  'петербург': 'LED',
+  'петербурга': 'LED',
+  'санкт-петербург': 'LED',
+  'спб': 'LED',
+  'гуанчжоу': 'CAN',
+  'пекин': 'PEK',
+  'шанхай': 'SHA',
+  'гонконг': 'HKG',
   'южно-сахалинск': 'UUS',
   'южносахалинск': 'UUS',
   'южносахалинска': 'UUS',
@@ -251,15 +272,10 @@ const OFFLINE_IATA_MAP: Record<string, string> = {
   'москва': 'MOW',
   'москвы': 'MOW',
   'москву': 'MOW',
-  'питер': 'LED',
-  'петербург': 'LED',
-  'петербурга': 'LED',
-  'санкт-петербург': 'LED',
   'сочи': 'AER',
   'токио': 'TYO',
   'япония': 'TYO',
   'японию': 'TYO',
-  'японии': 'TYO',
   'осака': 'OSA',
   'сеул': 'ICN',
   'корея': 'ICN',
@@ -303,7 +319,7 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
   let origin: string | null = null;
   let destination: string | null = null;
 
-  // 1. Поиск пары городов
+  // 1. Поиск по предлогам «из [A] в [B]» или «в [B] из [A]»
   const fromMatch = lower.match(/из\s+([а-яa-z\-]+)/i);
   if (fromMatch && fromMatch[1]) {
     const city = fromMatch[1].toLowerCase();
@@ -318,7 +334,8 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
     }
   }
 
-  // Если пара не определилась по предлогам, ищем по порядку их появления в тексте
+  // 2. Если пара городов не определилась по предлогам — извлекаем в порядке их появления в тексте:
+  // ПЕРВЫЙ город = ORIGIN, ВТОРОЙ город = DESTINATION
   if (!origin || !destination) {
     const matchedCities: { iata: string; index: number }[] = [];
     for (const [cityName, iata] of Object.entries(OFFLINE_IATA_MAP)) {
@@ -339,9 +356,9 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
   }
 
   const finalOrigin = origin || 'MOW';
-  const finalDestination = destination || (finalOrigin === 'MOW' ? 'BKK' : 'MOW');
+  const finalDestination = destination || (finalOrigin === 'MOW' ? 'CAN' : 'MOW');
 
-  // 2. Обработка дат
+  // 3. Обработка дат и праздников
   let departureDate: string | null = null;
   let returnDate: string | null = null;
 
@@ -365,7 +382,6 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
       departureDate = getDefaultDate();
     }
 
-    // Проверка интервалов (на 10 дней, на 2 недели)
     const daysMatch = lower.match(/на\s+(\d+)\s+(?:дней|дня|день)/i);
     if (daysMatch && daysMatch[1] && departureDate) {
       const days = parseInt(daysMatch[1], 10);
@@ -374,6 +390,10 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
       returnDate = addDaysToDate(departureDate, 14);
     } else if (lower.includes('на неделю') && departureDate) {
       returnDate = addDaysToDate(departureDate, 7);
+    } else if (/туда-обратно|туда и обратно|обратно/i.test(lower) && !returnDate && departureDate) {
+      returnDate = (departureDate.includes('12-28') || departureDate.includes('12-29'))
+        ? '2027-01-08'
+        : addDaysToDate(departureDate, 7);
     }
   }
 
@@ -393,8 +413,10 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
     passengers,
     cabinClass,
     searchStpc,
+    needsRoundTrip: Boolean(returnDate),
     message: returnDate
-      ? `Поиск билетов ${finalOrigin} → ${finalDestination} (${departureDate} — ${returnDate}).`
-      : `Поиск билетов ${finalOrigin} → ${finalDestination} (${departureDate}).`,
+      ? `Маршрут ${finalOrigin} → ${finalDestination} (${departureDate} — ${returnDate}).`
+      : `Маршрут ${finalOrigin} → ${finalDestination} (${departureDate}).`,
+    suggestedClarifications: !returnDate ? ['Добавить обратный билет', 'Выбрать багаж 23 кг'] : undefined,
   };
 }
