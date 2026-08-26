@@ -1231,6 +1231,31 @@
    - Тестирование API: `POST /api/ai/parse` с запросом *«В Бангкок из Москвы 15 сентября»* $\rightarrow$ **HTTP 200 OK** (распознано: `MOW → BKK`, `2026-09-15`).
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.10: Улучшение System Instruction Gemini для парсинга городов (TYO/MOW), дат и предотвращение MOW → MOW
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Динамический контекст текущей даты, сопоставление направлений (Токио/Япония $\rightarrow$ `TYO`), распознавание праздников и исключение дублирования origin/destination
+
+1. **Серверный роут AI-парсера ([src/app/api/ai/parse/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/ai/parse/route.ts)):**
+   - **Динамическая дата в System Instruction**: Передача `new Date().toISOString().split('T')[0]` в системный промпт модели Gemini 2.5 Flash.
+   - **Расширение базы IATA кодов**: Токио/Япония $\rightarrow$ `TYO`, Осака $\rightarrow$ `OSA`, Сеул $\rightarrow$ `ICN`, Бангкок $\rightarrow$ `BKK`, Пхукет $\rightarrow$ `HKT`, Бали $\rightarrow$ `DPS`, Дубай $\rightarrow$ `DXB`, Лос-Анджелес $\rightarrow$ `LAX`, Нью-Йорк $\rightarrow$ `NYC`, Париж $\rightarrow$ `PAR`, Рим $\rightarrow$ `ROM`.
+   - **Обработка праздничных дат**:
+     * *«Новогодние праздники / Новый год»* $\rightarrow$ вылет `2026-12-29`, возврат `2027-01-08`.
+     * *«Майские праздники»* $\rightarrow$ вылет `2027-05-01`, возврат `2027-05-10`.
+   - **Серверная санитизация `sanitizeFlightParams`**:
+     * Гарантия `origin !== destination` — предотвращение ошибки Duffel API.
+     * Автоматический fallback на целевой IATA код при совпадении с городом вылета.
+
+2. **Верификация и тестирование:**
+   - Запрос *«Найди билеты москва япония токио новогодние праздники»* $\rightarrow$ `origin: MOW`, `destination: TYO`, `departureDate: 2026-12-29`, `returnDate: 2027-01-08`, `origin != destination: true`.
+   - Запрос *«В Бангкок из Москвы на майские праздники для двоих»* $\rightarrow$ `origin: MOW`, `destination: BKK`, `departureDate: 2027-05-01`, `returnDate: 2027-05-10`, `passengers: 2`.
+   - Запрос *«Билеты в Лос-Анджелес на 2 недели бизнес-класс»* $\rightarrow$ `origin: MOW`, `destination: LAX`, `cabinClass: business`.
+   - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 10/10 страниц)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 
