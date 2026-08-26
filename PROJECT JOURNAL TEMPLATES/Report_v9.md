@@ -1173,6 +1173,66 @@
    - Тестирование POST `/api/orders/create` $\rightarrow$ **HTTP 200 OK** (`status: pending`, `orderId: ORD-HU6BC8`).
    - Тестирование UI: `/booking/fl-001` $\rightarrow$ `/dashboard/orders?success=true` $\rightarrow$ **HTTP 200 OK**.
 
+---
+
+### 🔹 Этап v9.8: Фиксация в Git, синхронизация переменных окружения и Production-деплой
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Полная фиксация изменений Спринта 2 в Git, проверка `.gitignore` и успешная сборка Production Bundle
+
+1. **Контроль безопасности и `.gitignore`:**
+   - Проверены и надежно исключены из отслеживания файлы секретов: `.env`, `.env.local`, `.env*.local`.
+   - Создан комплексный файл [FlightSaver/.gitignore](file:///g:/Мой%20диск/Проект/FlightSaver/.gitignore).
+
+2. **Фиксация и отправка изменений в Git (GitHub):**
+   - Выполнена фиксация 72 файлов с коммитом:
+     `feat(sprint-2): complete e2e flight search pipeline, gemini nlp, duffel api, stpc details and booking orders`
+   - Изменения успешно отправлены в удаленный репозиторий:
+     `git push origin main` $\rightarrow$ `https://github.com/geoviet77/flightsaver.git` (хэш `a27e420`).
+
+3. **Верификация Production-сборки Next.js (`next build`):**
+   - Успешная компиляция всех статических и серверных маршрутов:
+     * `○ /` (Главная страница)
+     * `○ /results` (Выдача предложений)
+     * `ƒ /flight/[id]` (Детали рейса, STPC отель и TWOV)
+     * `ƒ /booking/[id]` (Оформление бронирования)
+     * `○ /dashboard/orders` (Личный кабинет и статус-трекер)
+     * `ƒ /api/ai/parse` (Gemini 2.0 Flash)
+     * `ƒ /api/flights/search` (Duffel API)
+     * `ƒ /api/flights/[id]` (Детали оффера)
+     * `ƒ /api/orders/create` (Создание заказа)
+   - Код выхода: **0 (Compiled successfully, 10/10 static pages)**.
+
+4. **Секреты для Production-окружения на Vercel:**
+   - `GEMINI_API_KEY`: API ключ Google AI Studio.
+   - `DUFFEL_API_TOKEN` / `DUFFEL_ACCESS_TOKEN`: Боевой/тестовый токен Duffel Flights API.
+   - `NEXT_PUBLIC_SUPABASE_URL`: URL проекта базы данных Supabase.
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Публичный анонимный ключ Supabase.
+
+---
+
+### 🔹 Этап v9.9: Обновление модели Gemini на gemini-2.5-flash и улучшение обработки ошибок
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Миграция AI-парсер роута на `gemini-2.5-flash` с многоуровневым fallback и понятными сообщениями об ошибках на клиенте
+
+1. **Серверный роут AI-парсера ([src/app/api/ai/parse/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/ai/parse/route.ts)):**
+   - Модель `gemini-2.0-flash` обновлена на актуальную `gemini-2.5-flash`.
+   - Добавлен каскадный fallback: `gemini-2.5-flash` $\rightarrow$ `gemini-1.5-flash` $\rightarrow$ отказоустойчивый эвристический NLP-парсер (гарантирует распознавание городов, дат и пассажиров даже при временных сбоях API).
+   - Корректная передача имени модели без дублирования префикса `models/`.
+
+2. **Клиентская обработка ошибок ([src/app/page.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/page.tsx)):**
+   - Перехват сетевых и серверных ошибок с выводом дружелюбного текста пользователю:
+     *«Не удалось распознать маршрут. Пожалуйста, попробуйте еще раз или используйте один из примеров ниже.»* вместо необработанного кода ошибки 404/500.
+
+3. **Верификация и деплой:**
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+   - Production-сборка: `npm.cmd run build` — **успешно (код выхода 0)**.
+   - Тестирование API: `POST /api/ai/parse` с запросом *«В Бангкок из Москвы 15 сентября»* $\rightarrow$ **HTTP 200 OK** (распознано: `MOW → BKK`, `2026-09-15`).
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
+
 
 
 

@@ -115,9 +115,8 @@ export default function HomePage() {
       router.push(`/results?${params.toString()}`);
     } catch (err: any) {
       console.error('[HomePage] Ошибка при AI-парсинге:', err);
-      // Fallback: при ошибке сети переходим с базовыми параметрами
       setError(
-        err?.message || 'Не удалось распознать запрос через ИИ. Попробуйте еще раз или сформулируйте фразу точнее.'
+        'Не удалось распознать маршрут. Пожалуйста, попробуйте еще раз или используйте один из примеров ниже.'
       );
       setIsParsing(false);
     }
