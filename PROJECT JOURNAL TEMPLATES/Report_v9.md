@@ -1497,6 +1497,29 @@
    - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.21: Подключение flight_search.py к Supplier Hub (Duffel/GDS) и FastApi эндпоинта /api/v1/flights/search
+
+**Дата:** 26 августа 2026 г.  
+**Тема:** Интеграция Python-бэкенда с реальным хабом адаптеров `supplier_hub`, движком наценок `markup_engine` и транзитным советником `transit_advisor`
+
+1. **Сервис поиска ([app/services/flight_search.py](file:///g:/Мой%20диск/Проект/FlightSaver/app/services/flight_search.py)):**
+   - Интеграция с `supplier_hub.search_all_suppliers` (Duffel API и GDS).
+   - Расчет клиентской стоимости и выгоды через `markup_engine.calculate_price`.
+   - Анализ транзитных остановок, безвизового транзита (TWOV) и отелей STPC через `transit_advisor.analyze_layover`.
+   - Формирование структурированных объектов `FlightResult` с сегментами и бейджами экономии.
+
+2. **Эндпоинт FastAPI ([app/api/v1/endpoints/flights.py](file:///g:/Мой%20диск/Проект/FlightSaver/app/api/v1/endpoints/flights.py)):**
+   - Маршрут `@router.post("/search", response_model=List[FlightResult])` для асинхронного вызова `search_flights_live`.
+
+3. **Верификация и деплой:**
+   - Успешный тест Python `search_flights_live(SearchRequest(...))` $\rightarrow$ возвращены офферы с расчетом экономии.
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+   - Production-сборка `npm.cmd run build` $\rightarrow$ **код 0 (успешно, 9/9 страниц)**.
+   - Фиксация в Git и отправка в GitHub: `git push origin main`.
+
+
 
 
 
