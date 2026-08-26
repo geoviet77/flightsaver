@@ -42,32 +42,40 @@ Current reference date: ${currentDate} (Year 2026).
 CRITICAL RULES FOR ORIGIN & DESTINATION:
 1. When two cities/places are mentioned:
    - The first mentioned city is ALWAYS the ORIGIN (point of departure).
+     Example: "Самара Рим 22 октября" -> origin: "KUF", destination: "ROM".
      Example: "Питер Гуанчжоу 12 сентября" -> origin: "LED", destination: "CAN".
      Example: "Москва Токио" -> origin: "MOW", destination: "TYO".
      Example: "Владивосток Нячанг" -> origin: "VVO", destination: "CXR".
      Example: "Казань Стамбул" -> origin: "KZN", destination: "IST".
+     Example: "Южно-Сахалинск Дананг" -> origin: "UUS", destination: "DAD".
    - If prepositions are used:
-     Example: "из Казани в Стамбул" -> origin: "KZN", destination: "IST".
+     Example: "из Самары в Рим" -> origin: "KUF", destination: "ROM".
      Example: "в Дананг из Южно-Сахалинска" -> origin: "UUS", destination: "DAD".
-   - If only one city is mentioned (e.g. "Билеты в Токио"), assume origin: "MOW" (or default departure) and destination: "TYO".
+   - DO NOT set origin to "MOW" if the user specified a departure city like Samara (KUF), Saint Petersburg (LED), Vladivostok (VVO), Kazan (KZN), etc.!
+   - If only one city is mentioned (e.g. "Билеты в Рим"), set origin: "MOW" and destination: "ROM".
 
 2. Accurate World IATA Code resolution:
+   - "самара" / "samara" -> "KUF" (Курумоч)
+   - "рим" / "rome" -> "ROM" (or FCO)
    - "питер" / "петербург" / "санкт-петербург" / "спб" -> "LED"
    - "москва" -> "MOW" (SVO, DME, VKO)
    - "сочи" / "адлер" -> "AER"
+   - "казань" -> "KZN"
+   - "екатеринбург" -> "SVX"
+   - "новосибирск" -> "OVB"
+   - "уфа" -> "UFA"
+   - "челябинск" -> "CEK"
+   - "красноярск" -> "KJA"
+   - "южно-сахалинск" / "сахалин" -> "UUS"
+   - "владивосток" -> "VVO"
+   - "хабаровск" -> "KHV"
+   - "иркутск" -> "IKT"
    - "гуанчжоу" / "guangzhou" -> "CAN"
    - "пекин" / "beijing" -> "PEK"
    - "шанхай" / "shanghai" -> "SHA" (PVG)
    - "гонконг" / "hong kong" -> "HKG"
-   - "южно-сахалинск" / "южносахалинск" -> "UUS"
    - "дананг" / "da nang" -> "DAD"
    - "нячанг" / "камрань" -> "CXR"
-   - "владивосток" -> "VVO"
-   - "хабаровск" -> "KHV"
-   - "иркутск" -> "IKT"
-   - "казань" -> "KZN"
-   - "екатеринбург" -> "SVX"
-   - "новосибирск" -> "OVB"
    - "токио" / "япония" -> "TYO"
    - "осака" -> "OSA"
    - "сеул" / "корея" -> "ICN"
@@ -78,7 +86,6 @@ CRITICAL RULES FOR ORIGIN & DESTINATION:
    - "доха" / "катар" -> "DOH"
    - "стамбул" / "турция" -> "IST"
    - "париж" -> "PAR" (CDG)
-   - "рим" -> "ROM" (FCO)
    - "лондон" -> "LON" (LHR)
    - "лос-анджелес" -> "LAX"
    - "нью-йорк" -> "NYC" (JFK)
@@ -87,7 +94,7 @@ CRITICAL RULES FOR ORIGIN & DESTINATION:
 
 3. Dates & Round-Trip Rules:
    - Relative to Year 2026 (or 2027 if next year).
-   - "12 сентября" -> departureDate: "2026-09-12", returnDate: null
+   - "22 октября" -> departureDate: "2026-10-22", returnDate: null
    - "туда-обратно" / "обратно через 10 дней" / "на 2 недели" -> compute returnDate.
    - "новогодние праздники" -> departureDate: "2026-12-28", returnDate: "2027-01-08"
    - "майские праздники" -> departureDate: "2027-05-01", returnDate: "2027-05-10"
@@ -98,15 +105,15 @@ CRITICAL RULES FOR ORIGIN & DESTINATION:
 
 Return ONLY a strict JSON object:
 {
-  "origin": "LED",
-  "destination": "CAN",
-  "departureDate": "2026-09-12",
+  "origin": "KUF",
+  "destination": "ROM",
+  "departureDate": "2026-10-22",
   "returnDate": null,
   "passengers": 1,
   "cabinClass": "economy",
   "searchStpc": false,
   "needsRoundTrip": false,
-  "message": "Маршрут Санкт-Петербург (LED) → Гуанчжоу (CAN) на 12 сентября 2026 года."
+  "message": "Маршрут Самара (KUF) → Рим (ROM) на 22 октября 2026 года."
 }`;
 }
 
@@ -240,6 +247,13 @@ function addDaysToDate(dateStr: string, days: number): string {
 }
 
 const OFFLINE_IATA_MAP: Record<string, string> = {
+  'самара': 'KUF',
+  'самары': 'KUF',
+  'самаре': 'KUF',
+  'самару': 'KUF',
+  'рим': 'ROM',
+  'рима': 'ROM',
+  'риме': 'ROM',
   'питер': 'LED',
   'петербург': 'LED',
   'петербурга': 'LED',
@@ -252,6 +266,8 @@ const OFFLINE_IATA_MAP: Record<string, string> = {
   'южно-сахалинск': 'UUS',
   'южносахалинск': 'UUS',
   'южносахалинска': 'UUS',
+  'сахалин': 'UUS',
+  'сахалина': 'UUS',
   'дананг': 'DAD',
   'дананга': 'DAD',
   'нячанг': 'CXR',
@@ -269,6 +285,10 @@ const OFFLINE_IATA_MAP: Record<string, string> = {
   'екатеринбурга': 'SVX',
   'новосибирск': 'OVB',
   'новосибирска': 'OVB',
+  'уфа': 'UFA',
+  'уфы': 'UFA',
+  'челябинск': 'CEK',
+  'красноярск': 'KJA',
   'москва': 'MOW',
   'москвы': 'MOW',
   'москву': 'MOW',
@@ -299,7 +319,6 @@ const OFFLINE_IATA_MAP: Record<string, string> = {
   'турцию': 'IST',
   'анталья': 'AYT',
   'париж': 'PAR',
-  'рим': 'ROM',
   'лондон': 'LON',
   'лос-анджелес': 'LAX',
   'нью-йорк': 'NYC',
@@ -351,12 +370,12 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
       if (!destination) destination = matchedCities[1].iata;
     } else if (matchedCities.length === 1) {
       if (!destination) destination = matchedCities[0].iata;
-      if (!origin) origin = destination === 'MOW' ? 'TYO' : 'MOW';
+      if (!origin) origin = destination === 'MOW' ? 'ROM' : 'MOW';
     }
   }
 
   const finalOrigin = origin || 'MOW';
-  const finalDestination = destination || (finalOrigin === 'MOW' ? 'CAN' : 'MOW');
+  const finalDestination = destination || (finalOrigin === 'MOW' ? 'ROM' : 'MOW');
 
   // 3. Обработка дат и праздников
   let departureDate: string | null = null;
@@ -376,7 +395,7 @@ function universalFallbackParse(prompt: string): ParsedFlightParams {
         янв: '01', фев: '02', мар: '03', апр: '04', май: '05', июн: '06',
         июл: '07', авг: '08', сен: '09', окт: '10', ноя: '11', дек: '12'
       };
-      const month = months[dateMatch[2].toLowerCase().slice(0, 3)] || '09';
+      const month = months[dateMatch[2].toLowerCase().slice(0, 3)] || '10';
       departureDate = `2026-${month}-${day < 10 ? '0' : ''}${day}`;
     } else {
       departureDate = getDefaultDate();
