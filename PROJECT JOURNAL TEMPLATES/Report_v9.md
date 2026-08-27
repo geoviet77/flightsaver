@@ -1605,6 +1605,52 @@
    - `npm.cmd run build` — **успешно (код 0, 9/9 страниц)**.
    - Фиксация в Git и отправка в GitHub: `git push origin main`.
 
+---
+
+### 🔹 Этап v9.25: Внедрение серверного модуля STPC Engine (TypeScript) и интеграция с /api/search при строгом UI Freeze
+
+**Дата:** 27 августа 2026 г.  
+**Тема:** Архитектурный регламент (UI Freeze), модули STPC Engine, матрица программ STPC & Stopover и серверное обогащение результатов поиска билетов
+
+1. **Архитектурный регламент UI Freeze:**
+   - Строгая изоляция: весь функционал реализован исключительно в серверном слое (`src/lib/stpc/*` и серверном обработчике `src/app/api/search/route.ts`).
+   - Ни один визуальный компонент (`src/app/page.tsx`, `src/components/*`, стили CSS) не модифицирован.
+
+2. **Серверный модуль STPC Engine ([src/lib/stpc/](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/stpc)):**
+   - [src/lib/stpc/types.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/stpc/types.ts): интерфейсы `LayoverInfo` и `StpcBenefit` (тип программы, звездность отеля, ночи, оценочная экономия в USD, включенные услуги, условия, инструкции по бронированию).
+   - [src/lib/stpc/rules.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/stpc/rules.ts): матрица `STPC_AIRLINE_RULES` для 9+ мировых перевозчиков:
+     * **Emirates (`EK` / `DXB`)**: «Dubai Connect» (8–24 ч, 4★, 1 ночь, экономия $120, отель + трансфер + питание + виза).
+     * **Turkish Airlines (`TK` / `IST`, `SAW`)**: «Transit Hotel (STPC)» (12–24 ч, 4★, $95) и «Stopover in Istanbul» (20–72 ч, 4★, $110).
+     * **Qatar Airways (`QR` / `DOH`)**: «Transit Accommodation» (8–24 ч, 5★, $130) и «Discover Qatar Stopover» (12–96 ч, 4★, $80).
+     * **Gulf Air (`GF` / `BAH`)**: «Bahrain Stopover» (8–24 ч, 4★, $85).
+     * **Etihad Airways (`EY` / `AUH`)**: «Abu Dhabi Stopover» (24+ ч, 4★, $115).
+     * **Saudia (`SV` / `JED`, `RUH`)**: «Saudia Transit Program» (12–96 ч, 4★, $90, транзитная виза 96ч + 1 ночь отеля).
+     * **Air China (`CA` / `PEK`, `PKX`, `CTU`, `PVG`)**: «Air China Free Transit Hotel» (6–24 ч, 4★, $70).
+     * **China Southern (`CZ` / `CAN`, `PKX`, `CSX`)**: «China Southern Free Transit Hotel» (6–24 ч, 4★, $70).
+     * **Ethiopian Airlines (`ET` / `ADD`)**: «Addis Transit Hotel» (8–24 ч, 4★, $80).
+   - [src/lib/stpc/engine.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/stpc/engine.ts):
+     * Функция `evaluateStpc(layover: LayoverInfo): StpcBenefit` — детерминированное сопоставление маркетингового/оперирующего перевозчика, хаба и длительности пересадки.
+     * Функция `enrichFlightOfferWithStpc(flightOffer: any)` — серверное обогащение билета структурой `stpc`, актуализация `transit` и добавление тегов программ.
+
+3. **Интеграция с результатами поиска ([src/app/api/search/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/search/route.ts)):**
+   - Все найденные билеты (Duffel API + Split-Bridge) автоматически обогащаются данными STPC Engine перед отдачей клиенту.
+   - В интерфейс `Flight` ([src/lib/types.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/types.ts)) добавлено поле `stpc?: StpcBenefit | null`.
+
+4. **Результаты верификации (Unit & Live Tests):**
+   - `Emirates (EK @ DXB, 10ч)` $\rightarrow$ `Dubai Connect` (4★, экономия $120, hotel/transfer/meals/visa: true).
+   - `Turkish Airlines STPC (TK @ IST, 14ч)` $\rightarrow$ `Transit Hotel` (4★, экономия $95).
+   - `Turkish Airlines Stopover (TK @ IST, 30ч)` $\rightarrow$ `Stopover in Istanbul` (4★, экономия $110).
+   - `Qatar Airways STPC (QR @ DOH, 9ч)` $\rightarrow$ `Transit Accommodation` (5★, экономия $130).
+   - `Air China STPC (CA @ PEK, 8ч)` $\rightarrow$ `Free Transit Hotel` (4★, экономия $70).
+   - `China Southern STPC (CZ @ CAN, 7ч)` $\rightarrow$ `Free Transit Hotel` (4★).
+   - `Ethiopian Airlines STPC (ET @ ADD, 11ч)` $\rightarrow$ `Addis Transit Hotel` (4★).
+   - `Saudia Stopover (SV @ JED, 20ч)` $\rightarrow$ `Saudia Transit Program` (4★).
+   - `Etihad Airways Stopover (EY @ AUH, 26ч)` $\rightarrow$ `Abu Dhabi Stopover` (4★).
+   - `Gulf Air STPC (GF @ BAH, 10ч)` $\rightarrow$ `Bahrain Stopover` (4★).
+   - `Короткая стыковка (2ч)` $\rightarrow$ `eligible: false` (корректный отсев).
+   - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+
+
 
 
 

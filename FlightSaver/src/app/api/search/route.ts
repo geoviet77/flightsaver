@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { Flight, FlightSegment, TransitInfo, PricingBreakdown } from '@/lib/types';
 import { getRegionalHubConnection, isTestSandboxCarrier, HubConnection } from '@/lib/routeValidator';
+import { enrichFlightOfferWithStpc } from '@/lib/stpc/engine';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -277,10 +278,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Поиск билетов (Duffel API + Честный двухзвенный Split-Ticketing Bridge)
+    // 4. Поиск билетов (Duffel API + Честный двухзвенный Split-Ticketing Bridge + STPC Engine)
     let flightOffers: Flight[] = [];
     if (isComplete && parsed.origin_iata && parsed.destination_iata) {
-      flightOffers = await fetchOrBridgeFlights(parsed);
+      const rawOffers = await fetchOrBridgeFlights(parsed);
+      flightOffers = rawOffers.map((f) => enrichFlightOfferWithStpc(f));
     }
 
     const stateObj = {

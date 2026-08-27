@@ -1,3 +1,6 @@
+import { StpcBenefit } from './stpc/types';
+export * from './stpc/types';
+
 export type Currency = 'RUB' | 'USD' | 'EUR' | 'THB' | 'AED';
 
 export type Language = 'ru' | 'en';
@@ -151,6 +154,7 @@ export interface Flight {
   isBestValue: boolean;
   isFastest: boolean;
   isStpcEligible: boolean;
+  stpc?: StpcBenefit | null;
   baggageIncluded: boolean;
   baggageDescription: string;
   isCorporate?: boolean;

@@ -432,15 +432,18 @@
   - Верифицирована компиляция TypeScript (0 ошибок).
 - **Статус:** Реализовано в v8.57.0.
 
-### ADR-091: Интеграция AI Travel сервиса и Gemini 2.5 Flash со Structured JSON
-- **Контекст:** Развернуть модуль AI Travel Assistant (`POST /api/v1/ai/parse-search`) для извлечения сущностей (`origin`, `destination`, `dates`, `duration_days`, `prefer_stpc_hotel`, `max_budget`), настроить модель `gemini-2.5-flash` как приоритетную и устранить хардкод адресов через `process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'`.
+### ADR-092: Серверный модуль STPC Engine и валидация программ транзитных отелей (UI Freeze)
+- **Контекст:** Реализовать строгую серверную валидацию программ STPC (Transit Hotel) и Stopover ключевых авиакомпаний (Emirates, Turkish Airlines, Qatar Airways, Gulf Air, Etihad Airways, Saudia, Air China, China Southern, Ethiopian Airlines) с автоматическим обогащением результатов поиска в `/api/search` при полном сохранении UI Freeze (без изменения визуальных компонентов).
 - **Решение:**
-  - Создан эндпоинт `app/api/v1/ai/parse-search/route.ts` и `src/app/api/v1/ai/parse-search/route.ts` с поддержкой Structured JSON и надежным fallback.
-  - Созданы модули `lib/api.ts` и `src/lib/api.ts` для клиентских запросов с динамическим `API_BASE_URL`.
-  - Создан FastAPI сервис `main.py` и `ai_travel_service.py` с `requirements.txt` и `test_main.py`.
-  - Модель `gemini-2.5-flash` добавлена первой в список кандидатов.
-  - Проверена компиляция TypeScript (0 ошибок).
-- **Статус:** Реализовано в v8.58.0.
+  - Создан изолированный серверный модуль `src/lib/stpc/`:
+    - `src/lib/stpc/types.ts`: интерфейсы `LayoverInfo` и `StpcBenefit` (тип программы, звездность, ночи, экономия в USD, включенные услуги, условия, инструкции).
+    - `src/lib/stpc/rules.ts`: матрица правил `STPC_AIRLINE_RULES` для 9+ ведущих мировых перевозчиков и их хабов (DXB, IST, SAW, DOH, BAH, AUH, JED, RUH, PEK, PKX, CAN, ADD) с диапазонами стыковок от 6 до 96 часов.
+    - `src/lib/stpc/engine.ts`: чистые детерминированные функции `evaluateStpc` и `enrichFlightOfferWithStpc` для обогащения рейсов и офферов Duffel.
+  - В интерфейс `Flight` (`src/lib/types.ts`) добавлено строго типизированное поле `stpc?: StpcBenefit | null`.
+  - В серверный обработчик `src/app/api/search/route.ts` подключено автоматическое обогащение найденных рейсов функцией `enrichFlightOfferWithStpc`.
+  - Проведена верификация TypeScript (`tsc --noEmit` — 0 ошибок).
+- **Статус:** Реализовано в v9.25.0.
+
 
 
 
