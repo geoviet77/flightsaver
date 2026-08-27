@@ -21,6 +21,7 @@ import { FlightCard } from '../../../components/FlightCard';
 import { BookingModal } from '../../../components/BookingModal';
 import { searchFlights, DuffelOffer, DuffelOfferSlice, DuffelSliceSegment } from '../../lib/api';
 import { Flight, Currency, Language, BookingOrder } from '../../../lib/types';
+import { checkStpcEligibility } from '../../../lib/stpcService';
 
 type FlightSortOption = 'cheap' | 'fast' | 'stpc';
 type FlightStopsFilter = 'all' | 'direct' | '1stop' | 'stpc';
@@ -119,9 +120,18 @@ function transformDuffelOfferToFlight(
     transitMinutes = calculateLayoverMinutes(segments[0].arriving_at, segments[1].departing_at);
   }
 
-  // Строгий белый список STPC: только проверенные авиакомпании и стыковка 8-24ч
-  const operatingAirlineCode = firstSeg?.operating_carrier?.iata_code || offer.owner?.iata_code || '';
-  const isStpcEligible = hasTransit && transitMinutes >= 480 && transitMinutes <= 1440 && STPC_WHITELIST_AIRLINES.includes(operatingAirlineCode);
+  // Строгая проверка STPC программы через сервис stpcService
+  const stpcInfo = checkStpcEligibility(
+    {
+      airlineCode: firstSeg?.operating_carrier?.iata_code || offer.owner?.iata_code || '',
+      airlineName: firstSeg?.operating_carrier?.name || offer.owner?.name || '',
+      hubAirport: transitAirport,
+      hubCity: transitCity,
+    },
+    transitMinutes
+  );
+
+  const isStpcEligible = Boolean(stpcInfo.eligible);
 
   const flightSegments = segments.map((seg, sIdx) => {
     const segDurationInfo = parseDurationString(seg.duration);
@@ -167,7 +177,8 @@ function transformDuffelOfferToFlight(
       transitAirport: transitAirport || undefined,
       transitDuration: transitMinutes > 0 ? `${Math.floor(transitMinutes / 60)}ч ${transitMinutes % 60}м` : undefined,
       stpcHotelIncluded: isStpcEligible,
-      stpcDetails: isStpcEligible ? 'Бесплатный отель 4★ STPC от авиакомпании при стыковке' : undefined,
+      stpcDetails: isStpcEligible ? `${stpcInfo.programName}: Бесплатный отель ${stpcInfo.hotelStars} (экономия +${stpcInfo.estimatedSavingsRub.toLocaleString('ru-RU')} ₽)` : undefined,
+      stpcInfo: isStpcEligible ? stpcInfo : undefined,
       visaFreeTransit: true,
       baggageRecheckRequired: false,
     },
@@ -190,9 +201,10 @@ function transformDuffelOfferToFlight(
     isBestValue: index === 0,
     isFastest: index === 1,
     isStpcEligible,
+    stpcInfo: isStpcEligible ? stpcInfo : undefined,
     baggageIncluded: true,
     baggageDescription: 'Багаж 23 кг + Ручная кладь 8 кг',
-    tags: isStpcEligible ? ['🎁 Отель STPC 4★', 'Duffel Verified'] : ['Duffel Verified'],
+    tags: isStpcEligible ? [`🎁 ${stpcInfo.programName} (${stpcInfo.hotelStars})`, 'Duffel Verified'] : ['Duffel Verified'],
     stopsCount: Math.max(0, segments.length - 1),
     cabinClass: 'Economy',
   };

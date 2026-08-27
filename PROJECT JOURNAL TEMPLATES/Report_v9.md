@@ -1637,18 +1637,106 @@
    - В интерфейс `Flight` ([src/lib/types.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/types.ts)) добавлено поле `stpc?: StpcBenefit | null`.
 
 4. **Результаты верификации (Unit & Live Tests):**
-   - `Emirates (EK @ DXB, 10ч)` $\rightarrow$ `Dubai Connect` (4★, экономия $120, hotel/transfer/meals/visa: true).
-   - `Turkish Airlines STPC (TK @ IST, 14ч)` $\rightarrow$ `Transit Hotel` (4★, экономия $95).
-   - `Turkish Airlines Stopover (TK @ IST, 30ч)` $\rightarrow$ `Stopover in Istanbul` (4★, экономия $110).
-   - `Qatar Airways STPC (QR @ DOH, 9ч)` $\rightarrow$ `Transit Accommodation` (5★, экономия $130).
-   - `Air China STPC (CA @ PEK, 8ч)` $\rightarrow$ `Free Transit Hotel` (4★, экономия $70).
-   - `China Southern STPC (CZ @ CAN, 7ч)` $\rightarrow$ `Free Transit Hotel` (4★).
-   - `Ethiopian Airlines STPC (ET @ ADD, 11ч)` $\rightarrow$ `Addis Transit Hotel` (4★).
-   - `Saudia Stopover (SV @ JED, 20ч)` $\rightarrow$ `Saudia Transit Program` (4★).
-   - `Etihad Airways Stopover (EY @ AUH, 26ч)` $\rightarrow$ `Abu Dhabi Stopover` (4★).
-   - `Gulf Air STPC (GF @ BAH, 10ч)` $\rightarrow$ `Bahrain Stopover` (4★).
-   - `Короткая стыковка (2ч)` $\rightarrow$ `eligible: false` (корректный отсев).
+   - Emirates (EK @ DXB, 10ч) -> Dubai Connect (4★, экономия $120, hotel/transfer/meals/visa: true).
+   - Turkish Airlines STPC (TK @ IST, 14ч) -> Transit Hotel (4★, экономия $95).
+   - Turkish Airlines Stopover (TK @ IST, 30ч) -> Stopover in Istanbul (4★, экономия $110).
+   - Qatar Airways STPC (QR @ DOH, 9ч) -> Transit Accommodation (5★, экономия $130).
+   - Air China STPC (CA @ PEK, 8ч) -> Free Transit Hotel (4★, экономия $70).
+   - China Southern STPC (CZ @ CAN, 7ч) -> Free Transit Hotel (4★).
+   - Ethiopian Airlines STPC (ET @ ADD, 11ч) -> Addis Transit Hotel (4★).
+   - Saudia Stopover (SV @ JED, 20ч) -> Saudia Transit Program (4★).
+   - Etihad Airways Stopover (EY @ AUH, 26ч) -> Abu Dhabi Stopover (4★).
+   - Gulf Air STPC (GF @ BAH, 10ч) -> Bahrain Stopover (4★).
+   - Короткая стыковка (2ч) -> eligible: false (корректный отсев).
    - Проверка типов: `tsc --noEmit` — **0 ошибок (код выхода 0)**.
+
+---
+
+### 🔹 Этап v9.26: Внедрение сервиса Stopover & STPC (Transit Hotel Engine) и точечная интеграция в UI/NLP (Спринт 2 / Шаг 2.2)
+
+**Дата:** 27 августа 2026 г.  
+**Тема:** Сервис STPC (`stpcService.ts`), расширение TypeScript-интерфейсов (`StpcProgramInfo`), бейджи выгоды в карточках рейса (`FlightCard.tsx`), условия STPC между сегментами (`flight/[id]/page.tsx`), фильтр в поиске (`FlightResultsList.tsx`) и распознавание стоповеров в Gemini NLP (`/api/search`).
+
+---
+
+## 🎯 1. Выполненные задачи и архитектурные решения
+
+1. **Сервисный модуль STPC и контракты TypeScript ([src/types/flight.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/types/flight.ts), [src/lib/stpcService.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/stpcService.ts)):**
+   - Создан интерфейс `StpcProgramInfo`:
+     ```typescript
+     export interface StpcProgramInfo {
+       eligible: boolean;
+       airlineCode: string;
+       airlineName: string;
+       hubAirport: string;
+       hubCity: string;
+       layoverDurationMinutes: number;
+       hotelIncluded: boolean;
+       hotelStars: '4★' | '5★' | '3-4★';
+       transferIncluded: boolean;
+       mealsIncluded: boolean;
+       programName: string;
+       estimatedSavingsRub: number;
+       instructions: string;
+     }
+     ```
+   - Добавлены методы:
+     * `checkStpcEligibility(flightOrSegment, connectionDurationMinutes)`: оценка права пассажира на транзитный отель на основе хаба, авиакомпании и длительности (8–24 ч).
+     * `calculateStpcSavings(stpcInfo)`: расчет оценочной рублевой выгоды (7 500 – 12 500 ₽ / $80–$130).
+     * `enrichFlightWithStpc(flight)`: обогащение объекта билета структурой `stpcInfo`, признаком `isStpcEligible: true`, тегами и описанием экономии.
+
+2. **Матрица правил 9+ авиакомпаний:**
+   - **Emirates (`EK` @ `DXB`)**: «Dubai Connect (STPC)» (10–24 ч эконом / 8–24 ч бизнес, 4–5★, экономия 11 400 ₽ / $120, отель + трансфер + питание + виза).
+   - **Turkish Airlines (`TK` @ `IST`, `SAW`)**: «Stopover in Istanbul / Transit Hotel» (12–24 ч, 4★, экономия 9 500 ₽ / $100).
+   - **Qatar Airways (`QR` @ `DOH`)**: «Discover Qatar / Transit Accommodation» (8–24 ч, 5★, экономия 12 350 ₽ / $130).
+   - **Gulf Air (`GF` @ `BAH`)**: «Gulf Air Bahrain Stopover» (8–24 ч, 4★, экономия 8 075 ₽ / $85).
+   - **Etihad Airways (`EY` @ `AUH`)**: «Abu Dhabi Stopover» (10–24 ч, 4★, экономия 10 925 ₽ / $115).
+   - **Ethiopian Airlines (`ET` @ `ADD`)**: «Ethiopian Transit Hotel Program» (8–24 ч, 4★, экономия 7 600 ₽ / $80).
+   - **China Southern (`CZ` @ `CAN`, `PKX`)**: «China Southern Free Transit Hotel» (8–24 ч, 4★, экономия 6 650 ₽ / $70).
+   - **Air China (`CA` @ `PEK`, `PKX`)**: «Air China Free Transit Hotel» (8–24 ч, 4★, экономия 6 650 ₽ / $70).
+   - **China Eastern (`MU` @ `PVG`)**: «China Eastern Transit Hotel Service» (8–24 ч, 4★, экономия 6 650 ₽ / $70).
+
+3. **Точечная интеграция в UI (Строгое соблюдение токенов Tailwind CSS):**
+   - **Карточка билета ([src/components/FlightCard.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/components/FlightCard.tsx)):**
+     * Добавлен верхний бейдж в единой стилистике: `[🏨 Бесплатный отель 4★ (STPC) +8 500 ₽ за отель]`.
+     * В центральном блоке преимуществ выводится выделенный баннер программы отеля с указанием города стыковки и включенных услуг (трансфер и питание).
+   - **Страница рейса ([src/app/flight/[id]/page.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/flight/[id]/page.tsx)):**
+     * Между сегментами перелета встроен структурированный информационный блок:
+       - Заголовок: `Программа бесплатного транзитного отеля от [Авиакомпания]`.
+       - Плашки: Длительность стыковки (8–24ч), отель 4★/5★ бесплатно, трансфер аэропорт-отель-аэропорт, питание включено.
+       - Подсказка для туриста: инструкция по получению ваучера на стойке Hotel Desk / Transfer Desk.
+   - **Фильтры поиска ([src/components/FlightResultsList.tsx](file:///g:/Мой%20диск/Проект/FlightSaver/src/components/FlightResultsList.tsx)):**
+     * Обновлена опция-переключатель: `[🏨 Только с отелем STPC (8–24ч)]` и сортировка по STPC.
+
+4. **Интеграция с Gemini NLP-парсером ([src/app/api/search/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/search/route.ts)):**
+   - В системный промпт и детерминированный fallback добавлено распознавание фраз: «хочу с отелем в Стамбуле», «длинная пересадка в Дубае», «стоповер», «stpc», «транзитный отель».
+   - Автоматически устанавливаются флаги `search_stpc: true`, `prefer_stpc_hotel: true`, фиксируется `preferred_stopover_hub` и приоритизируются билеты с отелем STPC.
+
+---
+
+## 🧪 2. Результаты верификации
+
+- **TypeScript Compilation:** `node ./node_modules/typescript/bin/tsc --noEmit` -> **0 ошибок (код выхода 0)**.
+- **Модульное тестирование STPC Matrix ([test_stpc_module_complete.js](file:///g:/Мой%20диск/Проект/FlightSaver/test_stpc_module_complete.js)):**
+  * `Emirates (EK @ DXB 12h)` -> **PASS** (eligible: true, `Dubai Connect`, hotel: 5★, savings: 11 400 ₽)
+  * `Turkish Airlines (TK @ IST 14h)` -> **PASS** (eligible: true, `Transit Hotel`, hotel: 4★, savings: 9 500 ₽)
+  * `Qatar Airways (QR @ DOH 10h)` -> **PASS** (eligible: true, `Discover Qatar`, hotel: 5★, savings: 12 350 ₽)
+  * `Gulf Air (GF @ BAH 11h)` -> **PASS** (eligible: true, `Bahrain Stopover`, hotel: 4★, savings: 8 075 ₽)
+  * `Etihad Airways (EY @ AUH 15h)` -> **PASS** (eligible: true, `Abu Dhabi Stopover`, hotel: 4★, savings: 10 925 ₽)
+  * `Ethiopian Airlines (ET @ ADD 12h)` -> **PASS** (eligible: true, `Ethiopian Transit Hotel`, hotel: 4★, savings: 7 600 ₽)
+  * `China Southern (CZ @ CAN 9h)` -> **PASS** (eligible: true, `China Southern Free Hotel`, hotel: 4★, savings: 6 650 ₽)
+  * `Air China (CA @ PEK 10h)` -> **PASS** (eligible: true, `Air China Free Hotel`, hotel: 4★, savings: 6 650 ₽)
+  * `China Eastern (MU @ PVG 10h)` -> **PASS** (eligible: true, `China Eastern Hotel`, hotel: 4★, savings: 6 650 ₽)
+  * `Ineligible short 3h` -> **PASS** (eligible: false, savings: 0 ₽)
+  * `Ineligible non-hub (TK @ DXB)` -> **PASS** (eligible: false, savings: 0 ₽)
+  * **Итог:** 11/11 тестов пройдено успешно (100%).
+
+---
+
+## 📋 3. Статус
+- **ADR-093** зафиксирован в `PROJECT JOURNAL TEMPLATES/DECISIONS.md`.
+- Версия: **v9.26.0**.
+- Git: Ветка `main` синхронизирована с `origin/main`.
 
 
 

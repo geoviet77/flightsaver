@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Flight, FlightSegment, TransitInfo, PricingBreakdown } from '@/lib/types';
 import { getRegionalHubConnection, isTestSandboxCarrier, HubConnection } from '@/lib/routeValidator';
 import { enrichFlightOfferWithStpc } from '@/lib/stpc/engine';
+import { enrichFlightWithStpc } from '@/lib/stpcService';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -191,6 +192,13 @@ export async function POST(req: NextRequest) {
 3. Количество и состав пассажиров (взрослые, дети).
 4. Класс обслуживания (Эконом / Комфорт / Бизнес).
 5. Багаж (с багажом 23 кг или только ручная кладь).
+6. Стоповер и транзитные отели STPC (длинная пересадка с отелем).
+
+ПРАВИЛА ДЛЯ STPC И СТОПОВЕРОВ (STOP-OVER & TRANSIT HOTEL):
+- Если пользователь запрашивает пересадку с отелем, длинную стыковку или стоповер (например: «хочу с отелем в Стамбуле», «длинная пересадка в Дубае», «стоповер», «stpc», «транзитный отель», «пересадка 10 часов с отелем»):
+  - Установи search_stpc = true и prefer_stpc_hotel = true.
+  - Если назван конкретный город стыковки, установи preferred_stopover_hub (например: "IST" для Стамбула, "DXB" для Дубая, "DOH" для Дохи, "AUH" для Абу-Даби, "PEK" / "CAN" для Китая).
+  - В assistant_message подтверди выбор: "Подобрал варианты перелета с бесплатным отелем 4★ STPC при стыковке:".
 
 КРИТИЧЕСКИЕ ПРАВИЛА ВАЛИДАЦИИ:
 - Если названа СТРАНА, а не город (например, "Бангладеш", "Вьетнам"), обязательно уточни конкретный город: "В какой город Бангладеш вы планируете перелет: Дакка (DAC) или Читтагонг (CGP)?".
@@ -218,6 +226,9 @@ export async function POST(req: NextRequest) {
   "passengers_count": 1,
   "cabin_class": "economy",
   "baggage_info": "Багаж 23 кг",
+  "search_stpc": false,
+  "prefer_stpc_hotel": false,
+  "preferred_stopover_hub": null,
   "is_complete": true,
   "assistant_message": "Подобрал для вас лучшие варианты перелета Иркутск → Дюссельдорф:",
   "quick_options": ["🔄 Добавить обратный билет", "👥 2 пассажира", "💎 Бизнес-класс"]
@@ -282,7 +293,19 @@ export async function POST(req: NextRequest) {
     let flightOffers: Flight[] = [];
     if (isComplete && parsed.origin_iata && parsed.destination_iata) {
       const rawOffers = await fetchOrBridgeFlights(parsed);
-      flightOffers = rawOffers.map((f) => enrichFlightOfferWithStpc(f));
+      flightOffers = rawOffers.map((f) => {
+        const enriched = enrichFlightOfferWithStpc(f);
+        return enrichFlightWithStpc(enriched);
+      });
+
+      // При запросе на STPC / стоповер приоритизируем офферы с отелем
+      if (parsed.search_stpc || parsed.prefer_stpc_hotel) {
+        flightOffers.sort((a, b) => {
+          const aStpc = (a.isStpcEligible || a.stpcInfo?.eligible) ? 1 : 0;
+          const bStpc = (b.isStpcEligible || b.stpcInfo?.eligible) ? 1 : 0;
+          return bStpc - aStpc;
+        });
+      }
     }
 
     const stateObj = {
@@ -311,6 +334,8 @@ export async function POST(req: NextRequest) {
         returnDate: parsed.return_date,
         passengersCount: parsed.passengers_count || 1,
         cabinClass: parsed.cabin_class === 'business' ? 'Business' : 'Economy',
+        stpcHotelOnly: Boolean(parsed.search_stpc || parsed.prefer_stpc_hotel),
+        wantsStpcHotel: Boolean(parsed.search_stpc || parsed.prefer_stpc_hotel),
         aiSummary: replyMessage,
       },
       accumulatedSearchParams: {
@@ -324,6 +349,8 @@ export async function POST(req: NextRequest) {
         passengers: parsed.passengers_count || 1,
         cabinClass: parsed.cabin_class === 'business' ? 'Business' : 'Economy',
         hasLuggage: true,
+        stpcHotelOnly: Boolean(parsed.search_stpc || parsed.prefer_stpc_hotel),
+        wantsStpcHotel: Boolean(parsed.search_stpc || parsed.prefer_stpc_hotel),
       },
       flights: flightOffers,
     });
@@ -816,7 +843,32 @@ function extractDeterministicState(text: string, context: any) {
   } else if (textLower.includes('бангкок') || textLower.includes('bkk')) {
     destination_iata = 'BKK';
     destination_name = 'Бангкок';
+  } else if (textLower.includes('пхукет') || textLower.includes('hkt')) {
+    destination_iata = 'HKT';
+    destination_name = 'Пхукет';
+  } else if (textLower.includes('стамбул') || textLower.includes('ist')) {
+    destination_iata = destination_iata || 'IST';
+    destination_name = destination_name || 'Стамбул';
+  } else if (textLower.includes('дубай') || textLower.includes('dxb')) {
+    destination_iata = destination_iata || 'DXB';
+    destination_name = destination_name || 'Дубай';
   }
+
+  // STPC & Stopover recognition
+  const wantsStpc =
+    textLower.includes('stpc') ||
+    textLower.includes('стоповер') ||
+    textLower.includes('отел') ||
+    textLower.includes('длинная пересадка') ||
+    textLower.includes('длинная стыковка') ||
+    textLower.includes('транзитн') ||
+    Boolean(context?.searchStpc || context?.search_stpc || context?.prefer_stpc_hotel);
+
+  let preferred_stopover_hub: string | null = null;
+  if (textLower.includes('стамбул') || textLower.includes('ist')) preferred_stopover_hub = 'IST';
+  else if (textLower.includes('дубай') || textLower.includes('dxb')) preferred_stopover_hub = 'DXB';
+  else if (textLower.includes('доха') || textLower.includes('doh')) preferred_stopover_hub = 'DOH';
+  else if (textLower.includes('абу-даби') || textLower.includes('auh')) preferred_stopover_hub = 'AUH';
 
   const dateMatch = text.match(/(\d{1,2})\s+(январ[яе]?|феврал[яе]?|март[ае]?|апрел[яе]?|ма[яе]?|июн[яе]?|июл[яе]?|август[ае]?|сентябр[яе]?|октябр[яе]?|ноябр[яе]?|декабр[яе]?)(?:\s+(\d{4}))?/i);
   if (dateMatch) {
@@ -838,9 +890,14 @@ function extractDeterministicState(text: string, context: any) {
     passengers_count: 1,
     cabin_class: 'economy',
     baggage_info: 'Багаж 23 кг',
+    search_stpc: wantsStpc,
+    prefer_stpc_hotel: wantsStpc,
+    preferred_stopover_hub,
     is_complete: hasAll,
     assistant_message: hasAll
-      ? `Подобрал билеты ${origin_name || origin_iata} → ${destination_name || destination_iata}:`
+      ? (wantsStpc
+          ? `Подобрал варианты перелета с бесплатным отелем 4★ STPC при стыковке ${origin_name || origin_iata} → ${destination_name || destination_iata}:`
+          : `Подобрал билеты ${origin_name || origin_iata} → ${destination_name || destination_iata}:`)
       : 'Уточните, пожалуйста, детали перелета:',
     quick_options: hasAll
       ? ['🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс']

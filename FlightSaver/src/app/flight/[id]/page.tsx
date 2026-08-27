@@ -391,17 +391,70 @@ function FlightDetailsContent() {
 
                 {/* Layover Box between segments */}
                 {idx < segments.length - 1 && (
-                  <div className="relative py-2 flex items-center justify-center">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-dashed border-slate-300"></div>
+                  <div className="space-y-3 py-2">
+                    <div className="relative py-1 flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-dashed border-slate-300"></div>
+                      </div>
+                      <div className="relative px-4 py-2 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2 shadow-xs">
+                        <Clock className="w-4 h-4 text-amber-600" />
+                        <span>
+                          Пересадка в {seg.toCity} ({seg.toIata}): {flight.transit?.transitDuration || 'Длительная стыковка'}
+                        </span>
+                        {isStpc && <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[10px] font-extrabold">Отель STPC {stpcInfo?.hotelStars || '4★'}</span>}
+                      </div>
                     </div>
-                    <div className="relative px-4 py-2 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2 shadow-sm">
-                      <Clock className="w-4 h-4 text-amber-600" />
-                      <span>
-                        Пересадка в {seg.toCity} ({seg.toIata}): {flight.transit?.transitDuration || 'Длительная стыковка'}
-                      </span>
-                      {isStpc && <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[10px]">Отель STPC 4★</span>}
-                    </div>
+
+                    {/* Integrated STPC Program Conditions Block between segments */}
+                    {isStpc && (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/90 via-teal-50/70 to-blue-50/80 border border-emerald-300/80 text-emerald-950 space-y-3 shadow-xs">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-600/30">
+                            <Hotel className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-emerald-950">
+                              Программа бесплатного транзитного отеля от {stpcInfo?.airlineName || seg.airline || 'авиакомпании'}
+                            </h4>
+                            <p className="text-[11px] text-emerald-800 font-semibold">
+                              {stpcInfo?.programName || 'STPC Transit Hotel Program'} • Хаб {seg.toCity} ({seg.toIata})
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Feature bullets */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-emerald-900 pt-1">
+                          <div className="flex items-center gap-2 bg-white/80 p-2.5 rounded-xl border border-emerald-200/80">
+                            <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>Длительность стыковки: {flight.transit?.transitDuration || '8–24 ч'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-white/80 p-2.5 rounded-xl border border-emerald-200/80">
+                            <Hotel className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>Отель {stpcInfo?.hotelStars || '4★'} бесплатно (1 ночь)</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-white/80 p-2.5 rounded-xl border border-emerald-200/80">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>Бесплатный трансфер аэропорт-отель-аэропорт</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-white/80 p-2.5 rounded-xl border border-emerald-200/80">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>Питание включено (завтрак / ужин)</span>
+                          </div>
+                        </div>
+
+                        {/* Tourist Tip on How to Claim Hotel */}
+                        <div className="p-3 bg-white/90 rounded-xl border border-emerald-200 text-xs text-slate-700 space-y-1">
+                          <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Как оформить отель:</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-slate-600">
+                            {stpcInfo?.instructions ||
+                              'По прилету в аэропорт пересадки пройдите к стойке «Hotel Desk / Transfer Desk» авиакомпании перед или после паспортного контроля. Предъявите посадочные талоны и получите бесплатный ваучер на гостиницу, трансфер и питание.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </React.Fragment>

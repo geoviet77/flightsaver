@@ -414,7 +414,7 @@ export function FlightResultsList({
                     { id: 'all', label: 'Все рейсы' },
                     { id: 'direct', label: 'Только прямые' },
                     { id: '1stop', label: '1 пересадка' },
-                    { id: 'stpc', label: 'Отель STPC' },
+                    { id: 'stpc', label: '🏨 Только с отелем STPC (8–24ч)' },
                   ].map((st) => (
                     <button
                       key={st.id}

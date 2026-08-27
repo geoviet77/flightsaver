@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
+import { checkStpcEligibility } from '@/lib/stpcService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -206,8 +207,21 @@ function getMockFlightDetails(id: string) {
       baggageRecheckRequired: false,
       stpcHotelIncluded: true,
       stpcInfo: {
+        eligible: true,
+        airlineCode: 'TK',
+        airlineName: 'Turkish Airlines',
+        hubAirport: 'IST',
+        hubCity: 'Стамбул',
+        layoverDurationMinutes: 580,
+        hotelIncluded: true,
+        hotelStars: '4★',
+        transferIncluded: true,
+        mealsIncluded: true,
+        programName: 'Turkish Airlines Stopover & STPC',
+        estimatedSavingsRub: 9500,
+        instructions:
+          '1. По прилету в аэропорт Стамбула (IST) пройдите к стойке «Hotel Desk / Transfer Desk» авиакомпании Turkish Airlines (расположена рядом с выходом после получения багажа).\n2. Предъявите посадочные талоны на рейсы TK 414 и TK 68.\n3. Получите бесплатный ваучер на проживание, талоны на питание и билет на фирменный трансфер до отеля и обратно к вылету.',
         hotelName: 'Партнерский 4★ / 5★ отель авиакомпании (Radisson Blu / Marriott Istanbul)',
-        hotelStars: 4,
         isComplimentary: true,
         freeShuttle: true,
         freeMeals: true,
@@ -309,9 +323,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const operatingCarrierCode = firstSeg?.operating_carrier?.iata_code || firstSeg?.marketing_carrier?.iata_code || offer.owner?.iata_code || '';
-    const isStpcCarrier = STPC_CARRIERS.includes(operatingCarrierCode);
-    const isStpcLayover = transitMinutes >= 480 && transitMinutes <= 1440; // 8-24 hours
-    const isStpcEligible = hasTransit && (isStpcLayover || isStpcCarrier || ['IST', 'DXB', 'DOH', 'AUH', 'ADD'].includes(transitAirport));
+    const stpcInfo = checkStpcEligibility(
+      {
+        airlineCode: operatingCarrierCode,
+        airlineName: firstSeg?.operating_carrier?.name || offer.owner?.name || '',
+        hubAirport: transitAirport,
+        hubCity: transitCity,
+      },
+      transitMinutes
+    );
+    const isStpcEligible = Boolean(stpcInfo.eligible);
 
     const twovRule = TWOV_DATABASE[transitAirport] || {
       hubIata: transitAirport,
@@ -375,6 +396,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       baggageIncluded: true,
       baggageDescription: '1 место багажа до 23 кг + ручная кладь 8 кг',
       segments: flightSegments,
+      isStpcEligible,
+      stpcInfo: isStpcEligible ? stpcInfo : undefined,
       transit: {
         hasTransit,
         transitCity: transitCity || undefined,
@@ -383,15 +406,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         transitDurationMinutes: transitMinutes,
         baggageRecheckRequired: false,
         stpcHotelIncluded: isStpcEligible,
+        stpcDetails: isStpcEligible ? `${stpcInfo.programName}: Бесплатный отель ${stpcInfo.hotelStars}` : undefined,
         stpcInfo: isStpcEligible
           ? {
+              ...stpcInfo,
               hotelName: `Партнерский 4★ / 5★ отель авиакомпании ${flightSegments[0]?.airline || ''}`,
-              hotelStars: 4,
-              isComplimentary: true,
-              freeShuttle: true,
-              freeMeals: true,
-              minLayoverHours: 8,
-              instructionsRu: `1. По прилету в аэропорт ${transitCity} (${transitAirport}) пройдите к стойке «Hotel Desk / Transfer Desk» авиакомпании.\n2. Предъявите посадочные талоны.\n3. Получите бесплатный ваучер на отель, питание и трансфер.`,
+              instructionsRu: stpcInfo.instructions,
               instructionsEn: `1. Upon arrival at ${transitCity} (${transitAirport}), proceed to the airline's Hotel Desk.\n2. Present your boarding passes.\n3. Receive your complimentary hotel voucher, meals, and shuttle transfer.`,
             }
           : undefined,

@@ -155,6 +155,21 @@ export function FlightCard({
                 <span>{flight.baggageIncluded ? '🧳 Багаж 23 кг' : '🎒 Только ручная кладь'}</span>
               </span>
 
+              {/* STPC Hotel / Stopover Badge */}
+              {Boolean(flight.stpcInfo?.eligible || flight.isStpcEligible || flight.transit?.stpcHotelIncluded) && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-bold text-[11px] border border-emerald-300/80 shrink-0">
+                  <Hotel className="w-3 h-3 text-emerald-600" />
+                  <span>
+                    {flight.stpcInfo?.programName
+                      ? `Бесплатный отель ${flight.stpcInfo.hotelStars} (STPC)`
+                      : 'Бесплатный отель 4★ (STPC)'}
+                  </span>
+                  <span className="text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded-md text-[10px] ml-0.5">
+                    +{flight.stpcInfo?.estimatedSavingsRub ? flight.stpcInfo.estimatedSavingsRub.toLocaleString('ru-RU') : '8 500'} ₽ за отель
+                  </span>
+                </span>
+              )}
+
               {/* Passengers Count Badge */}
               {Boolean(flight.passengersCount && flight.passengersCount > 0) && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100/90 text-slate-700 font-bold text-[11px] border border-slate-200/80 shrink-0">
@@ -195,17 +210,22 @@ export function FlightCard({
 
         {/* Middle Section: Key Bonus & Highlight (STPC Hotel / Visa-Free TWOV) */}
         <div className="py-3.5 space-y-2">
-          {flight.transit?.stpcHotelIncluded ? (
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-100 text-blue-950">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/30">
+          {Boolean(flight.transit?.stpcHotelIncluded || flight.isStpcEligible || flight.stpcInfo?.eligible) ? (
+            <div className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-blue-50/80 border border-emerald-200 text-emerald-950 shadow-xs">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30">
                 <Hotel className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm font-bold text-blue-900 leading-snug break-words">
-                  ✨ {flight.transit?.stpcDetails || 'Бесплатный отель 4★ STPC при стыковке'} ({t.hotelIncludedBadge})
-                </p>
-                <p className="text-[11px] sm:text-xs text-blue-700 font-medium mt-0.5 break-words">
-                  Включен бесплатный трансфер и питание • {t.layoverText(flight.transit?.transitCity || '', flight.transit?.transitDuration || '')}
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs sm:text-sm font-bold text-emerald-950 leading-snug break-words">
+                    ✨ {flight.stpcInfo?.programName ? `${flight.stpcInfo.programName}: Бесплатный отель ${flight.stpcInfo.hotelStars}` : (flight.transit?.stpcDetails || 'Бесплатный отель 4★ STPC при стыковке')} ({t.hotelIncludedBadge})
+                  </p>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-200/80 text-emerald-900 font-extrabold text-[10px]">
+                    +{flight.stpcInfo?.estimatedSavingsRub ? flight.stpcInfo.estimatedSavingsRub.toLocaleString('ru-RU') : '8 500'} ₽ за отель
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-emerald-800 font-medium mt-0.5 break-words">
+                  Включен бесплатный трансфер и питание • {t.layoverText(flight.stpcInfo?.hubCity || flight.transit?.transitCity || '', flight.transit?.transitDuration || 'от 8 часов')}
                 </p>
               </div>
             </div>

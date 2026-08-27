@@ -1,5 +1,7 @@
 import { StpcBenefit } from './stpc/types';
 export * from './stpc/types';
+export * from '../types/flight';
+import { StpcProgramInfo } from '../types/flight';
 
 export type Currency = 'RUB' | 'USD' | 'EUR' | 'THB' | 'AED';
 
@@ -98,6 +100,8 @@ export interface TransitInfo {
   transitDuration?: string;
   stpcHotelIncluded?: boolean;
   stpcDetails?: string;
+  stpcInfo?: StpcProgramInfo;
+  twovInfo?: any;
   visaFreeTransit?: boolean;
   baggageRecheckRequired?: boolean;
 }
@@ -155,6 +159,7 @@ export interface Flight {
   isFastest: boolean;
   isStpcEligible: boolean;
   stpc?: StpcBenefit | null;
+  stpcInfo?: StpcProgramInfo;
   baggageIncluded: boolean;
   baggageDescription: string;
   isCorporate?: boolean;

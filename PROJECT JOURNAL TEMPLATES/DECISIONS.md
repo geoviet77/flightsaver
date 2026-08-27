@@ -444,6 +444,24 @@
   - Проведена верификация TypeScript (`tsc --noEmit` — 0 ошибок).
 - **Статус:** Реализовано в v9.25.0.
 
+### ADR-093: Внедрение сервиса Stopover & STPC (Transit Hotel Engine) и точечная интеграция в UI/NLP
+- **Контекст:** В рамках Спринта 2 (Шаг 2.2) реализовать полнофункциональный сервис распознавания, фильтрации и расчета транзитных программ STPC/Stopover (`StpcProgramInfo`) с точечной интеграцией в карточки поиска (`FlightCard.tsx`), страницу рейса (`flight/[id]/page.tsx`), фильтры выдачи (`FlightResultsList.tsx`) и Gemini NLP-парсер (`/api/search`).
+- **Решение:**
+  - **Сервисный слой (`src/lib/stpcService.ts` и `src/types/flight.ts`):**
+    - Определен стандартный интерфейс `StpcProgramInfo` (`eligible`, `airlineCode`, `airlineName`, `hubAirport`, `hubCity`, `layoverDurationMinutes`, `hotelIncluded`, `hotelStars`, `transferIncluded`, `mealsIncluded`, `programName`, `estimatedSavingsRub`, `instructions`).
+    - Реализованы функции `checkStpcEligibility`, `calculateStpcSavings` (расчет рублевой выгоды 7 500 – 12 500 ₽) и `enrichFlightWithStpc` для 9+ ключевых хабовых авиаперевозчиков (Emirates @ DXB, Turkish Airlines @ IST/SAW, Qatar Airways @ DOH, Gulf Air @ BAH, Etihad Airways @ AUH, Ethiopian Airlines @ ADD, China Southern @ CAN, Air China @ PEK, China Eastern @ PVG, Saudia @ JED/RUH).
+  - **Визуальный слой (Строгое соответствие токенам дизайна):**
+    - `FlightCard.tsx`: добавлен бейдж `[🏨 Бесплатный отель 4★ (STPC) +8 500 ₽ за отель]` в едином стиле Tailwind и информационный блок с преимуществами.
+    - `FlightResultsList.tsx`: обновлен фильтр пересадок `[🏨 Только с отелем STPC (8–24ч)]` и сортировка по STPC.
+    - `src/app/flight/[id]/page.tsx`: между сегментами перелета встроен детальный информационный блок программы STPC с условиями (стыковка 8–24ч, отель 4★/5★, трансфер, питание) и пошаговой подсказкой для стойки Hotel Desk.
+  - **Gemini NLP-парсер (`/api/search`):**
+    - В системную инструкцию и детерминированный fallback добавлены правила распознавания запросов на стоповер и транзитный отель («хочу с отелем в Стамбуле», «длинная пересадка в Дубае», «стоповер», «stpc», «транзитный отель») с автоактивацией `search_stpc: true`, `preferred_stopover_hub` и приоритизацией подходящих рейсов.
+  - **Верификация:**
+    - Компиляция TypeScript `tsc --noEmit` — 0 ошибок.
+    - Сквозной тест `test_stpc_module_complete.js` — 11/11 тестов пройдено (100%).
+- **Статус:** Реализовано в v9.26.0.
+
+
 
 
 
