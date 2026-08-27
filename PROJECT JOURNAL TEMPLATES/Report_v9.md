@@ -1738,6 +1738,60 @@
 - Версия: **v9.26.0**.
 - Git: Ветка `main` синхронизирована с `origin/main`.
 
+---
+
+### 🔹 Этап v9.27: Архитектура изолированного ценообразования, FX-буфера, Split-Ticketing Engine и эндпоинта /api/pricing
+
+**Дата:** 27 августа 2026 г.  
+**Тема:** Модульная архитектура изолированных серверных файлов ценообразования: типизация (`types/pricing.ts`), валютный FX-буфер 1.5% (`lib/currency.ts`), тарифы и сборы (`services/pricing.ts`), MCT & сплит-экономика (`services/splitTicketing.ts`) и серверный Route Handler (`/api/pricing`).
+
+---
+
+## 🎯 1. Выполненные задачи и архитектурные решения
+
+1. **Строгая типизация ([src/types/pricing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/types/pricing.ts)):**
+   - Определены строгие типы: `Currency` (`'RUB' | 'USD' | 'EUR'`), `UserTier` (`'standard' | 'club'`), `FlightSegment`, `TicketLeg`, `STPCEconomicBenefit`, `PriceBreakdown`, `ConnectionRiskAnalysis`, `SplitTicketComparison`, `PricingCalculationRequest`.
+
+2. **Модуль валют и FX-буфера ([src/lib/currency.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/currency.ts)):**
+   - `FX_SAFETY_BUFFER_PERCENT = 0.015` (1.5% защитный валютный буфер).
+   - Базовые курсы `BASE_RATES_TO_RUB` (RUB: 1.0, USD: 91.5, EUR: 99.2).
+   - Методы `CurrencyConverter.convertWithBuffer` (с расчетом `fxBufferAmount`) и `CurrencyConverter.convertPlain`.
+
+3. **Модуль ценообразования ([src/services/pricing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/pricing.ts)):**
+   - Стандартный сервисный сбор `STANDARD_SERVICE_FEE_RUB_PER_SEGMENT = 1500 ₽`.
+   - `PricingService.calculateLegPrice`: Net Fare + 1.5% FX Buffer + Сервисный сбор (1 500 ₽ за сегмент для `standard`, 0 ₽ для `club`).
+
+4. **Алгоритм Split-Ticketing, MCT & Полная экономика ([src/services/splitTicketing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/splitTicketing.ts)):**
+   - Валидация стыковок Self-Transfer: `MCT_SAME_AIRPORT_MINUTES = 180` (3ч), `MCT_INTER_AIRPORT_MINUTES = 360` (6ч при смене аэропорта).
+   - Анализ рисков (`LOW`, `MEDIUM`, `HIGH_RISK`) с детализацией предупреждений.
+   - Расчет полной экономики: стоимость раздельных билетов, сквозной бенчмарк, интеграция ценности отеля STPC (`stpcHotelBenefitValue`), чистая выгода (`fareDifference`, `totalEconomicBenefit`, `savingsPercentage`).
+
+5. **Серверный API Route ([src/app/api/pricing/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/pricing/route.ts)):**
+   - Обработчик `POST /api/pricing` с валидацией массива `splitLegs` и отдачей структурированного ответа.
+
+---
+
+## 🧪 2. Результаты верификации
+
+- **TypeScript Compilation:** `node ./node_modules/typescript/bin/tsc --noEmit` -> **0 ошибок (код выхода 0)**.
+- **Комплексное тестирование ([test_pricing_engine_complete.js](file:///g:/Мой%20диск/Проект/FlightSaver/test_pricing_engine_complete.js)):**
+  * `CurrencyConverter RUB buffer test (24 000 ₽ + 1.5% = 24 360 ₽, буфер = 360 ₽)` -> **PASS**
+  * `CurrencyConverter USD plain test (100 USD = 9 150 ₽)` -> **PASS**
+  * `PricingService Standard Tier (24 000 + 360 + 1 500 = 25 860 ₽)` -> **PASS**
+  * `PricingService Club Tier (0 ₽ сбор: 24 000 + 360 + 0 = 24 360 ₽)` -> **PASS**
+  * `MCT Valid Layover (540 мин >= 180 мин -> LOW risk)` -> **PASS**
+  * `MCT Short Layover (90 мин < 180 мин -> HIGH_RISK)` -> **PASS**
+  * `Сквозной расчет экономики (SVO-DXB + DXB-BKK, STPC 5 500 ₽, Итого Split = 55 780 ₽, Выгода = 28 220 ₽ / 35.9%)` -> **PASS**
+  * **Итог:** 6/6 модулей успешно пройдены (100%).
+
+---
+
+## 📋 3. Статус
+- **ADR-094** зафиксирован в `PROJECT JOURNAL TEMPLATES/DECISIONS.md`.
+- Версия: **v9.27.0**.
+- Git: Ветка `main` синхронизирована с `origin/main`.
+
+
 
 
 

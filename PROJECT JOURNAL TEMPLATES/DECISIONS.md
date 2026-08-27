@@ -461,6 +461,29 @@
     - Сквозной тест `test_stpc_module_complete.js` — 11/11 тестов пройдено (100%).
 - **Статус:** Реализовано в v9.26.0.
 
+### ADR-094: Архитектура изолированного ценообразования, валютного FX-буфера и Split-Ticketing Engine
+- **Контекст:** Реализовать строгий архитектурный модуль серверных изолированных файлов для расчета тарифов, сервисных сборов (Standard vs Club), защитного 1.5% FX-буфера, валидации стыковок Minimum Connecting Time (MCT) и полной экономики сплит-маршрутов с интеграцией ценности отелей STPC.
+- **Решение:**
+  - **1. Строгая типизация ([src/types/pricing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/types/pricing.ts)):**
+    - Определены строгие типы и интерфейсы: `Currency` (`'RUB' | 'USD' | 'EUR'`), `UserTier` (`'standard' | 'club'`), `FlightSegment`, `TicketLeg`, `STPCEconomicBenefit`, `PriceBreakdown`, `ConnectionRiskAnalysis`, `SplitTicketComparison`, `PricingCalculationRequest`.
+  - **2. Модуль валют и FX-буфера ([src/lib/currency.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/lib/currency.ts)):**
+    - Внедрен защитный коэффициент `FX_SAFETY_BUFFER_PERCENT = 0.015` (1.5%) для защиты от курсовых колебаний при конвертации в целевую валюту пользователя.
+    - Реализованы методы `CurrencyConverter.convertWithBuffer` (с расчетом `fxBufferAmount` и `baseConverted`) и `CurrencyConverter.convertPlain`.
+  - **3. Сервис ценообразования ([src/services/pricing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/pricing.ts)):**
+    - Зафиксирован стандартный сбор `STANDARD_SERVICE_FEE_RUB_PER_SEGMENT = 1500 ₽` за сегмент перелета.
+    - В `PricingService.calculateLegPrice` реализован дифференцированный расчет: 0 ₽ для пользователей Club-тарифа (`userTier === 'club'`) и 1 500 ₽/сегмент для стандартных клиентов (`userTier === 'standard'`).
+  - **4. Split-Ticketing Engine и MCT ([src/services/splitTicketing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/splitTicketing.ts)):**
+    - Реализована проверка Minimum Connecting Time: `MCT_SAME_AIRPORT_MINUTES = 180` (3ч в одном аэропорту) и `MCT_INTER_AIRPORT_MINUTES = 360` (6ч при смене аэропорта).
+    - Оценка уровней риска (`'LOW' | 'MEDIUM' | 'HIGH_RISK'`) с генерацией предупреждений пассажиру.
+    - В `calculateEconomics` выполняется расчет суммарной стоимости плеч, сопоставление со сквозным бенчмарком, прибавление ценности STPC Hotel и расчет чистой экономии (`fareDifference`, `totalEconomicBenefit`, `savingsPercentage`).
+  - **5. Серверный API-эндпоинт ([src/app/api/pricing/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/pricing/route.ts)):**
+    - `POST /api/pricing`: валидация входного массива `splitLegs`, вызов `SplitTicketingEngine.calculateEconomics`, возврат стандартного ответа `{ success: true, data: result }`.
+  - **6. Верификация:**
+    - Компиляция TypeScript `tsc --noEmit` — 0 ошибок.
+    - Комплексный тест `test_pricing_engine_complete.js` — 6/6 модулей успешно пройдены (100%).
+- **Статус:** Реализовано в v9.27.0.
+
+
 
 
 
