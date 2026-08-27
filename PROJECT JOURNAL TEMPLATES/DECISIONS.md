@@ -483,6 +483,30 @@
     - Комплексный тест `test_pricing_engine_complete.js` — 6/6 модулей успешно пройдены (100%).
 - **Статус:** Реализовано в v9.27.0.
 
+### ADR-095: Архитектура микросервисного слоя ценообразования, Zod-валидации и эндпоинта /api/pricing/calculate
+- **Контекст:** Реализовать масштабируемый серверный слой ценообразования со строгой валидацией Zod (`PricingCalculateRequestSchema`), многовалютным конвертером `CurrencyService` (включая VND без дробной части), калькулятором сплит-экономики `PricingService.calculateSplitEconomy` и REST API эндпоинтом `/api/pricing/calculate`.
+- **Решение:**
+  - **1. Строгая Zod-валидация и типизация ([src/types/pricing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/types/pricing.ts)):**
+    - Поддержка валют `Currency: 'RUB' | 'USD' | 'EUR' | 'VND'`.
+    - Определение схем `FlightSegmentSchema`, `SplitTicketLegInputSchema` и `PricingCalculateRequestSchema`.
+    - Интерфейсы `STPCProgramInfo`, `PricingOptions`, `FareBreakdown`, `SplitTicketEconomyResult`.
+  - **2. Сервис валют ([src/services/currencyService.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/currencyService.ts)):**
+    - `CurrencyService.roundMoney`: точное округление с защитой от float-погрешностей (`Number.EPSILON`) и бесшовной поддержкой целочисленных сумм для `VND`.
+    - In-memory кэширование курсов валют (`CACHE_TTL_MS = 1 час`) и fallback-котировки.
+    - `convertAmount`: расчет с 1.5% FX-буфером для кросс-валютных конвертаций.
+  - **3. Сервис ценообразования ([src/services/pricingService.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/pricingService.ts)):**
+    - `calculateFareBreakdown`: расчет `Net Fare + FX Buffer (1.5%) + Service Fee` (0 ₽ для Club, 1 500 ₽ для Standard).
+    - `evaluateSTPC`: автоматическая верификация стыковок 8–24 ч для авиакомпаний EK/TK/QR/GF с расчетом эквивалента отеля 4★ ($80 / 7 400 ₽).
+    - `calculateSplitEconomy`: расчет стоимости сплит-маршрута, сравнение со сквозным бенчмарком, расчет `monetarySavings`, `totalEconomicSavings`, `savingsPercentage` и флага `isSplitAdvantageous`.
+  - **4. Serverless API Route ([src/app/api/pricing/calculate/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/pricing/calculate/route.ts)):**
+    - `POST /api/pricing/calculate`: валидация через `PricingCalculateRequestSchema.safeParse`, безопасный ответ `200` с `SplitTicketEconomyResult` или `400` с деталями ошибок `issues`.
+  - **5. Тестирование и верификация:**
+    - `src/services/__tests__/pricingService.test.ts` и `test_pricing_service_calculate.js`.
+    - Компиляция TypeScript `tsc --noEmit` — 0 ошибок.
+    - 9 из 9 тестов пройдены успешно (100%).
+- **Статус:** Реализовано в v9.28.0.
+
+
 
 
 

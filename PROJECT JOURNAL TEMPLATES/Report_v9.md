@@ -1791,6 +1791,63 @@
 - Версия: **v9.27.0**.
 - Git: Ветка `main` синхронизирована с `origin/main`.
 
+---
+
+### 🔹 Этап v9.28: Микросервисный слой ценообразования, Zod-валидация и API-роут /api/pricing/calculate
+
+**Дата:** 27 августа 2026 г.  
+**Тема:** Сервис мультивалютной конвертации (`CurrencyService`), расчет чистой выгоды сплит-маршрутов (`PricingService.calculateSplitEconomy`), Zod-схемы валидации запросов и эндпоинт `/api/pricing/calculate`.
+
+---
+
+## 🎯 1. Выполненные задачи и архитектурные решения
+
+1. **Строгая Zod-валидация и типизация ([src/types/pricing.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/types/pricing.ts)):**
+   - Расширение валют: `Currency: 'RUB' | 'USD' | 'EUR' | 'VND'`.
+   - Zod-схемы: `FlightSegmentSchema`, `SplitTicketLegInputSchema`, `PricingCalculateRequestSchema`.
+   - Контракты: `STPCProgramInfo`, `PricingOptions`, `FareBreakdown`, `SplitTicketEconomyResult`.
+
+2. **Сервис валют ([src/services/currencyService.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/currencyService.ts)):**
+   - `CurrencyService.roundMoney`: округление центов/копеек с учетом `Number.EPSILON` и целочисленное округление сумм для `VND` (без дробной части).
+   - In-memory кэш котировок (Base: USD) с TTL 1 час.
+   - `convertAmount`: автоматическое начисление 1.5% защитного FX-буфера при кросс-валютных операциях.
+
+3. **Сервис ценообразования ([src/services/pricingService.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/pricingService.ts)):**
+   - `calculateFareBreakdown`: расчет `Net Fare + FX Buffer (1.5%) + Service Fee` (0 ₽ для подписчиков Club, 1 500 ₽/сегмент для Standard).
+   - `evaluateSTPC`: автоматическая оценка соответствия рейсов авиакомпаний EK/TK/QR/GF при стыковках 8–24 ч ($80 / 7 400 ₽ эквивалент отеля 4★).
+   - `calculateSplitEconomy`: расчет стоимости составного маршрута, сопоставление со сквозным бенчмарком, расчет `monetarySavings`, `totalEconomicSavings`, `savingsPercentage` и `isSplitAdvantageous`.
+
+4. **Серверный API Route ([src/app/api/pricing/calculate/route.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/app/api/pricing/calculate/route.ts)):**
+   - Обработчик `POST /api/pricing/calculate`: валидация входящего тела запроса через `PricingCalculateRequestSchema.safeParse`, безопасный ответ `200` с `SplitTicketEconomyResult` или `400` с ошибками валидации `issues`.
+
+5. **Модульные тесты ([src/services/__tests__/pricingService.test.ts](file:///g:/Мой%20диск/Проект/FlightSaver/src/services/__tests__/pricingService.test.ts)):**
+   - Покрытие всех сценариев: стандартный сбор, Club 0 ₽, кросс-валютный FX-буфер, STPC Emirates 10ч, отсев коротких стыковок, расчет положительной и отрицательной выгоды Split-Ticketing, Zod-валидация.
+
+---
+
+## 🧪 2. Результаты верификации
+
+- **TypeScript Compilation:** `node ./node_modules/typescript/bin/tsc --noEmit` -> **0 ошибок (код выхода 0)**.
+- **Модульное тестирование ([test_pricing_service_calculate.js](file:///g:/Мой%20диск/Проект/FlightSaver/test_pricing_service_calculate.js)):**
+  * `Standard Service Fee (10 000 + 3 000 = 13 000 ₽)` -> **PASS**
+  * `Club Member 0 ₽ Fee (10 000 + 0 = 10 000 ₽)` -> **PASS**
+  * `Cross-currency FX Buffer (100 USD -> 10 888.75 ₽, Net=9250, FX=138.75, Fee=1500)` -> **PASS**
+  * `STPC Emirates 10h Layover (eligible: true, value: $80)` -> **PASS**
+  * `STPC Short Layover (5h -> null)` -> **PASS**
+  * `Positive Split Economy (Direct=60k, Split=45k, Savings=15k, TotalSavings=22.4k, Adv=true)` -> **PASS**
+  * `Negative Split Economy (Direct=30k, Split=38k, Savings=-8k, Adv=false)` -> **PASS**
+  * `Zod Schema Validation (Valid payload)` -> **PASS**
+  * `Zod Schema Validation (Invalid payload rejected)` -> **PASS**
+  * **Итог:** 9/9 тестов успешно пройдены (100%).
+
+---
+
+## 📋 3. Статус
+- **ADR-095** зафиксирован в `PROJECT JOURNAL TEMPLATES/DECISIONS.md`.
+- Версия: **v9.28.0**.
+- Git: Ветка `main` синхронизирована с `origin/main`.
+
+
 
 
 
