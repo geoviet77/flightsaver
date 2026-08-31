@@ -1,7 +1,8 @@
-# 📑 Аналитическая сводка: Состояние проекта FlightSaver (v1.0)
+# 📑 Аналитическая сводка: Состояние проекта FlightSaver (v1.2.0)
 
-**Дата:** 2026-08-23  
-**Проект:** [FlightSaver](file:///g:/Мой%20диск/Проект/FlightSaver)  
+**Дата:** 27 августа 2026 г.  
+**Проект:** [FlightSaver](file:///c:/FlightSaver)  
+**Ветка/Окружение:** Local Dev (`C:\FlightSaver`)  
 **Статус готовности:** 🟢 100% готов к запуску в тестовом/разработческом контуре.
 
 ---
@@ -10,25 +11,16 @@
 
 | Модуль | Технологии | Статус тестов / сборки | Доступные функции |
 |---|---|---|---|
-| **Backend API** | Python 3.12, FastAPI, Pydantic | ✅ 12/12 pytest PASS | Split-ticketing поиск, Transit STPC/TWOV, Supplier Hub (Amadeus, Duffel, Mystifly, TravelFusion, Mock), динамическая наценка, расчет валют, управление бронированиями. |
-| **Frontend App** | Next.js 16 (App Router), React 19, TypeScript | ✅ 0 ошибок (tsc clean) | Полный пользовательский путь: Поиск -> Результаты с фильтрами -> Детализация рейса и пересадок -> Бронирование -> Личный кабинет -> Авторизация/Регистрация. RU/EN локализация. |
-| **Журналы и регламенты** | Markdown, ADR | ✅ Актуализировано | Журнал решений [DECISIONS.md](file:///g:/Мой%20диск/Проект/PROJECT%20JOURNAL%20TEMPLATES/DECISIONS.md), отчеты версий в [FlightSaver/Report_v1.0.md](file:///g:/Мой%20диск/Проект/FlightSaver/Report_v1.0.md). |
+| **Backend API** | Python 3.12, FastAPI, Pydantic, httpx | ✅ 5/5 pytest PASS | Split-ticketing поиск, Transit STPC/TWOV, Supplier Hub (Amadeus, Duffel, Mystifly, TravelFusion, Mock), динамическая наценка, расчет валют, управление бронированиями. |
+| **Frontend & API App** | Next.js 14+ (App Router), React 18, TypeScript 5.6 | ✅ 0 ошибок (tsc clean, build PASS) | Минималистичный AI-поиск (Google-style single input), Web Speech API голосовой ввод, карточки рейсов, STPC бейджи, прозрачный расчет цены, агентский чекаут бронирования. |
+| **Pricing & STPC** | TypeScript, Zod, CurrencyConverter | ✅ 26/26 Node.js PASS | Изолированная модель ценообразования (Net + 1.5% FX + Fee), MCT Self-Transfer риск-анализ, Stopover матрица для 9 хабовых авиалиний. |
+| **Журналы и регламенты** | Markdown, ADR | ✅ Актуализировано | Журнал решений [DECISIONS.md](file:///c:/FlightSaver/PROJECT%20JOURNAL%20TEMPLATES/DECISIONS.md), отчеты версий [Report_v1.md](file:///c:/FlightSaver/PROJECT%20JOURNAL%20TEMPLATES/Report_v1.md) — [Report_v5.md](file:///c:/FlightSaver/PROJECT%20JOURNAL%20TEMPLATES/Report_v5.md). |
 
 ---
 
 ## 2. Инструкция по локальному запуску
 
-### Запуск Backend (порт 8000)
 ```powershell
-cd "g:\Мой диск\Проект\FlightSaver\backend"
-$env:PYTHONPATH="."
-.\venv\Scripts\uvicorn app.main:app --reload --port 8000
-```
-- Swagger API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-### Запуск Frontend (порт 3000)
-```powershell
-cd "g:\Мой диск\Проект\FlightSaver\frontend"
 npm run dev
 ```
 - Web Application: [http://localhost:3000](http://localhost:3000)
