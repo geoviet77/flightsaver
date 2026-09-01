@@ -301,14 +301,16 @@ export function AuthModal({
       // Запрашиваем геопозицию (если еще не была получена)
       const location = cachedLocationRef.current || (await requestUserLocation());
       const rawInitData = getTelegramInitData();
+      const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
 
-      // Если есть initData (TWA) -> мгновенная авторизация
-      if (rawInitData && rawInitData.trim().length > 0) {
+      // Если мы внутри Telegram (есть rawInitData или tg) -> производим авторизацию на месте
+      if ((rawInitData && rawInitData.trim().length > 0) || tg) {
         const authRes = await fetch('/api/auth/telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            initData: rawInitData,
+            initData: rawInitData || tg?.initData || '',
+            user: tg?.initDataUnsafe?.user || null,
             phone: rawPhone ? rawPhone.trim() : null,
             location: location || null,
           }),
@@ -336,13 +338,16 @@ export function AuthModal({
           return;
         } else {
           setErrorMessage(authData.error || 'Ошибка подтверждения сессии Telegram');
+          setIsQrLoading(false);
+          return;
         }
       }
 
-      // Если initData нет (обычный мобильный браузер): открываем QR-сессию
+      // Если мы вне Telegram (обычный десктопный браузер Safari/Chrome): открываем QR-сессию
       const res = await fetch('/api/auth/telegram/session', { method: 'POST' });
       const data = await res.json();
       if (data.success && data.sessionId) {
+
         setTelegramSession({
           sessionId: data.sessionId,
           deepLink: data.deepLink,

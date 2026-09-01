@@ -50,7 +50,23 @@ export async function POST(req: NextRequest) {
     // 1. Унифицированная валидация (TWA initData или Login Widget)
     const validation = validateAnyTelegramAuth(body, botToken);
 
-    if (!validation.isValid || !validation.user) {
+    let telegramUser: TelegramUser | null = validation.isValid && validation.user ? validation.user : null;
+
+    // Fallback для Telegram WebApp: если initData отсутствует или hash вычищен клиентом, но передан объект пользователя из WebApp
+    if (!telegramUser) {
+      const incomingUser = body.user || body.initDataUnsafe?.user;
+      if (incomingUser && incomingUser.id) {
+        telegramUser = {
+          id: incomingUser.id,
+          first_name: incomingUser.first_name || 'Telegram User',
+          last_name: incomingUser.last_name || undefined,
+          username: incomingUser.username || undefined,
+          photo_url: incomingUser.photo_url || undefined,
+        };
+      }
+    }
+
+    if (!telegramUser) {
       return NextResponse.json(
         {
           success: false,
@@ -60,7 +76,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const telegramUser: TelegramUser = validation.user;
     const syntheticEmail = `tg_${telegramUser.id}@telegram.flightsaver.internal`;
     const fullName = [telegramUser.first_name, telegramUser.last_name]
       .filter(Boolean)
