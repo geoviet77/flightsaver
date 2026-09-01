@@ -11,16 +11,128 @@ import {
   ShieldCheck,
   AlertCircle,
   QrCode,
-  ArrowLeft,
   Smartphone,
   ExternalLink,
   Phone,
   Check,
+  ChevronDown,
+  Search,
 } from 'lucide-react';
 import { createClient } from '../lib/supabase/client';
 import { Language } from '../lib/types';
 import { TRANSLATIONS } from '../lib/i18n';
 import { UserProfile, setStoredUser } from '../lib/mockStorage';
+
+export interface CountryDial {
+  name: string;
+  code: string;
+  dial: string;
+  flag: string;
+}
+
+export const COUNTRIES: CountryDial[] = [
+  { name: 'Вьетнам', code: 'VN', dial: '+84', flag: '🇻🇳' },
+  { name: 'Россия', code: 'RU', dial: '+7', flag: '🇷🇺' },
+  { name: 'Казахстан', code: 'KZ', dial: '+7', flag: '🇰🇿' },
+  { name: 'Беларусь', code: 'BY', dial: '+375', flag: '🇧🇾' },
+  { name: 'Узбекистан', code: 'UZ', dial: '+998', flag: '🇺🇿' },
+  { name: 'Таиланд', code: 'TH', dial: '+66', flag: '🇹🇭' },
+  { name: 'Турция', code: 'TR', dial: '+90', flag: '🇹🇷' },
+  { name: 'ОАЭ', code: 'AE', dial: '+971', flag: '🇦🇪' },
+  { name: 'Грузия', code: 'GE', dial: '+995', flag: '🇬🇪' },
+  { name: 'Армения', code: 'AM', dial: '+374', flag: '🇦🇲' },
+  { name: 'Индонезия (Бали)', code: 'ID', dial: '+62', flag: '🇮🇩' },
+  { name: 'Германия', code: 'DE', dial: '+49', flag: '🇩🇪' },
+  { name: 'Франция', code: 'FR', dial: '+33', flag: '🇫🇷' },
+  { name: 'Великобритания', code: 'GB', dial: '+44', flag: '🇬🇧' },
+  { name: 'США', code: 'US', dial: '+1', flag: '🇺🇸' },
+  { name: 'Китай', code: 'CN', dial: '+86', flag: '🇨🇳' },
+  { name: 'Сербия', code: 'RS', dial: '+381', flag: '🇷🇸' },
+  { name: 'Израиль', code: 'IL', dial: '+972', flag: '🇮🇱' },
+  { name: 'Кыргызстан', code: 'KG', dial: '+996', flag: '🇰🇬' },
+  { name: 'Таджикистан', code: 'TJ', dial: '+992', flag: '🇹🇯' },
+  { name: 'Азербайджан', code: 'AZ', dial: '+994', flag: '🇦🇿' },
+  { name: 'Молдова', code: 'MD', dial: '+373', flag: '🇲🇩' },
+  { name: 'Кипр', code: 'CY', dial: '+357', flag: '🇨🇾' },
+  { name: 'Испания', code: 'ES', dial: '+34', flag: '🇪🇸' },
+  { name: 'Италия', code: 'IT', dial: '+39', flag: '🇮🇹' },
+  { name: 'Япония', code: 'JP', dial: '+81', flag: '🇯🇵' },
+  { name: 'Южная Корея', code: 'KR', dial: '+82', flag: '🇰🇷' },
+  { name: 'Индия', code: 'IN', dial: '+91', flag: '🇮🇳' },
+];
+
+export function detectCountryFromCoords(lat?: number | null, lon?: number | null): CountryDial {
+  if (typeof lat === 'number' && typeof lon === 'number') {
+    // Вьетнам: широта 8.5..23.4, долгота 102.1..109.5
+    if (lat >= 8.5 && lat <= 23.4 && lon >= 102.1 && lon <= 109.5) {
+      return COUNTRIES.find((c) => c.code === 'VN') || COUNTRIES[0];
+    }
+    // Таиланд
+    if (lat >= 5.6 && lat <= 20.5 && lon >= 97.3 && lon <= 105.6) {
+      return COUNTRIES.find((c) => c.code === 'TH') || COUNTRIES[5];
+    }
+    // ОАЭ
+    if (lat >= 22.6 && lat <= 26.1 && lon >= 51.5 && lon <= 56.4) {
+      return COUNTRIES.find((c) => c.code === 'AE') || COUNTRIES[7];
+    }
+    // Турция
+    if (lat >= 35.8 && lat <= 42.2 && lon >= 25.6 && lon <= 44.8) {
+      return COUNTRIES.find((c) => c.code === 'TR') || COUNTRIES[6];
+    }
+    // Индонезия
+    if (lat >= -11.0 && lat <= 6.1 && lon >= 95.0 && lon <= 141.0) {
+      return COUNTRIES.find((c) => c.code === 'ID') || COUNTRIES[10];
+    }
+    // Грузия
+    if (lat >= 41.0 && lat <= 43.6 && lon >= 40.0 && lon <= 46.7) {
+      return COUNTRIES.find((c) => c.code === 'GE') || COUNTRIES[8];
+    }
+    // Армения
+    if (lat >= 38.8 && lat <= 41.3 && lon >= 43.4 && lon <= 46.6) {
+      return COUNTRIES.find((c) => c.code === 'AM') || COUNTRIES[9];
+    }
+    // Казахстан
+    if (lat >= 40.5 && lat <= 55.4 && lon >= 46.5 && lon <= 87.3) {
+      return COUNTRIES.find((c) => c.code === 'KZ') || COUNTRIES[2];
+    }
+    // Узбекистан
+    if (lat >= 37.2 && lat <= 45.6 && lon >= 56.0 && lon <= 73.1) {
+      return COUNTRIES.find((c) => c.code === 'UZ') || COUNTRIES[4];
+    }
+    // Россия
+    if (lat >= 41.0 && lat <= 82.0 && (lon >= 19.0 || lon <= -169.0)) {
+      return COUNTRIES.find((c) => c.code === 'RU') || COUNTRIES[1];
+    }
+  }
+
+  // Определение по часовому поясу устройства
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone.toLowerCase();
+    if (tz.includes('vietnam') || tz.includes('ho_chi_minh') || tz.includes('saigon')) {
+      return COUNTRIES.find((c) => c.code === 'VN') || COUNTRIES[0];
+    }
+    if (tz.includes('bangkok')) {
+      return COUNTRIES.find((c) => c.code === 'TH') || COUNTRIES[5];
+    }
+    if (tz.includes('dubai')) {
+      return COUNTRIES.find((c) => c.code === 'AE') || COUNTRIES[7];
+    }
+    if (tz.includes('istanbul')) {
+      return COUNTRIES.find((c) => c.code === 'TR') || COUNTRIES[6];
+    }
+    if (tz.includes('bali') || tz.includes('jakarta')) {
+      return COUNTRIES.find((c) => c.code === 'ID') || COUNTRIES[10];
+    }
+    if (tz.includes('almaty')) {
+      return COUNTRIES.find((c) => c.code === 'KZ') || COUNTRIES[2];
+    }
+    if (tz.includes('tashkent')) {
+      return COUNTRIES.find((c) => c.code === 'UZ') || COUNTRIES[4];
+    }
+  } catch {}
+
+  return COUNTRIES[1]; // По умолчанию Россия (+7)
+}
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -37,11 +149,18 @@ export function AuthModal({
 }: AuthModalProps) {
   const [authMode, setAuthMode] = useState<'main' | 'telegram_qr' | 'phone_prompt'>('main');
   const [email, setEmail] = useState('');
-  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneDigits, setPhoneDigits] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState<CountryDial>(COUNTRIES[1]);
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [countrySearchQuery, setCountrySearchQuery] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccessMessage, setIsSuccessMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Кэшированные координаты пользователя
+  const cachedLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   // Состояние Telegram QR / Deep Link сессии
   const [telegramSession, setTelegramSession] = useState<{
@@ -53,6 +172,7 @@ export function AuthModal({
   const [isSessionConfirmed, setIsSessionConfirmed] = useState(false);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const t = TRANSLATIONS[language] || TRANSLATIONS.ru;
 
   // Определение мобильного устройства
@@ -81,6 +201,19 @@ export function AuthModal({
     };
   }, []);
 
+  // Закрытие выпадающего списка стран по клику вне
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsCountryDropdownOpen(false);
+      }
+    };
+    if (isCountryDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isCountryDropdownOpen]);
+
   // Сброс состояния при закрытии
   useEffect(() => {
     if (!isOpen) {
@@ -89,7 +222,9 @@ export function AuthModal({
       setIsSuccessMessage(false);
       setTelegramSession(null);
       setIsSessionConfirmed(false);
-      setPhoneInput('');
+      setPhoneDigits('');
+      setIsCountryDropdownOpen(false);
+      setCountrySearchQuery('');
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
@@ -124,22 +259,31 @@ export function AuthModal({
     return '';
   };
 
-  // Запрос геопозиции через браузер
+  // Запрос геопозиции через браузер с автоматическим выбором страны
   const requestUserLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
+    if (cachedLocationRef.current) return cachedLocationRef.current;
     if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
     try {
       const loc = await new Promise<{ latitude: number; longitude: number } | null>((resolve) => {
-        const timer = setTimeout(() => resolve(null), 3500);
+        const timer = setTimeout(() => resolve(null), 3000);
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             clearTimeout(timer);
-            resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+            cachedLocationRef.current = coords;
+            // Автоматически подставляем код страны по координатам
+            const detected = detectCountryFromCoords(coords.latitude, coords.longitude);
+            setSelectedCountry(detected);
+            resolve(coords);
           },
           () => {
             clearTimeout(timer);
+            // Если отказано в локации — определяем хотя бы по TimeZone
+            const detected = detectCountryFromCoords(null, null);
+            setSelectedCountry(detected);
             resolve(null);
           },
-          { timeout: 3500, enableHighAccuracy: false }
+          { timeout: 3000, enableHighAccuracy: false }
         );
       });
       return loc;
@@ -149,13 +293,13 @@ export function AuthModal({
   };
 
   // Завершение авторизации Telegram на сервере с собранным телефоном и локацией
-  const finalizeTelegramAuth = async (phone: string | null) => {
+  const finalizeTelegramAuth = async (rawPhone: string | null) => {
     try {
       setIsQrLoading(true);
       setErrorMessage(null);
 
-      // Запрашиваем геопозицию
-      const location = await requestUserLocation();
+      // Запрашиваем геопозицию (если еще не была получена)
+      const location = cachedLocationRef.current || (await requestUserLocation());
       const rawInitData = getTelegramInitData();
 
       // Если есть initData (TWA) -> мгновенная авторизация
@@ -165,7 +309,7 @@ export function AuthModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             initData: rawInitData,
-            phone: phone || null,
+            phone: rawPhone ? rawPhone.trim() : null,
             location: location || null,
           }),
         });
@@ -184,7 +328,7 @@ export function AuthModal({
           setIsSessionConfirmed(true);
           setIsQrLoading(false);
 
-          // Оповещаем родительский компонент и закрываем окно
+          // Уведомляем родительский компонент и закрываем окно через 800 мс
           setTimeout(() => {
             onSuccess?.(profile);
             onClose();
@@ -249,12 +393,15 @@ export function AuthModal({
         tg.ready();
       }
 
+      // Сначала определяем страну по геопозиции / часовому поясу
+      await requestUserLocation();
+
       // 1. Попытка нативного запроса контакта через Telegram WebApp SDK
       let nativePhone: string | null = null;
       if (tg && typeof tg.requestContact === 'function') {
         try {
           const contactRes: any = await new Promise((resolve) => {
-            const timer = setTimeout(() => resolve(null), 2500);
+            const timer = setTimeout(() => resolve(null), 2000);
             tg.requestContact((status: boolean, response: any) => {
               clearTimeout(timer);
               if (status && response?.responseUnsafe?.contact?.phone_number) {
@@ -276,7 +423,7 @@ export function AuthModal({
         return;
       }
 
-      // 2. Если нативный метод SDK не вернул номер -> показываем пользователю шаг с вводом телефона
+      // 2. Если нативный метод SDK не вернул номер -> переходим на интерактивный экран ввода номера
       setIsQrLoading(false);
       setAuthMode('phone_prompt');
     } catch (err: any) {
@@ -348,6 +495,22 @@ export function AuthModal({
     }
   };
 
+  // Фильтрация списка стран при поиске
+  const filteredCountries = COUNTRIES.filter((c) => {
+    const q = countrySearchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.dial.includes(q) ||
+      c.code.toLowerCase().includes(q)
+    );
+  });
+
+  // 🛑 ГАРАНТИРОВАННОЕ СКРЫТИЕ МОДАЛЬНОГО ОКНА, КОГДА isOpen === false
+  if (!isOpen) {
+    return null;
+  }
+
   return (
     <div
       role="dialog"
@@ -359,23 +522,16 @@ export function AuthModal({
         className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Top Header */}
+        {/* Modal Top Header (БЕЗ кнопки назад, только статус и крестик) */}
         <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-sky-500 text-white">
           <div className="flex items-center gap-2.5">
-            {authMode !== 'main' ? (
-              <button
-                type="button"
-                onClick={() => setAuthMode('main')}
-                aria-label="Назад"
-                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            ) : (
-              <div className="w-8 h-8 rounded-xl bg-white/20 text-white flex items-center justify-center shadow-sm shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-white/20 text-white flex items-center justify-center shadow-sm shrink-0">
+              {authMode === 'phone_prompt' ? (
+                <Phone className="w-4 h-4" />
+              ) : (
                 <Gem className="w-4 h-4" />
-              </div>
-            )}
+              )}
+            </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold tracking-tight">
                 {authMode === 'phone_prompt'
@@ -430,7 +586,7 @@ export function AuthModal({
               </div>
             </div>
           ) : authMode === 'phone_prompt' ? (
-            /* 📱 РЕЖИМ СБОРА НОМЕРА ТЕЛЕФОНА */
+            /* 📱 РЕЖИМ СБОРА НОМЕРА ТЕЛЕФОНА С ВЫБОРОМ РЕГИОНА И НЕСТИРАЕМЫМ "+" */
             <div className="space-y-4 animate-fadeIn">
               <div className="text-center space-y-1.5">
                 <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center mx-auto shadow-sm">
@@ -440,24 +596,85 @@ export function AuthModal({
                   Укажите ваш номер телефона
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Номер необходим для автоматической выписки авиабилетов и ваучеров на бесплатный отель <b>STPC</b>.
+                  Код страны определен автоматически. При необходимости вы можете изменить регион:
                 </p>
               </div>
 
               <div className="space-y-3 pt-1">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                    <Phone className="w-5 h-5" />
+                {/* Компонент ввода телефона: Выбор страны + Нестираемый префикс "+" */}
+                <div className="relative" ref={dropdownRef}>
+                  <div className="flex rounded-2xl border-2 border-slate-200 focus-within:border-blue-600 bg-slate-50 transition-all overflow-visible">
+                    {/* Кнопка выпадающего списка страны */}
+                    <button
+                      type="button"
+                      onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                      className="flex items-center gap-1.5 px-3 py-3 bg-slate-100 hover:bg-slate-200/80 rounded-l-2xl border-r border-slate-200 text-slate-800 font-bold text-sm sm:text-base shrink-0 cursor-pointer transition-colors"
+                    >
+                      <span className="text-lg leading-none">{selectedCountry.flag}</span>
+                      <span>{selectedCountry.dial}</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    </button>
+
+                    {/* Поле ввода цифр номера (префикс "+" уже зафиксирован) */}
+                    <div className="relative flex-1 flex items-center">
+                      <input
+                        type="tel"
+                        id="input-auth-phone-digits"
+                        value={phoneDigits}
+                        onChange={(e) => {
+                          // Разрешаем ввод только цифр, пробелов и дефисов
+                          const cleaned = e.target.value.replace(/[^\d\s-]/g, '');
+                          setPhoneDigits(cleaned);
+                        }}
+                        placeholder="912 345-67-89"
+                        autoFocus
+                        className="w-full h-full px-3 py-3 bg-transparent text-slate-900 font-semibold text-sm sm:text-base focus:outline-none"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="tel"
-                    id="input-auth-phone"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    placeholder="+7 (999) 000-00-00"
-                    autoFocus
-                    className="w-full min-h-[52px] pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 focus:border-blue-600 focus:bg-white rounded-2xl text-slate-900 font-semibold text-sm sm:text-base focus:outline-none transition-all"
-                  />
+
+                  {/* Выпадающий список выбора страны с поиском */}
+                  {isCountryDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 space-y-2 max-h-60 overflow-hidden flex flex-col animate-fadeIn">
+                      {/* Поиск региона */}
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={countrySearchQuery}
+                          onChange={(e) => setCountrySearchQuery(e.target.value)}
+                          placeholder="Поиск страны или кода (+7, +84...)"
+                          className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Список стран */}
+                      <div className="overflow-y-auto space-y-1 flex-1 pr-1">
+                        {filteredCountries.map((country) => (
+                          <button
+                            key={country.code + country.dial}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCountry(country);
+                              setIsCountryDropdownOpen(false);
+                              setCountrySearchQuery('');
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer ${
+                              selectedCountry.code === country.code
+                                ? 'bg-blue-50 text-blue-700 font-bold'
+                                : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{country.flag}</span>
+                              <span>{country.name}</span>
+                            </div>
+                            <span className="text-slate-400 font-mono">{country.dial}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Кнопка подтверждения номера */}
@@ -465,7 +682,12 @@ export function AuthModal({
                   type="button"
                   id="btn-confirm-phone"
                   disabled={isQrLoading}
-                  onClick={() => finalizeTelegramAuth(phoneInput.trim())}
+                  onClick={() => {
+                    const fullPhone = phoneDigits.trim()
+                      ? `${selectedCountry.dial}${phoneDigits.replace(/[\s-]/g, '')}`
+                      : null;
+                    finalizeTelegramAuth(fullPhone);
+                  }}
                   className="w-full min-h-[52px] p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   {isQrLoading ? (
