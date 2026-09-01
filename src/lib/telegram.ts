@@ -390,3 +390,34 @@ export async function sendTelegramDocument(
     return { ok: false, description: err?.message || 'Network error' };
   }
 }
+
+/**
+ * 6. Настройка нативной кнопки меню бота "✈️ Найти билеты" строго на главную страницу поиска
+ */
+export async function configureBotMenuButton(
+  url = 'https://flightsaver-pi.vercel.app/'
+): Promise<TelegramApiResponse> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN || DEFAULT_BOT_TOKEN;
+  if (!botToken) return { ok: false };
+
+  try {
+    const cleanUrl = url.endsWith('/') ? url : `${url}/`;
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        menu_button: {
+          type: 'web_app',
+          text: '✈️ Найти билеты',
+          web_app: {
+            url: cleanUrl,
+          },
+        },
+      }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { ok: false, description: err?.message };
+  }
+}
+

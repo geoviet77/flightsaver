@@ -58,10 +58,14 @@ export function Header({
     }
 
     // 2. Получаем текущую сессию
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         setUser(user);
-      } else if (typeof window !== "undefined") {
+        setLoading(false);
+        return;
+      }
+
+      if (typeof window !== "undefined") {
         const stored = localStorage.getItem("flightsaver_user");
         if (stored) {
           try {
@@ -75,13 +79,43 @@ export function Header({
                   avatar_url: parsed.avatarUrl,
                 },
               });
+              setLoading(false);
+              return;
+            }
+          } catch {}
+        }
+
+        // Проверяем pending сессию Telegram (при возврате из бота в TWA)
+        const pendingSessionId = localStorage.getItem("flightsaver_pending_auth_session");
+        if (pendingSessionId) {
+          try {
+            const res = await fetch(`/api/auth/telegram/session?id=${pendingSessionId}`);
+            const data = await res.json();
+            if (data.success && data.status === "confirmed" && data.user) {
+              const profile = {
+                id: data.user.id,
+                email: data.user.email,
+                fullName: data.user.fullName || data.user.username || "Telegram User",
+                avatarUrl: data.user.avatarUrl || "",
+                preferredCurrency: "RUB",
+                isAccessibilityMode: false,
+              };
+              localStorage.setItem("flightsaver_user", JSON.stringify(profile));
+              localStorage.removeItem("flightsaver_pending_auth_session");
+              setUser({
+                id: profile.id,
+                email: profile.email,
+                user_metadata: {
+                  full_name: profile.fullName,
+                  avatar_url: profile.avatarUrl,
+                },
+              });
             }
           } catch {}
         }
       }
       setLoading(false);
     });
-
 
     // 3. Подписка на изменения
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -96,6 +130,7 @@ export function Header({
     try {
       if (typeof window !== "undefined") {
         localStorage.removeItem("flightsaver_user");
+        localStorage.removeItem("flightsaver_pending_auth_session");
         localStorage.removeItem("flightsaver_auth_token");
       }
       await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
@@ -107,6 +142,7 @@ export function Header({
       window.location.href = "/";
     }
   };
+
 
 
   const displayName =

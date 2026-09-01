@@ -45,10 +45,10 @@ export async function POST(req: NextRequest) {
     const firstName = fromUser?.first_name || 'Путешественник';
     const telegramId = fromUser?.id || chatId;
 
-    const webAppUrl =
+    const rawWebAppUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       'https://flightsaver-pi.vercel.app';
-    const tmaUrl = `${webAppUrl}/tma`;
+    const webAppUrl = rawWebAppUrl.endsWith('/') ? rawWebAppUrl : `${rawWebAppUrl}/`;
 
     const telegramUser = {
       id: telegramId,
@@ -111,26 +111,13 @@ export async function POST(req: NextRequest) {
         await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone, location);
       }
 
-      // Отправляем финальное сообщение и кнопку Mini App
-      const finishHtml = `🎉 <b>Спасибо! Все данные успешно приняты.</b>\n\n💻 Если вы входили с компьютера — на сайте уже открылся ваш личный кабинет.\n\n📱 Нажмите кнопку ниже, чтобы запустить поиск билетов прямо в Telegram:`;
+      // Отправляем финальное сообщение строго без inline-кнопок
+      const finishHtml = `🎉 <b>Все данные успешно приняты! Авторизация завершена.</b>\n\nВы можете вернуться в открытое приложение FlightSaver или запустить его кнопкой меню «Найти билеты».`;
 
       await sendTelegramMessage(chatId, finishHtml, {
         parseMode: 'HTML',
         replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: '✈️ Найти билеты (Mini App)',
-                web_app: { url: tmaUrl },
-              },
-            ],
-            [
-              {
-                text: '🌐 Открыть веб-сайт',
-                url: webAppUrl,
-              },
-            ],
-          ],
+          remove_keyboard: true,
         },
       });
 
@@ -178,30 +165,18 @@ export async function POST(req: NextRequest) {
         await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone, null);
       }
 
-      const finishHtml = `🎉 <b>Регистрация и авторизация завершены!</b>\n\n💻 На компьютере страница обновилась — добро пожаловать во FlightSaver!\n\n📱 Нажмите кнопку ниже, чтобы запустить поиск билетов:`;
+      const finishHtml = `🎉 <b>Все данные успешно приняты! Авторизация завершена.</b>\n\nВы можете вернуться в открытое приложение FlightSaver или запустить его кнопкой меню «Найти билеты».`;
 
       await sendTelegramMessage(chatId, finishHtml, {
         parseMode: 'HTML',
         replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: '✈️ Найти билеты (Mini App)',
-                web_app: { url: tmaUrl },
-              },
-            ],
-            [
-              {
-                text: '🌐 Открыть веб-сайт',
-                url: webAppUrl,
-              },
-            ],
-          ],
+          remove_keyboard: true,
         },
       });
 
       return NextResponse.json({ ok: true });
     }
+
 
     // =========================================================================
     // 4. КОМАНДА /start (ВХОД ЧЕРЕЗ QR ИЛИ ДИПЛИНК)
@@ -253,7 +228,7 @@ export async function POST(req: NextRequest) {
             [
               {
                 text: '🚀 Открыть FlightSaver (Mini App)',
-                web_app: { url: tmaUrl },
+                web_app: { url: webAppUrl },
               },
             ],
             [
@@ -273,7 +248,7 @@ export async function POST(req: NextRequest) {
     // 5. КОМАНДА /help
     // =========================================================================
     if (text.startsWith('/help')) {
-      const helpHtml = `ℹ️ <b>Справка FlightSaver:</b>\n\n1. Откройте приложение кнопкой ниже.\n2. Введите маршрут (например: <i>«Москва - Бангкок 15 сентября»</i>).\n3. ИИ подберет составной маршрут с отелем STPC.\n\nПоддержка: @FlightSaverSupport`;
+      const helpHtml = `ℹ️ <b>Справка FlightSaver:</b>\n\n1. Откройте приложение кнопкой меню «Найти билеты».\n2. Введите маршрут (например: <i>«Москва - Бангкок 15 сентября»</i>).\n3. ИИ подберет составной маршрут с отелем STPC.\n\nПоддержка: @FlightSaverSupport`;
 
       await sendTelegramMessage(chatId, helpHtml, {
         parseMode: 'HTML',
@@ -282,7 +257,7 @@ export async function POST(req: NextRequest) {
             [
               {
                 text: '✈️ Найти билеты в Mini App',
-                web_app: { url: tmaUrl },
+                web_app: { url: webAppUrl },
               },
             ],
           ],
@@ -291,6 +266,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ ok: true });
     }
+
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

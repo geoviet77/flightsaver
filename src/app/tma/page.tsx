@@ -32,6 +32,12 @@ function TmaContent() {
   const [telegramUser, setTelegramUser] = useState<string | null>(null);
 
   useEffect(() => {
+    // Если страница TMA открыта без конкретного билета, перенаправляем на Главную страницу поиска
+    if (typeof window !== 'undefined' && !searchParams.has('flightId')) {
+      window.location.replace('/');
+      return;
+    }
+
     // Получение контекста пользователя из Telegram WebApp API
     if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
       const tg = (window as any).Telegram.WebApp;
@@ -41,7 +47,8 @@ function TmaContent() {
         setTelegramUser(tg.initDataUnsafe.user.first_name || 'Путешественник');
       }
     }
-  }, []);
+  }, [searchParams]);
+
 
   const handleShare = () => {
     const shareUrl = TelegramLinkService.generateShareMessageUrl({

@@ -69,16 +69,6 @@ export function AuthModal({
     }
   }, []);
 
-  // Бесшовная авторизация внутри Telegram Web App (TMA)
-  useEffect(() => {
-    if (isOpen && typeof window !== 'undefined') {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg && tg.initData && tg.initData.trim().length > 0) {
-        // Пользователь открыл модалку внутри Telegram -> сразу авторизуем без показа QR
-        handleTmaAutoAuth(tg.initData);
-      }
-    }
-  }, [isOpen]);
 
   // Очистка таймеров
   useEffect(() => {
@@ -176,19 +166,7 @@ export function AuthModal({
       setIsQrLoading(true);
       setErrorMessage(null);
 
-      // Если запущено внутри Telegram Mini App -> мгновенный вход
-      if (typeof window !== 'undefined') {
-        const tg = (window as any).Telegram?.WebApp;
-        if (tg && tg.initData && tg.initData.trim().length > 0) {
-          await handleTmaAutoAuth(tg.initData);
-          setIsQrLoading(false);
-          return;
-        }
-      }
-
-      // Для браузера переходим в режим ожидания бота
-      setAuthMode('telegram_qr');
-
+      // 1. Создаем серверную сессию для Telegram
       const res = await fetch('/api/auth/telegram/session', {
         method: 'POST',
       });
@@ -198,11 +176,42 @@ export function AuthModal({
         throw new Error(data.error || 'Не удалось создать сессию Telegram');
       }
 
+      // Сохраняем pending sessionId для автоподхвата сессии при повторном открытии
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('flightsaver_pending_auth_session', data.sessionId);
+      }
+
+      // 2. Если запущено внутри Telegram Web App (TWA): сворачиваем шторку и открываем диалог с ботом
+      if (typeof window !== 'undefined') {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg) {
+          setIsQrLoading(false);
+          onClose();
+
+          // Переключаемся в диалог с ботом
+          if (typeof tg.openTelegramLink === 'function') {
+            tg.openTelegramLink(data.deepLink);
+          } else {
+            window.location.href = data.deepLink;
+          }
+
+          // Закрываем шторку TWA, чтобы не зависала поверх чата
+          setTimeout(() => {
+            if (typeof tg.close === 'function') {
+              tg.close();
+            }
+          }, 150);
+          return;
+        }
+      }
+
+      // 3. Для десктопа и обычного браузера: открываем экран ожидания QR
       setTelegramSession({
         sessionId: data.sessionId,
         deepLink: data.deepLink,
         qrCodeUrl: data.qrCodeUrl,
       });
+      setAuthMode('telegram_qr');
       setIsQrLoading(false);
 
       // Запускаем опрос статуса подтверждения (каждые 1.5 сек)
@@ -227,6 +236,9 @@ export function AuthModal({
             };
 
             setStoredUser(profile);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('flightsaver_pending_auth_session');
+            }
             onSuccess?.(profile);
 
             setTimeout(() => {
@@ -240,6 +252,7 @@ export function AuthModal({
       setIsQrLoading(false);
     }
   };
+
 
   // 3. Вход по Email
   const handleEmailSignIn = async (e: React.FormEvent) => {
