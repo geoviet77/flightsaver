@@ -5,15 +5,17 @@
  * Обработчик двухшагового онбординга:
  * Шаг 1: Запрос номера телефона (кнопка контакта или пропуск).
  * Шаг 2: Запрос геолокации (кнопка геолокации или пропуск).
- * Финал: Авторизация на компьютере и синхронизация сессии.
+ * Финал: Авторизация на компьютере и выдача кнопки Mini App на телефоне.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sendTelegramMessage } from '@/lib/telegram';
 import {
   associateTelegramUser,
-  saveUserPhone,
-  confirmSessionByTelegramUser,
+  confirmTelegramAuthSession,
+  getSessionIdByTelegramId,
+  getUserOnboarding,
+  setUserOnboarding,
 } from '@/lib/telegramSession';
 
 export const dynamic = 'force-dynamic';
@@ -28,24 +30,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    if (!update || !update.message) {
+    if (!update) {
       return NextResponse.json({ ok: true });
     }
 
-    const message = update.message;
-    const chatId = message.chat?.id;
-    const fromUser = message.from;
+    const message = update.message || update.edited_message;
+    if (!message || !message.chat || !message.chat.id) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const chatId = message.chat.id;
     const text = (message.text || '').trim();
-    const telegramId = fromUser?.id;
-
-    if (!chatId || !telegramId) {
-      return NextResponse.json({ ok: true });
-    }
-
+    const fromUser = message.from;
     const firstName = fromUser?.first_name || 'Путешественник';
+    const telegramId = fromUser?.id || chatId;
+
     const rawWebAppUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.VERCEL_PROJECT_PRODUCTION_URL ||
       'https://flightsaver-pi.vercel.app';
     const webAppUrl = rawWebAppUrl.endsWith('/') ? rawWebAppUrl : `${rawWebAppUrl}/`;
 
@@ -57,12 +58,15 @@ export async function POST(req: NextRequest) {
       photo_url: '',
     };
 
+    const onboarding = getUserOnboarding(telegramId);
+    let sessionId = await getSessionIdByTelegramId(telegramId);
+
     // =========================================================================
     // 1. ШАГ 1: ПОЛУЧЕНИЕ НОМЕРА ТЕЛЕФОНА (message.contact)
     // =========================================================================
     if (message.contact && message.contact.phone_number) {
       const phone = message.contact.phone_number;
-      await saveUserPhone(telegramId, phone);
+      setUserOnboarding(telegramId, { phone, step: 'awaiting_location' });
 
       // Переходим к шагу 2: Запрос геолокации без кнопки пропуска
       const step2Html = `✅ <b>Номер телефона принят!</b>\n\n📍 <b>Шаг 2 из 2: Поделитесь вашей геопозицией</b>, чтобы определить ваш город и ближайший аэропорт вылета со спецтарифами:`;
@@ -95,14 +99,26 @@ export async function POST(req: NextRequest) {
         longitude: message.location.longitude,
       };
 
-      // Завершаем авторизацию и синхронизируем с десктопом
-      const confirmResult = await confirmSessionByTelegramUser(telegramUser, location);
+      setUserOnboarding(telegramId, { location, step: 'completed' });
 
-      const airportInfo = confirmResult?.originCity
-        ? `\n\n🛫 Ближайший аэропорт вылета: <b>${confirmResult.originCity} (${confirmResult.originIata})</b>.`
-        : '';
+      if (!sessionId) {
+        sessionId = await getSessionIdByTelegramId(telegramId);
+      }
 
-      const finishHtml = `🎉 <b>Вход на компьютере успешно выполнен!</b>${airportInfo}\n\nВсе данные синхронизированы с вашим личным кабинетом. Можете вернуться к экрану компьютера. Этот чат можно закрыть.`;
+      // Определение ближайшего аэропорта по координатам
+      let airportInfo = '';
+      try {
+        const { findNearestAirport } = require('@/lib/geoAirports');
+        const nearest = findNearestAirport(location.latitude, location.longitude);
+        airportInfo = `\n\n🛫 Ближайший аэропорт вылета: <b>${nearest.city} (${nearest.iata})</b> — ${nearest.name}.`;
+      } catch {}
+
+      // Завершаем авторизацию на компьютере
+      if (sessionId) {
+        await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone || null, location);
+      }
+
+      const finishHtml = `🎉 <b>Вход на компьютере успешно выполнен!</b>${airportInfo}\n\nМожете вернуться к экрану компьютера. Этот чат можно закрыть.`;
 
       await sendTelegramMessage(chatId, finishHtml, {
         parseMode: 'HTML',
@@ -122,17 +138,18 @@ export async function POST(req: NextRequest) {
       const startParam = parts[1]; // auth_<sessionId>
 
       if (startParam && startParam.startsWith('auth_')) {
-        const sessionId = startParam.replace('auth_', '');
+        sessionId = startParam.replace('auth_', '');
         await associateTelegramUser(sessionId, telegramUser);
+        setUserOnboarding(telegramId, { step: 'awaiting_location' });
 
-        const promptHtml = `💻 <b>Вход во FlightSaver на компьютере</b>\n\n👋 Здравствуйте, ${firstName}!\n\n📱 <b>Шаг 1 из 2:</b> Подтвердите ваш номер телефона для завершения входа и синхронизации с личным кабинетом:`;
+        const promptHtml = `💻 <b>Вход во FlightSaver на компьютере</b>\n\n👋 Здравствуйте, ${firstName}!\n\n📍 Подтвердите вход на компьютере и поделитесь геопозицией для определения ближайшего аэропорта вылета:`;
 
         const replyMarkup = {
           keyboard: [
             [
               {
-                text: '📱 Подтвердить номер телефона',
-                request_contact: true,
+                text: '📍 Подтвердить вход и передать геопозицию',
+                request_location: true,
               },
             ],
           ],
