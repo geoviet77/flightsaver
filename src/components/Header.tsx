@@ -295,6 +295,7 @@ export function Header({
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onSuccess={(newUser) => {
+          setIsAuthOpen(false);
           setUser({
             id: newUser.id,
             email: newUser.email,
