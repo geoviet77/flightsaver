@@ -91,11 +91,14 @@ export const TRANSLATIONS = {
     authTitle: 'Вход в FlightSaver',
     authSubtitle: 'Сохраняйте историю поиска, маршруты и бронирования',
     googleSignIn: 'Войти через Google в 1 клик',
+    telegramSignIn: 'Войти через Telegram',
     orEmail: 'или по электронной почте',
     emailPlaceholder: 'ivan@example.com',
     magicLinkBtn: 'Получить ссылку для входа',
     magicLinkSent: 'Ссылка для входа отправлена на ваш Email!',
     demoLoginBtn: 'Быстрый вход (Демо)',
+    authOfficialGuarantee: 'Официальная авторизация Supabase, Google & Telegram',
+
 
     // Dashboard
     dashboardTitle: 'Личный кабинет путешественника',
@@ -175,11 +178,14 @@ export const TRANSLATIONS = {
     authTitle: 'Sign in to FlightSaver',
     authSubtitle: 'Save your AI search history, routes, and bookings',
     googleSignIn: 'Continue with Google in 1 click',
+    telegramSignIn: 'Continue with Telegram',
     orEmail: 'or via email address',
     emailPlaceholder: 'john@example.com',
     magicLinkBtn: 'Send Magic Sign-In Link',
     magicLinkSent: 'Magic sign-in link has been sent to your email!',
     demoLoginBtn: 'Instant Demo Login',
+    authOfficialGuarantee: 'Official Supabase, Google & Telegram Auth',
+
 
     // Dashboard
     dashboardTitle: 'Traveler Dashboard',

@@ -59,9 +59,29 @@ export function Header({
 
     // 2. Получаем текущую сессию
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUser(user);
+      if (user) {
+        setUser(user);
+      } else if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("flightsaver_user");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed?.id) {
+              setUser({
+                id: parsed.id,
+                email: parsed.email,
+                user_metadata: {
+                  full_name: parsed.fullName,
+                  avatar_url: parsed.avatarUrl,
+                },
+              });
+            }
+          } catch {}
+        }
+      }
       setLoading(false);
     });
+
 
     // 3. Подписка на изменения
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -232,8 +252,19 @@ export function Header({
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
+        onSuccess={(newUser) => {
+          setUser({
+            id: newUser.id,
+            email: newUser.email,
+            user_metadata: {
+              full_name: newUser.fullName,
+              avatar_url: newUser.avatarUrl,
+            },
+          });
+        }}
         language={currentLanguage}
       />
+
     </>
   );
 }
