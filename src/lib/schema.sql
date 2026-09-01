@@ -15,6 +15,7 @@ create table if not exists public.profiles (
   email text,
   full_name text,
   username text,
+  phone text,
   avatar_url text,
   telegram_id bigint unique,
   auth_provider text default 'email',
@@ -23,6 +24,7 @@ create table if not exists public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
 
 
 -- 2. История поисковых запросов к ИИ

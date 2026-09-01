@@ -6,6 +6,8 @@ Copy-Item 'C:\FlightSaver\Reports\Full_Project_Audit_Report.md' -Destination (Jo
 Copy-Item 'C:\FlightSaver\PROJECT JOURNAL TEMPLATES\Report_v6.md' -Destination (Join-Path $gRoot 'Report_v6_Daily_31_Aug_2026.md') -Force
 Copy-Item 'C:\FlightSaver\test_telegram_twa_suite.js' -Destination (Join-Path $gRoot 'test_telegram_twa_suite.js') -Force
 Copy-Item 'C:\FlightSaver\test_telegram_auth_supabase.js' -Destination (Join-Path $gRoot 'test_telegram_auth_supabase.js') -Force
+Copy-Item 'C:\FlightSaver\test_telegram_qr_auth.js' -Destination (Join-Path $gRoot 'test_telegram_qr_auth.js') -Force
+
 
 
 # 2. Зеркалирование проекта в папку FlightSaver на Google Диске

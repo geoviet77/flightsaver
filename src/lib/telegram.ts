@@ -55,11 +55,27 @@ export interface TelegramInlineKeyboardMarkup {
   inline_keyboard: TelegramInlineKeyboardButton[][];
 }
 
+export interface TelegramReplyKeyboardMarkup {
+  keyboard: any[][];
+  resize_keyboard?: boolean;
+  one_time_keyboard?: boolean;
+}
+
+export interface TelegramReplyKeyboardRemove {
+  remove_keyboard: boolean;
+}
+
 export interface TelegramSendMessageOptions {
   parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2';
-  replyMarkup?: TelegramInlineKeyboardMarkup | { inline_keyboard: any[][] };
+  replyMarkup?:
+    | TelegramInlineKeyboardMarkup
+    | TelegramReplyKeyboardMarkup
+    | TelegramReplyKeyboardRemove
+    | { inline_keyboard: any[][] }
+    | Record<string, any>;
   disableWebPagePreview?: boolean;
 }
+
 
 export interface TelegramApiResponse<T = any> {
   ok: boolean;
