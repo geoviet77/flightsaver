@@ -94,6 +94,11 @@ export function Header({
 
   const handleLogout = async () => {
     try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("flightsaver_user");
+        localStorage.removeItem("flightsaver_auth_token");
+      }
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
       await supabase.auth.signOut();
     } catch {}
     setUser(null);
@@ -102,6 +107,7 @@ export function Header({
       window.location.href = "/";
     }
   };
+
 
   const displayName =
     user?.user_metadata?.full_name ||

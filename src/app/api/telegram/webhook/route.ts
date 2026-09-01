@@ -2,11 +2,10 @@
  * FLIGHTSAVER: TELEGRAM BOT WEBHOOK ENDPOINT
  * POST /api/telegram/webhook
  * 
- * Обработчик событий Telegram Bot API:
- * 1. /start auth_<sessionId>: Приветствие и запрос номера телефона (с правом пропуска).
- * 2. message.contact: Запись номера телефона, подтверждение сессии на компьютере и открытие TWA на телефоне.
- * 3. Текст "Пропустить": Подтверждение сессии на компьютере без телефона и открытие TWA на телефоне.
- * 4. /start (обычный) и /help: Запуск Mini App и справка.
+ * Обработчик двухшагового онбординга:
+ * Шаг 1: Запрос номера телефона (кнопка контакта или пропуск).
+ * Шаг 2: Запрос геолокации (кнопка геолокации или пропуск).
+ * Финал: Авторизация на компьютере и выдача кнопки Mini App на телефоне.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,6 +14,8 @@ import {
   associateTelegramUser,
   confirmTelegramAuthSession,
   getSessionIdByTelegramId,
+  getUserOnboarding,
+  setUserOnboarding,
 } from '@/lib/telegramSession';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
     const text = (message.text || '').trim();
     const fromUser = message.from;
     const firstName = fromUser?.first_name || 'Путешественник';
+    const telegramId = fromUser?.id || chatId;
 
     const webAppUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -49,106 +51,171 @@ export async function POST(req: NextRequest) {
     const tmaUrl = `${webAppUrl}/tma`;
 
     const telegramUser = {
-      id: fromUser?.id || chatId,
+      id: telegramId,
       first_name: fromUser?.first_name || 'User',
       last_name: fromUser?.last_name || '',
       username: fromUser?.username || '',
       photo_url: '',
     };
 
+    const onboarding = getUserOnboarding(telegramId);
+    let sessionId = getSessionIdByTelegramId(telegramId);
+
     // =========================================================================
-    // 1. ПОЛЬЗОВАТЕЛЬ ПОДЕЛИЛСЯ НОМЕРОМ ТЕЛЕФОНА (КНОПКА "Поделиться номером")
+    // 1. ШАГ 1: ПОЛУЧЕНИЕ НОМЕРА ТЕЛЕФОНА (message.contact)
     // =========================================================================
     if (message.contact && message.contact.phone_number) {
       const phone = message.contact.phone_number;
-      const telegramId = fromUser?.id || chatId;
-      const sessionId = getSessionIdByTelegramId(telegramId);
+      setUserOnboarding(telegramId, { phone, step: 'awaiting_location' });
 
-      // Подтверждаем сессию авторизации на сайте
-      if (sessionId) {
-        await confirmTelegramAuthSession(sessionId, telegramUser, phone);
-      }
+      // Переходим к шагу 2: Запрос геолокации
+      const step2Html = `✅ <b>Номер телефона успешно сохранен!</b>\n\n📍 <b>Шаг 2 из 2: Поделитесь вашей геопозицией</b>, чтобы ИИ определил ближайший к вам аэропорт вылета со специальными тарифами Split-Ticketing и бесплатными отелями STPC:\n\n<i>Нажмите «Поделиться геопозицией» или «Пропустить шаг»:</i>`;
 
-      // Снимаем reply-клавиатуру и отправляем TWA-кнопку
-      await sendTelegramMessage(
-        chatId,
-        `✅ <b>Номер телефона ${phone} успешно привязан!</b>\n\n🎉 <b>Авторизация завершена!</b> Если вы входили с компьютера — на сайте уже открылся ваш личный кабинет.\n\nА на телефоне вы можете сразу перейти к поиску умных билетов и отелей STPC:`,
-        {
-          parseMode: 'HTML',
-          replyMarkup: {
-            inline_keyboard: [
-              [
-                {
-                  text: '✈️ Найти билеты (Открыть Mini App)',
-                  web_app: { url: tmaUrl },
-                },
-              ],
-              [
-                {
-                  text: '🌐 Открыть веб-сайт',
-                  url: webAppUrl,
-                },
-              ],
+      await sendTelegramMessage(chatId, step2Html, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          keyboard: [
+            [
+              {
+                text: '📍 Поделиться геопозицией',
+                request_location: true,
+              },
             ],
-          },
-        }
-      );
+            [
+              {
+                text: '⏩ Пропустить шаг с геопозицией',
+              },
+            ],
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      });
 
       return NextResponse.json({ ok: true });
     }
 
     // =========================================================================
-    // 2. ПОЛЬЗОВАТЕЛЬ НАЖАЛ "ПРОПУСТИТЬ"
+    // 2. ШАГ 2: ПОЛУЧЕНИЕ ГЕОЛОКАЦИИ (message.location) -> ФИНАЛ АВТОРИЗАЦИИ
+    // =========================================================================
+    if (message.location && typeof message.location.latitude === 'number') {
+      const location = {
+        latitude: message.location.latitude,
+        longitude: message.location.longitude,
+      };
+
+      setUserOnboarding(telegramId, { location, step: 'completed' });
+
+      // Завершаем авторизацию на компьютере
+      if (sessionId) {
+        await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone, location);
+      }
+
+      // Отправляем финальное сообщение и кнопку Mini App
+      const finishHtml = `🎉 <b>Спасибо! Все данные успешно приняты.</b>\n\n💻 Если вы входили с компьютера — на сайте уже открылся ваш личный кабинет.\n\n📱 Нажмите кнопку ниже, чтобы запустить поиск билетов прямо в Telegram:`;
+
+      await sendTelegramMessage(chatId, finishHtml, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '✈️ Найти билеты (Mini App)',
+                web_app: { url: tmaUrl },
+              },
+            ],
+            [
+              {
+                text: '🌐 Открыть веб-сайт',
+                url: webAppUrl,
+              },
+            ],
+          ],
+        },
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // =========================================================================
+    // 3. ОБРАБОТКА КНОПОК "ПРОПУСТИТЬ"
     // =========================================================================
     if (text.includes('Пропустить')) {
-      const telegramId = fromUser?.id || chatId;
-      const sessionId = getSessionIdByTelegramId(telegramId);
+      // Если пропущен шаг с номером телефона -> переходим к шагу 2 (геолокация)
+      if (onboarding.step === 'awaiting_phone') {
+        setUserOnboarding(telegramId, { phone: null, step: 'awaiting_location' });
 
-      // Подтверждаем сессию на сайте без телефона
-      if (sessionId) {
-        await confirmTelegramAuthSession(sessionId, telegramUser, null);
-      }
+        const step2Html = `👍 <b>Номер телефона можно будет указать при оформлении билета.</b>\n\n📍 <b>Шаг 2 из 2: Поделитесь вашей геопозицией</b>, чтобы ИИ определил ближайший к вам аэропорт вылета со специальными тарифами:\n\n<i>Нажмите «Поделиться геопозицией» или «Пропустить шаг»:</i>`;
 
-      await sendTelegramMessage(
-        chatId,
-        `👍 <b>Принято! Вы сможете указать номер позже при покупке билета.</b>\n\n🎉 <b>Авторизация успешно завершена!</b> На компьютере страница обновилась.\n\nНажмите кнопку ниже, чтобы начать поиск билетов прямо в Telegram:`,
-        {
+        await sendTelegramMessage(chatId, step2Html, {
           parseMode: 'HTML',
           replyMarkup: {
-            inline_keyboard: [
+            keyboard: [
               [
                 {
-                  text: '✈️ Найти билеты (Открыть Mini App)',
-                  web_app: { url: tmaUrl },
+                  text: '📍 Поделиться геопозицией',
+                  request_location: true,
                 },
               ],
               [
                 {
-                  text: '🌐 Открыть веб-сайт',
-                  url: webAppUrl,
+                  text: '⏩ Пропустить шаг с геопозицией',
                 },
               ],
             ],
+            resize_keyboard: true,
+            one_time_keyboard: true,
           },
-        }
-      );
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Если пропущен шаг с геолокацией -> ФИНАЛ АВТОРИЗАЦИИ
+      setUserOnboarding(telegramId, { location: null, step: 'completed' });
+
+      if (sessionId) {
+        await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone, null);
+      }
+
+      const finishHtml = `🎉 <b>Регистрация и авторизация завершены!</b>\n\n💻 На компьютере страница обновилась — добро пожаловать во FlightSaver!\n\n📱 Нажмите кнопку ниже, чтобы запустить поиск билетов:`;
+
+      await sendTelegramMessage(chatId, finishHtml, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '✈️ Найти билеты (Mini App)',
+                web_app: { url: tmaUrl },
+              },
+            ],
+            [
+              {
+                text: '🌐 Открыть веб-сайт',
+                url: webAppUrl,
+              },
+            ],
+          ],
+        },
+      });
 
       return NextResponse.json({ ok: true });
     }
 
     // =========================================================================
-    // 3. КОМАНДА /start (С ПАРАМЕТРОМ АВТОРИЗАЦИИ ИЛИ БЕЗ)
+    // 4. КОМАНДА /start (ВХОД ЧЕРЕЗ QR ИЛИ ДИПЛИНК)
     // =========================================================================
     if (text.startsWith('/start')) {
       const parts = text.split(' ');
-      const startParam = parts[1]; // Параметр Deep Link: auth_<sessionId>
+      const startParam = parts[1]; // auth_<sessionId>
 
-      // 3.1. Переход по ссылке / QR-коду с сайта: /start auth_<sessionId>
       if (startParam && startParam.startsWith('auth_')) {
-        const sessionId = startParam.replace('auth_', '');
+        sessionId = startParam.replace('auth_', '');
         await associateTelegramUser(sessionId, telegramUser);
+        setUserOnboarding(telegramId, { step: 'awaiting_phone' });
 
-        const promptHtml = `👋 <b>Здравствуйте, ${firstName}!</b>\n\nВы выполняете вход в <b>FlightSaver AI Concierge</b>.\n\n📱 <b>Хотите привязать ваш номер телефона для мгновенной выписки билетов и ваучеров STPC?</b>\nНажмите <b>«Поделиться номером»</b>, либо нажмите <b>«Пропустить»</b>:`;
+        const promptHtml = `👋 <b>Здравствуйте, ${firstName}!</b>\n\nВы выполняете вход во <b>FlightSaver AI Concierge</b>.\n\n📱 <b>Шаг 1 из 2: Поделитесь номером телефона</b> для мгновенного оформления билетов и ваучеров STPC:\n\n<i>Нажмите «Поделиться номером» либо «Пропустить»:</i>`;
 
         const replyMarkup = {
           keyboard: [
@@ -160,7 +227,7 @@ export async function POST(req: NextRequest) {
             ],
             [
               {
-                text: '⏩ Пропустить (введу при бронировании)',
+                text: '⏩ Пропустить шаг с номером',
               },
             ],
           ],
@@ -176,36 +243,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // 3.2. Стандартный запуск бота пользователем (без токена авторизации)
+      // Стандартный запуск без ссылки авторизации
       const welcomeHtml = `👋 <b>Здравствуйте, ${firstName}!</b>\n\nДобро пожаловать в <b>FlightSaver AI</b> — интеллектуальный сервис умных авиабилетов!\n\n✈️ <b>Split-Ticketing</b> со скидкой до <b>40%</b>\n🏨 <b>Бесплатные отели STPC 4★/5★</b> при пересадках от 8 часов\n\nНажмите кнопку ниже, чтобы запустить поиск:`;
-
-      const replyMarkup = {
-        inline_keyboard: [
-          [
-            {
-              text: '🚀 Открыть FlightSaver (Mini App)',
-              web_app: { url: tmaUrl },
-            },
-          ],
-          [
-            {
-              text: '🌐 Открыть веб-сайт',
-              url: webAppUrl,
-            },
-          ],
-        ],
-      };
 
       await sendTelegramMessage(chatId, welcomeHtml, {
         parseMode: 'HTML',
-        replyMarkup,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '🚀 Открыть FlightSaver (Mini App)',
+                web_app: { url: tmaUrl },
+              },
+            ],
+            [
+              {
+                text: '🌐 Открыть веб-сайт',
+                url: webAppUrl,
+              },
+            ],
+          ],
+        },
       });
 
       return NextResponse.json({ ok: true });
     }
 
     // =========================================================================
-    // 4. КОМАНДА /help
+    // 5. КОМАНДА /help
     // =========================================================================
     if (text.startsWith('/help')) {
       const helpHtml = `ℹ️ <b>Справка FlightSaver:</b>\n\n1. Откройте приложение кнопкой ниже.\n2. Введите маршрут (например: <i>«Москва - Бангкок 15 сентября»</i>).\n3. ИИ подберет составной маршрут с отелем STPC.\n\nПоддержка: @FlightSaverSupport`;

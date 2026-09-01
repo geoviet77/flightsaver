@@ -1,10 +1,10 @@
 /**
- * FLIGHTSAVER: DISTRIBUTED TELEGRAM AUTH SESSION STORE & QR ENGINE
+ * FLIGHTSAVER: DISTRIBUTED TELEGRAM AUTH SESSION STORE & ONBOARDING ENGINE
  * 
- * Обеспечивает 100% согласованность между инстансами Vercel Serverless и Telegram Webhook:
+ * Обеспечивает согласованность между инстансами Vercel Serverless и Telegram Webhook:
  * 1. Создание сессии с генерацией уникального ID и QR-кода.
- * 2. Привязка Telegram-пользователя при первом /start auth_<id>.
- * 3. Подтверждение сессии при нажатии кнопки "Поделиться номером" ИЛИ "Пропустить".
+ * 2. Двухшаговый опрос клиента (Телефон -> Геолокация -> Финальная авторизация).
+ * 3. Подтверждение сессии на сайте только после прохождения обоих шагов (или отказа).
  * 4. Автоматическая очистка по истечении TTL.
  */
 
@@ -25,8 +25,16 @@ export interface TelegramAuthSession {
     username?: string | null;
     avatarUrl?: string | null;
     phone?: string | null;
+    location?: { latitude: number; longitude: number } | null;
     authProvider: 'telegram';
   };
+}
+
+export interface UserOnboardingState {
+  step: 'awaiting_phone' | 'awaiting_location' | 'completed';
+  phone?: string | null;
+  location?: { latitude: number; longitude: number } | null;
+  updatedAt: number;
 }
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'FlightSaver_AIBot';
@@ -35,6 +43,7 @@ const SESSION_TTL_MS = 5 * 60 * 1000; // 5 минут
 // Локальный L1-кэш для ультрабыстрых повторных проверок
 const memoryCache = new Map<string, TelegramAuthSession>();
 const userToSessionMap = new Map<number, string>();
+const userOnboardingMap = new Map<number, UserOnboardingState>();
 
 const REST_STORE_URL = 'https://api.restful-api.dev/objects';
 
@@ -136,6 +145,12 @@ export async function associateTelegramUser(
   }
 ) {
   userToSessionMap.set(telegramUser.id, sessionId);
+  userOnboardingMap.set(telegramUser.id, {
+    step: 'awaiting_phone',
+    phone: null,
+    location: null,
+    updatedAt: Date.now(),
+  });
 
   try {
     await fetch(`${REST_STORE_URL}/${sessionId}`, {
@@ -145,6 +160,7 @@ export async function associateTelegramUser(
         data: {
           telegramUser,
           status: 'pending',
+          step: 'awaiting_phone',
         },
       }),
     });
@@ -159,7 +175,35 @@ export function getSessionIdByTelegramId(telegramId: number): string | undefined
 }
 
 /**
- * 5. Финальное подтверждение сессии (когда пользователь нажал "Поделиться" ИЛИ "Пропустить")
+ * 5. Управление шагами онбординга пользователя
+ */
+export function getUserOnboarding(telegramId: number): UserOnboardingState {
+  return (
+    userOnboardingMap.get(telegramId) || {
+      step: 'awaiting_phone',
+      phone: null,
+      location: null,
+      updatedAt: Date.now(),
+    }
+  );
+}
+
+export function setUserOnboarding(
+  telegramId: number,
+  state: Partial<UserOnboardingState>
+) {
+  const current = getUserOnboarding(telegramId);
+  const updated: UserOnboardingState = {
+    ...current,
+    ...state,
+    updatedAt: Date.now(),
+  };
+  userOnboardingMap.set(telegramId, updated);
+  return updated;
+}
+
+/**
+ * 6. Финальное подтверждение сессии (после завершения шага геолокации или отказа)
  */
 export async function confirmTelegramAuthSession(
   sessionId: string,
@@ -170,7 +214,8 @@ export async function confirmTelegramAuthSession(
     username?: string;
     photo_url?: string;
   },
-  phone?: string | null
+  phone?: string | null,
+  location?: { latitude: number; longitude: number } | null
 ): Promise<TelegramAuthSession | null> {
   const fullName = [telegramUser.first_name, telegramUser.last_name]
     .filter(Boolean)
@@ -219,6 +264,7 @@ export async function confirmTelegramAuthSession(
     username: telegramUser.username || null,
     avatarUrl: telegramUser.photo_url || null,
     phone: phone || null,
+    location: location || null,
     authProvider: 'telegram' as const,
   };
 
@@ -235,6 +281,12 @@ export async function confirmTelegramAuthSession(
   // Обновляем L1 кэш
   memoryCache.set(sessionId, updatedSession);
   userToSessionMap.set(telegramUser.id, sessionId);
+  userOnboardingMap.set(telegramUser.id, {
+    step: 'completed',
+    phone: phone || null,
+    location: location || null,
+    updatedAt: Date.now(),
+  });
 
   // Обновляем распределенное хранилище
   try {
