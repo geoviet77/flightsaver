@@ -392,14 +392,29 @@ export function AuthModal({
     }
   };
 
+  // Проверка: выполняется ли код внутри Telegram Mini App
+  const isTwaEnvironment = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      if (tg.platform && tg.platform !== 'unknown') return true;
+      if (tg.version) return true;
+      if (typeof tg.initData === 'string' && tg.initData.trim().length > 0) return true;
+      if (tg.initDataUnsafe && Object.keys(tg.initDataUnsafe).length > 0) return true;
+    }
+    if (/Telegram/i.test(navigator.userAgent)) return true;
+    if (window.location.hash && window.location.hash.includes('tgWebApp')) return true;
+    if (window.location.search && window.location.search.includes('tgWebApp')) return true;
+    return false;
+  };
+
   // Точка входа авторизации через Telegram
   const startTelegramAuth = async () => {
     try {
       setIsQrLoading(true);
       setErrorMessage(null);
 
-      const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
-      const isInsideTwa = Boolean(tg?.initData || tg?.initDataUnsafe?.user);
+      const isInsideTwa = isTwaEnvironment();
 
       // 🖥️ ДЕСКТОП: Нажатие кнопки со Скриншота 1 сразу открывает QR-код (Скриншот 3)!
       // Никаких экранов ручного ввода номера (Скриншот 2) на компьютере!
@@ -448,9 +463,13 @@ export function AuthModal({
         return;
       }
 
-      // 📱 TWA (ВНУТРИ МОБИЛЬНОГО TELEGRAM MINI APP): Логика заморожена и не меняется
+      // 📱 TWA (ВНУТРИ МОБИЛЬНОГО TELEGRAM MINI APP): Строго внутри TWA без QR и чата!
+      const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
       if (tg && typeof tg.ready === 'function') {
         tg.ready();
+        if (typeof tg.expand === 'function') {
+          tg.expand();
+        }
       }
 
       // Сначала определяем страну по геопозиции / часовому поясу
