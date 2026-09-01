@@ -14,7 +14,7 @@ export const runtime = 'nodejs';
 // 1. Создание сессии (возвращает ссылку для бота и QR-код)
 export async function POST() {
   try {
-    const session = createTelegramAuthSession();
+    const session = await createTelegramAuthSession();
     return NextResponse.json({
       success: true,
       sessionId: session.sessionId,
@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const session = getTelegramAuthSession(sessionId);
+    const session = await getTelegramAuthSession(sessionId);
+
     if (!session) {
       return NextResponse.json(
         { success: false, status: 'expired', error: 'Session not found or expired' },
