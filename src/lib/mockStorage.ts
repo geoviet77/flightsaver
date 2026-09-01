@@ -30,6 +30,9 @@ export interface UserProfile {
   email: string;
   fullName: string;
   avatarUrl?: string;
+  phone?: string;
+  originIata?: string;
+  originCity?: string;
   preferredCurrency: Currency;
   isAccessibilityMode: boolean;
 }

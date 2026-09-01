@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
       const phone = message.contact.phone_number;
       setUserOnboarding(telegramId, { phone, step: 'awaiting_location' });
 
-      // Переходим к шагу 2: Запрос геолокации
-      const step2Html = `✅ <b>Номер телефона успешно сохранен!</b>\n\n📍 <b>Шаг 2 из 2: Поделитесь вашей геопозицией</b>, чтобы ИИ определил ближайший к вам аэропорт вылета со специальными тарифами Split-Ticketing и бесплатными отелями STPC:\n\n<i>Нажмите «Поделиться геопозицией» или «Пропустить шаг»:</i>`;
+      // Переходим к шагу 2: Запрос геолокации без кнопки пропуска
+      const step2Html = `✅ <b>Номер телефона принят!</b>\n\n📍 <b>Шаг 2 из 2: Поделитесь вашей геопозицией</b>, чтобы определить ваш город и ближайший аэропорт вылета со спецтарифами:`;
 
       await sendTelegramMessage(chatId, step2Html, {
         parseMode: 'HTML',
@@ -79,11 +79,6 @@ export async function POST(req: NextRequest) {
               {
                 text: '📍 Поделиться геопозицией',
                 request_location: true,
-              },
-            ],
-            [
-              {
-                text: '⏩ Пропустить шаг с геопозицией',
               },
             ],
           ],
@@ -106,13 +101,20 @@ export async function POST(req: NextRequest) {
 
       setUserOnboarding(telegramId, { location, step: 'completed' });
 
+      // Определение ближайшего аэропорта по координатам
+      let airportInfo = '';
+      try {
+        const { findNearestAirport } = require('@/lib/geoAirports');
+        const nearest = findNearestAirport(location.latitude, location.longitude);
+        airportInfo = `\n\n🛫 Ближайший аэропорт вылета: <b>${nearest.city} (${nearest.iata})</b> — ${nearest.name}.`;
+      } catch {}
+
       // Завершаем авторизацию на компьютере
       if (sessionId) {
         await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone, location);
       }
 
-      // Отправляем финальное сообщение строго без inline-кнопок
-      const finishHtml = `🎉 <b>Все данные успешно приняты! Авторизация завершена.</b>\n\nВы можете вернуться в открытое приложение FlightSaver или запустить его кнопкой меню «Найти билеты».`;
+      const finishHtml = `🎉 <b>Вход на компьютере успешно выполнен!</b>${airportInfo}\n\nМожете вернуться к экрану компьютера. Этот чат можно закрыть.`;
 
       await sendTelegramMessage(chatId, finishHtml, {
         parseMode: 'HTML',
@@ -125,61 +127,7 @@ export async function POST(req: NextRequest) {
     }
 
     // =========================================================================
-    // 3. ОБРАБОТКА КНОПОК "ПРОПУСТИТЬ"
-    // =========================================================================
-    if (text.includes('Пропустить')) {
-      // Если пропущен шаг с номером телефона -> переходим к шагу 2 (геолокация)
-      if (onboarding.step === 'awaiting_phone') {
-        setUserOnboarding(telegramId, { phone: null, step: 'awaiting_location' });
-
-        const step2Html = `👍 <b>Номер телефона можно будет указать при оформлении билета.</b>\n\n📍 <b>Шаг 2 из 2: Поделитесь вашей геопозицией</b>, чтобы ИИ определил ближайший к вам аэропорт вылета со специальными тарифами:\n\n<i>Нажмите «Поделиться геопозицией» или «Пропустить шаг»:</i>`;
-
-        await sendTelegramMessage(chatId, step2Html, {
-          parseMode: 'HTML',
-          replyMarkup: {
-            keyboard: [
-              [
-                {
-                  text: '📍 Поделиться геопозицией',
-                  request_location: true,
-                },
-              ],
-              [
-                {
-                  text: '⏩ Пропустить шаг с геопозицией',
-                },
-              ],
-            ],
-            resize_keyboard: true,
-            one_time_keyboard: true,
-          },
-        });
-
-        return NextResponse.json({ ok: true });
-      }
-
-      // Если пропущен шаг с геолокацией -> ФИНАЛ АВТОРИЗАЦИИ
-      setUserOnboarding(telegramId, { location: null, step: 'completed' });
-
-      if (sessionId) {
-        await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone, null);
-      }
-
-      const finishHtml = `🎉 <b>Все данные успешно приняты! Авторизация завершена.</b>\n\nВы можете вернуться в открытое приложение FlightSaver или запустить его кнопкой меню «Найти билеты».`;
-
-      await sendTelegramMessage(chatId, finishHtml, {
-        parseMode: 'HTML',
-        replyMarkup: {
-          remove_keyboard: true,
-        },
-      });
-
-      return NextResponse.json({ ok: true });
-    }
-
-
-    // =========================================================================
-    // 4. КОМАНДА /start (ВХОД ЧЕРЕЗ QR ИЛИ ДИПЛИНК)
+    // 3. КОМАНДА /start (ВХОД ЧЕРЕЗ QR ИЛИ ДИПЛИНК)
     // =========================================================================
     if (text.startsWith('/start')) {
       const parts = text.split(' ');
@@ -190,19 +138,14 @@ export async function POST(req: NextRequest) {
         await associateTelegramUser(sessionId, telegramUser);
         setUserOnboarding(telegramId, { step: 'awaiting_phone' });
 
-        const promptHtml = `👋 <b>Здравствуйте, ${firstName}!</b>\n\nВы выполняете вход во <b>FlightSaver AI Concierge</b>.\n\n📱 <b>Шаг 1 из 2: Поделитесь номером телефона</b> для мгновенного оформления билетов и ваучеров STPC:\n\n<i>Нажмите «Поделиться номером» либо «Пропустить»:</i>`;
+        const promptHtml = `💻 <b>Вход во FlightSaver на компьютере</b>\n\n👋 Здравствуйте, ${firstName}!\n\n📱 <b>Шаг 1 из 2:</b> Подтвердите ваш номер телефона для завершения входа и выписки авиабилетов:`;
 
         const replyMarkup = {
           keyboard: [
             [
               {
-                text: '📱 Поделиться номером для билетов',
+                text: '📱 Подтвердить номер телефона',
                 request_contact: true,
-              },
-            ],
-            [
-              {
-                text: '⏩ Пропустить шаг с номером',
               },
             ],
           ],
@@ -217,6 +160,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ ok: true });
       }
+
 
       // Стандартный запуск без ссылки авторизации
       const welcomeHtml = `👋 <b>Здравствуйте, ${firstName}!</b>\n\nДобро пожаловать в <b>FlightSaver AI</b> — интеллектуальный сервис умных авиабилетов!\n\n✈️ <b>Split-Ticketing</b> со скидкой до <b>40%</b>\n🏨 <b>Бесплатные отели STPC 4★/5★</b> при пересадках от 8 часов\n\nНажмите кнопку ниже, чтобы запустить поиск:`;

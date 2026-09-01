@@ -323,6 +323,9 @@ export function AuthModal({
             email: authData.user.email,
             fullName: authData.user.fullName || authData.user.username || 'Telegram User',
             avatarUrl: authData.user.avatarUrl || '',
+            phone: authData.user.phone || undefined,
+            originIata: authData.user.originIata || undefined,
+            originCity: authData.user.originCity || undefined,
             preferredCurrency: 'RUB',
             isAccessibilityMode: false,
           };
@@ -347,7 +350,6 @@ export function AuthModal({
       const res = await fetch('/api/auth/telegram/session', { method: 'POST' });
       const data = await res.json();
       if (data.success && data.sessionId) {
-
         setTelegramSession({
           sessionId: data.sessionId,
           deepLink: data.deepLink,
@@ -368,6 +370,9 @@ export function AuthModal({
                 email: checkData.user.email,
                 fullName: checkData.user.fullName || checkData.user.username || 'Telegram User',
                 avatarUrl: checkData.user.avatarUrl || '',
+                phone: checkData.user.phone || undefined,
+                originIata: checkData.user.originIata || undefined,
+                originCity: checkData.user.originCity || undefined,
                 preferredCurrency: 'RUB',
                 isAccessibilityMode: false,
               };

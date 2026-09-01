@@ -304,6 +304,13 @@ export function Header({
               avatar_url: newUser.avatarUrl,
             },
           });
+          if (typeof window !== 'undefined' && newUser.originCity) {
+            window.dispatchEvent(
+              new CustomEvent('flightsaver_origin_updated', {
+                detail: { city: newUser.originCity, iata: newUser.originIata },
+              })
+            );
+          }
         }}
         language={currentLanguage}
       />

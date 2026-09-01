@@ -76,11 +76,25 @@ export function AIInputBar({
       }
     };
 
+    const handleOriginUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ city?: string; iata?: string }>;
+      if (customEvent.detail?.city) {
+        const defaultPrompt = `Из ${customEvent.detail.city} в `;
+        setQuery(defaultPrompt);
+        if (inputRef.current) {
+          inputRef.current.value = defaultPrompt;
+          inputRef.current.focus();
+        }
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('focus-ai-input', handleFocusCustom);
+    window.addEventListener('flightsaver_origin_updated', handleOriginUpdated);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('focus-ai-input', handleFocusCustom);
+      window.removeEventListener('flightsaver_origin_updated', handleOriginUpdated);
     };
   }, []);
 

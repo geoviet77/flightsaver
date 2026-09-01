@@ -26,6 +26,8 @@ export interface TelegramAuthSession {
     avatarUrl?: string | null;
     phone?: string | null;
     location?: { latitude: number; longitude: number } | null;
+    originIata?: string | null;
+    originCity?: string | null;
     authProvider: 'telegram';
   };
 }
@@ -225,6 +227,15 @@ export async function confirmTelegramAuthSession(
   const syntheticEmail = `tg_${telegramUser.id}@telegram.flightsaver.internal`;
   let supabaseUserId = `tg_${telegramUser.id}`;
 
+  let originIata: string | null = null;
+  let originCity: string | null = null;
+  if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
+    const { findNearestAirport } = require('./geoAirports');
+    const nearest = findNearestAirport(location.latitude, location.longitude);
+    originIata = nearest.iata;
+    originCity = nearest.city;
+  }
+
   // Синхронизация с Supabase (если настроен)
   try {
     const supabaseAdmin = createAdminClient();
@@ -265,6 +276,8 @@ export async function confirmTelegramAuthSession(
     avatarUrl: telegramUser.photo_url || null,
     phone: phone || null,
     location: location || null,
+    originIata,
+    originCity,
     authProvider: 'telegram' as const,
   };
 
