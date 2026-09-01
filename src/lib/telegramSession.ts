@@ -3,12 +3,13 @@
  * 
  * Обеспечивает согласованность между инстансами Vercel Serverless и Telegram Webhook:
  * 1. Создание сессии с генерацией уникального ID и QR-кода.
- * 2. Двухшаговый опрос клиента (Телефон -> Геолокация -> Финальная авторизация).
- * 3. Подтверждение сессии на сайте только после прохождения обоих шагов (или отказа).
- * 4. Автоматическая очистка по истечении TTL.
+ * 2. Двухшаговый опрос клиента в боте (Телефон -> Геолокация -> Финальная авторизация).
+ * 3. Надежное распределенное хранение сессий и маппинга пользователей для работы на Vercel Serverless.
+ * 4. Синхронизация профиля, телефона и города вылета в личный кабинет на десктопе.
  */
 
 import { createAdminClient } from './supabase/admin';
+import { findNearestAirport } from './geoAirports';
 
 export interface TelegramAuthSession {
   sessionId: string;
@@ -42,44 +43,33 @@ export interface UserOnboardingState {
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'FlightSaver_AIBot';
 const SESSION_TTL_MS = 5 * 60 * 1000; // 5 минут
 
-// Локальный L1-кэш для ультрабыстрых повторных проверок
+// L1-кэш в оперативной памяти инстанса
 const memoryCache = new Map<string, TelegramAuthSession>();
 const userToSessionMap = new Map<number, string>();
-const userOnboardingMap = new Map<number, UserOnboardingState>();
+const userPhoneMap = new Map<number, string>();
 
-const REST_STORE_URL = 'https://api.restful-api.dev/objects';
+// Надежный распределенный REST-мост для Vercel Serverless
+let STORE_ENDPOINT = 'https://crudcrud.com/api/cdb0443698a5455788ce641a7721dae0/sessions';
+
+async function fetchRemoteItems(): Promise<any[]> {
+  try {
+    const res = await fetch(STORE_ENDPOINT);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch (err) {
+    console.warn('[TelegramSession] Remote fetch warning:', err);
+  }
+  return [];
+}
 
 /**
  * 1. Создание сессии авторизации (распределенный объект + L1 кэш)
  */
 export async function createTelegramAuthSession(): Promise<TelegramAuthSession> {
   const now = Date.now();
-  let sessionId = 'fs_' + Math.random().toString(36).substring(2, 12);
-
-  try {
-    const res = await fetch(REST_STORE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'fs_auth_session',
-        data: {
-          status: 'pending',
-          createdAt: now,
-          expiresAt: now + SESSION_TTL_MS,
-        },
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.id) {
-        sessionId = data.id;
-      }
-    }
-  } catch (err) {
-    console.warn('[TelegramSession] Store fallback to local id:', err);
-  }
-
+  const sessionId = 'fs_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
   const deepLink = `https://t.me/${BOT_USERNAME}?start=auth_${sessionId}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(deepLink)}`;
 
@@ -93,6 +83,23 @@ export async function createTelegramAuthSession(): Promise<TelegramAuthSession> 
   };
 
   memoryCache.set(sessionId, session);
+
+  try {
+    await fetch(STORE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recordType: 'session',
+        sessionId,
+        status: 'pending',
+        createdAt: now,
+        expiresAt: now + SESSION_TTL_MS,
+      }),
+    });
+  } catch (err) {
+    console.warn('[TelegramSession] Store write error:', err);
+  }
+
   return session;
 }
 
@@ -108,23 +115,21 @@ export async function getTelegramAuthSession(sessionId: string): Promise<Telegra
 
   // 2. Опрашиваем распределенное хранилище
   try {
-    const res = await fetch(`${REST_STORE_URL}/${sessionId}`);
-    if (res.ok) {
-      const item = await res.json();
-      if (item && item.data) {
-        const isExpired = Date.now() > (item.data.expiresAt || (Date.now() + 1000));
-        const session: TelegramAuthSession = {
-          sessionId,
-          status: isExpired ? 'expired' : item.data.status || 'pending',
-          createdAt: item.data.createdAt || Date.now(),
-          expiresAt: item.data.expiresAt || (Date.now() + SESSION_TTL_MS),
-          deepLink: `https://t.me/${BOT_USERNAME}?start=auth_${sessionId}`,
-          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(`https://t.me/${BOT_USERNAME}?start=auth_${sessionId}`)}`,
-          user: item.data.user || undefined,
-        };
-        memoryCache.set(sessionId, session);
-        return session;
-      }
+    const items = await fetchRemoteItems();
+    const doc = items.find((it: any) => it.recordType === 'session' && it.sessionId === sessionId);
+    if (doc) {
+      const isExpired = Date.now() > (doc.expiresAt || Date.now() + 1000);
+      const session: TelegramAuthSession = {
+        sessionId,
+        status: isExpired ? 'expired' : doc.status || 'pending',
+        createdAt: doc.createdAt || Date.now(),
+        expiresAt: doc.expiresAt || Date.now() + SESSION_TTL_MS,
+        deepLink: `https://t.me/${BOT_USERNAME}?start=auth_${sessionId}`,
+        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(`https://t.me/${BOT_USERNAME}?start=auth_${sessionId}`)}`,
+        user: doc.user || undefined,
+      };
+      memoryCache.set(sessionId, session);
+      return session;
     }
   } catch (err) {
     console.warn('[TelegramSession] Error reading remote session:', err);
@@ -134,7 +139,7 @@ export async function getTelegramAuthSession(sessionId: string): Promise<Telegra
 }
 
 /**
- * 3. Предварительная привязка пользователя Telegram к сессии (при первом /start)
+ * 3. Предварительная привязка пользователя Telegram к сессии (при первом /start auth_<sessionId>)
  */
 export async function associateTelegramUser(
   sessionId: string,
@@ -147,68 +152,86 @@ export async function associateTelegramUser(
   }
 ) {
   userToSessionMap.set(telegramUser.id, sessionId);
-  userOnboardingMap.set(telegramUser.id, {
-    step: 'awaiting_phone',
-    phone: null,
-    location: null,
-    updatedAt: Date.now(),
-  });
 
   try {
-    await fetch(`${REST_STORE_URL}/${sessionId}`, {
-      method: 'PATCH',
+    await fetch(STORE_ENDPOINT, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: {
-          telegramUser,
-          status: 'pending',
-          step: 'awaiting_phone',
-        },
+        recordType: 'user_map',
+        telegramId: telegramUser.id,
+        sessionId,
+        updatedAt: Date.now(),
       }),
     });
-  } catch {}
+  } catch (err) {
+    console.warn('[TelegramSession] Error saving user map:', err);
+  }
 }
 
 /**
- * 4. Нахождение сессии по Telegram ID пользователя
+ * 4. Сохранение номера телефона пользователя при шаге 1
  */
-export function getSessionIdByTelegramId(telegramId: number): string | undefined {
-  return userToSessionMap.get(telegramId);
+export async function saveUserPhone(telegramId: number, phone: string) {
+  userPhoneMap.set(telegramId, phone);
+
+  try {
+    await fetch(STORE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recordType: 'user_phone',
+        telegramId,
+        phone,
+        updatedAt: Date.now(),
+      }),
+    });
+  } catch (err) {
+    console.warn('[TelegramSession] Error saving user phone:', err);
+  }
 }
 
 /**
- * 5. Управление шагами онбординга пользователя
+ * 5. Нахождение активного sessionId и сохраненного телефона по telegramId
  */
-export function getUserOnboarding(telegramId: number): UserOnboardingState {
-  return (
-    userOnboardingMap.get(telegramId) || {
-      step: 'awaiting_phone',
-      phone: null,
-      location: null,
-      updatedAt: Date.now(),
+export async function getActiveUserSessionContext(telegramId: number): Promise<{
+  sessionId?: string;
+  phone?: string | null;
+}> {
+  let sessionId = userToSessionMap.get(telegramId);
+  let phone = userPhoneMap.get(telegramId) || null;
+
+  try {
+    const items = await fetchRemoteItems();
+    if (!sessionId) {
+      const maps = items
+        .filter((it: any) => it.recordType === 'user_map' && it.telegramId === telegramId)
+        .sort((a: any, b: any) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      if (maps[0]?.sessionId) {
+        sessionId = maps[0].sessionId;
+      }
     }
-  );
-}
+    if (!phone) {
+      const phones = items
+        .filter((it: any) => it.recordType === 'user_phone' && it.telegramId === telegramId)
+        .sort((a: any, b: any) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      if (phones[0]?.phone) {
+        phone = phones[0].phone;
+      }
+    }
+  } catch (err) {
+    console.warn('[TelegramSession] Remote context lookup error:', err);
+  }
 
-export function setUserOnboarding(
-  telegramId: number,
-  state: Partial<UserOnboardingState>
-) {
-  const current = getUserOnboarding(telegramId);
-  const updated: UserOnboardingState = {
-    ...current,
-    ...state,
-    updatedAt: Date.now(),
-  };
-  userOnboardingMap.set(telegramId, updated);
-  return updated;
+  return { sessionId, phone };
 }
 
 /**
- * 6. Финальное подтверждение сессии (после завершения шага геолокации или отказа)
+ * 6. Финальное подтверждение сессии (при шаге 2 - получение геопозиции)
+ * Находит сессию, привязывает телефон, геопозицию, рассчитывает город вылета
+ * и синхронизирует с личным кабинетом десктопа.
  */
-export async function confirmTelegramAuthSession(
-  sessionId: string,
+export async function confirmSessionByTelegramUser(
   telegramUser: {
     id: number;
     first_name: string;
@@ -216,9 +239,22 @@ export async function confirmTelegramAuthSession(
     username?: string;
     photo_url?: string;
   },
-  phone?: string | null,
   location?: { latitude: number; longitude: number } | null
-): Promise<TelegramAuthSession | null> {
+): Promise<{ originCity?: string; originIata?: string } | null> {
+  const { sessionId, phone } = await getActiveUserSessionContext(telegramUser.id);
+  if (!sessionId) {
+    console.warn('[TelegramSession] Cannot confirm session: sessionId not found for user', telegramUser.id);
+    return null;
+  }
+
+  let originIata: string | null = null;
+  let originCity: string | null = null;
+  if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
+    const nearest = findNearestAirport(location.latitude, location.longitude);
+    originIata = nearest.iata;
+    originCity = nearest.city;
+  }
+
   const fullName = [telegramUser.first_name, telegramUser.last_name]
     .filter(Boolean)
     .join(' ')
@@ -227,16 +263,7 @@ export async function confirmTelegramAuthSession(
   const syntheticEmail = `tg_${telegramUser.id}@telegram.flightsaver.internal`;
   let supabaseUserId = `tg_${telegramUser.id}`;
 
-  let originIata: string | null = null;
-  let originCity: string | null = null;
-  if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
-    const { findNearestAirport } = require('./geoAirports');
-    const nearest = findNearestAirport(location.latitude, location.longitude);
-    originIata = nearest.iata;
-    originCity = nearest.city;
-  }
-
-  // Синхронизация с Supabase (если настроен)
+  // Синхронизация с Supabase (если доступен)
   try {
     const supabaseAdmin = createAdminClient();
     const { data: existingProfile } = await supabaseAdmin
@@ -291,32 +318,40 @@ export async function confirmTelegramAuthSession(
     user: userData,
   };
 
-  // Обновляем L1 кэш
   memoryCache.set(sessionId, updatedSession);
-  userToSessionMap.set(telegramUser.id, sessionId);
-  userOnboardingMap.set(telegramUser.id, {
-    step: 'completed',
-    phone: phone || null,
-    location: location || null,
-    updatedAt: Date.now(),
-  });
 
   // Обновляем распределенное хранилище
   try {
-    await fetch(`${REST_STORE_URL}/${sessionId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        data: {
+    const items = await fetchRemoteItems();
+    const doc = items.find((it: any) => it.recordType === 'session' && it.sessionId === sessionId);
+    if (doc && doc._id) {
+      await fetch(`${STORE_ENDPOINT}/${doc._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recordType: 'session',
+          sessionId,
           status: 'confirmed',
           user: userData,
           confirmedAt: Date.now(),
-        },
-      }),
-    });
+        }),
+      });
+    } else {
+      await fetch(STORE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recordType: 'session',
+          sessionId,
+          status: 'confirmed',
+          user: userData,
+          confirmedAt: Date.now(),
+        }),
+      });
+    }
   } catch (err) {
-    console.warn('[TelegramSession] Notice updating remote session:', err);
+    console.warn('[TelegramSession] Error updating remote confirmed session:', err);
   }
 
-  return updatedSession;
+  return { originCity: originCity || undefined, originIata: originIata || undefined };
 }
