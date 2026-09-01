@@ -140,16 +140,16 @@ export async function POST(req: NextRequest) {
       if (startParam && startParam.startsWith('auth_')) {
         sessionId = startParam.replace('auth_', '');
         await associateTelegramUser(sessionId, telegramUser);
-        setUserOnboarding(telegramId, { step: 'awaiting_location' });
+        setUserOnboarding(telegramId, { step: 'awaiting_phone' });
 
-        const promptHtml = `💻 <b>Вход во FlightSaver на компьютере</b>\n\n👋 Здравствуйте, ${firstName}!\n\n📍 Подтвердите вход на компьютере и поделитесь геопозицией для определения ближайшего аэропорта вылета:`;
+        const promptHtml = `💻 <b>Вход во FlightSaver на компьютере</b>\n\n👋 Здравствуйте, ${firstName}!\n\n📱 <b>Шаг 1 из 2: Поделитесь номером телефона</b> для входа и выписки билетов:`;
 
         const replyMarkup = {
           keyboard: [
             [
               {
-                text: '📍 Подтвердить вход и передать геопозицию',
-                request_location: true,
+                text: '📱 Поделиться номером телефона',
+                request_contact: true,
               },
             ],
           ],

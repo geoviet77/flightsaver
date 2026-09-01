@@ -399,6 +399,56 @@ export function AuthModal({
       setErrorMessage(null);
 
       const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
+      const isInsideTwa = Boolean(tg?.initData || tg?.initDataUnsafe?.user);
+
+      // 🖥️ ДЕСКТОП: Нажатие кнопки со Скриншота 1 сразу открывает QR-код (Скриншот 3)!
+      // Никаких экранов ручного ввода номера (Скриншот 2) на компьютере!
+      if (!isInsideTwa) {
+        const res = await fetch('/api/auth/telegram/session', { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.sessionId) {
+          setTelegramSession({
+            sessionId: data.sessionId,
+            deepLink: data.deepLink,
+            qrCodeUrl: data.qrCodeUrl,
+          });
+          setAuthMode('telegram_qr');
+
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = setInterval(async () => {
+            try {
+              const checkRes = await fetch(`/api/auth/telegram/session?id=${data.sessionId}`);
+              const checkData = await checkRes.json();
+              if (checkData.success && checkData.status === 'confirmed' && checkData.user) {
+                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                setIsSessionConfirmed(true);
+                const profile: UserProfile = {
+                  id: checkData.user.id,
+                  email: checkData.user.email,
+                  fullName: checkData.user.fullName || checkData.user.username || 'Telegram User',
+                  avatarUrl: checkData.user.avatarUrl || '',
+                  phone: checkData.user.phone || undefined,
+                  originIata: checkData.user.originIata || undefined,
+                  originCity: checkData.user.originCity || undefined,
+                  preferredCurrency: 'RUB',
+                  isAccessibilityMode: false,
+                };
+                setStoredUser(profile);
+                setTimeout(() => {
+                  onSuccess?.(profile);
+                  onClose();
+                }, 800);
+              }
+            } catch {}
+          }, 1500);
+        } else {
+          setErrorMessage(data.error || 'Не удалось создать сессию Telegram');
+        }
+        setIsQrLoading(false);
+        return;
+      }
+
+      // 📱 TWA (ВНУТРИ МОБИЛЬНОГО TELEGRAM MINI APP): Логика заморожена и не меняется
       if (tg && typeof tg.ready === 'function') {
         tg.ready();
       }
