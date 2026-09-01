@@ -69,7 +69,6 @@ export function AuthModal({
     }
   }, []);
 
-
   // Очистка таймеров
   useEffect(() => {
     return () => {
@@ -93,42 +92,33 @@ export function AuthModal({
     }
   }, [isOpen]);
 
-  // Автоматический вход внутри TMA
-  const handleTmaAutoAuth = async (initData: string) => {
-    try {
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      const res = await fetch('/api/auth/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData }),
-      });
-
-      const data = await res.json();
-      if (data.success && data.user) {
-        const profile: UserProfile = {
-          id: data.user.id,
-          email: data.user.email,
-          fullName: data.user.fullName || data.user.username || 'Telegram User',
-          avatarUrl: data.user.avatarUrl || '',
-          preferredCurrency: 'RUB',
-          isAccessibilityMode: false,
-        };
-        setStoredUser(profile);
-        onSuccess?.(profile);
-        onClose();
-      } else {
-        setErrorMessage(data.error || 'Не удалось выполнить вход через Telegram');
-      }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Ошибка связи с сервером');
-    } finally {
-      setIsLoading(false);
+  // Функция надежного извлечения Telegram initData (из SDK или хэша URL)
+  const getTelegramInitData = (): string => {
+    if (typeof window === 'undefined') return '';
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.initData && tg.initData.trim().length > 0) {
+      return tg.initData;
     }
+    if (window.location.hash && window.location.hash.includes('tgWebAppData=')) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const raw = hashParams.get('tgWebAppData');
+        if (raw && raw.trim().length > 0) {
+          return raw;
+        }
+      } catch {}
+    }
+    if (window.location.search && window.location.search.includes('tgWebAppData=')) {
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const raw = searchParams.get('tgWebAppData');
+        if (raw && raw.trim().length > 0) {
+          return raw;
+        }
+      } catch {}
+    }
+    return '';
   };
-
-  if (!isOpen) return null;
 
   // 1. Google OAuth
   const handleGoogleLogin = async () => {
@@ -160,84 +150,87 @@ export function AuthModal({
     }
   };
 
-  // 2. Инициализация Telegram сессии
-  const startTelegramQrAuth = async () => {
+  // Прямая авторизация внутри Telegram без перехода в чат с ботом
+  const performDirectTelegramAuth = async () => {
     try {
       setIsQrLoading(true);
       setErrorMessage(null);
 
-      // 1. Если запущено внутри Telegram Web App (TWA): нативный In-App онбординг без закрытия приложения
-      if (typeof window !== 'undefined') {
-        const tg = (window as any).Telegram?.WebApp;
-        if (tg && tg.initData && tg.initData.trim().length > 0) {
-          setIsQrLoading(true);
+      const rawInitData = getTelegramInitData();
+      const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
 
-          // Шаг 1: Нативный запрос номера телефона через Telegram WebApp SDK
-          let phone: string | null = null;
-          if (typeof tg.requestContact === 'function') {
-            try {
-              const contactRes: any = await new Promise((resolve) => {
-                tg.requestContact((status: boolean, response: any) => {
-                  if (status && response?.responseUnsafe?.contact?.phone_number) {
-                    resolve(response.responseUnsafe.contact.phone_number);
-                  } else {
-                    resolve(null);
-                  }
-                });
-              });
-              phone = contactRes || null;
-            } catch {}
-          }
+      if (tg && typeof tg.ready === 'function') {
+        tg.ready();
+      }
 
-          // Шаг 2: Запрос геопозиции через браузерный API (с таймаутом)
-          let location: { latitude: number; longitude: number } | null = null;
-          if (typeof navigator !== 'undefined' && navigator.geolocation) {
-            try {
-              const locRes: any = await new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-                  () => resolve(null),
-                  { timeout: 4000, enableHighAccuracy: false }
-                );
-              });
-              location = locRes || null;
-            } catch {}
-          }
-
-          // Шаг 3: Мгновенная авторизация на сервере
-          const authRes = await fetch('/api/auth/telegram', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              initData: tg.initData,
-              phone,
-              location,
-            }),
+      // 1. Нативный запрос номера телефона через Telegram WebApp SDK (если поддерживается)
+      let phone: string | null = null;
+      if (tg && typeof tg.requestContact === 'function') {
+        try {
+          const contactRes: any = await new Promise((resolve) => {
+            tg.requestContact((status: boolean, response: any) => {
+              if (status && response?.responseUnsafe?.contact?.phone_number) {
+                resolve(response.responseUnsafe.contact.phone_number);
+              } else {
+                resolve(null);
+              }
+            });
           });
+          phone = contactRes || null;
+        } catch {}
+      }
 
-          const authData = await authRes.json();
-          if (authData.success && authData.user) {
-            const profile: UserProfile = {
-              id: authData.user.id,
-              email: authData.user.email,
-              fullName: authData.user.fullName || authData.user.username || 'Telegram User',
-              avatarUrl: authData.user.avatarUrl || '',
-              preferredCurrency: 'RUB',
-              isAccessibilityMode: false,
-            };
-            setStoredUser(profile);
-            setIsSessionConfirmed(true);
-            onSuccess?.(profile);
-            setTimeout(() => {
-              onClose();
-            }, 600);
-            setIsQrLoading(false);
-            return;
-          }
+      // 2. Запрос геопозиции через браузер (с таймаутом)
+      let location: { latitude: number; longitude: number } | null = null;
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        try {
+          const locRes: any = await new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+              () => resolve(null),
+              { timeout: 3500, enableHighAccuracy: false }
+            );
+          });
+          location = locRes || null;
+        } catch {}
+      }
+
+      // 3. Если есть initData (мы внутри Telegram) -> мгновенно авторизуем на месте
+      if (rawInitData && rawInitData.trim().length > 0) {
+        const authRes = await fetch('/api/auth/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initData: rawInitData,
+            phone,
+            location,
+          }),
+        });
+
+        const authData = await authRes.json();
+        if (authData.success && authData.user) {
+          const profile: UserProfile = {
+            id: authData.user.id,
+            email: authData.user.email,
+            fullName: authData.user.fullName || authData.user.username || 'Telegram User',
+            avatarUrl: authData.user.avatarUrl || '',
+            preferredCurrency: 'RUB',
+            isAccessibilityMode: false,
+          };
+          setStoredUser(profile);
+          setIsSessionConfirmed(true);
+          onSuccess?.(profile);
+          setTimeout(() => {
+            onClose();
+          }, 600);
+          setIsQrLoading(false);
+          return;
+        } else {
+          setErrorMessage(authData.error || 'Ошибка проверки подписи Telegram');
         }
       }
 
-      // 2. Для десктопа (сканирование QR-кода): создаем серверную сессию
+      // 4. Если мы вне Telegram (обычный браузер Safari/Chrome): создаем сессию для QR
       const res = await fetch('/api/auth/telegram/session', {
         method: 'POST',
       });
@@ -253,8 +246,6 @@ export function AuthModal({
         qrCodeUrl: data.qrCodeUrl,
       });
       setAuthMode('telegram_qr');
-      setIsQrLoading(false);
-
 
       // Запускаем опрос статуса подтверждения (каждые 1.5 сек)
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
@@ -278,9 +269,6 @@ export function AuthModal({
             };
 
             setStoredUser(profile);
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('flightsaver_pending_auth_session');
-            }
             onSuccess?.(profile);
 
             setTimeout(() => {
@@ -290,11 +278,34 @@ export function AuthModal({
         } catch {}
       }, 1500);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Ошибка запуска авторизации Telegram');
+      setErrorMessage(err?.message || 'Ошибка авторизации Telegram');
+    } finally {
       setIsQrLoading(false);
     }
   };
 
+  // 2. Инициализация Telegram сессии
+  const startTelegramQrAuth = async () => {
+    const rawInitData = getTelegramInitData();
+    const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
+
+    // Если запущено внутри Telegram Web App (TWA) -> сразу запускаем нативную In-App авторизацию
+    if ((tg && tg.initData) || rawInitData) {
+      await performDirectTelegramAuth();
+      return;
+    }
+
+    // Если открыто в обычном браузере на мобильном:
+    if (isMobile) {
+      setAuthMode('telegram_qr');
+      await performDirectTelegramAuth();
+      return;
+    }
+
+    // На компьютере: переходим в режим QR-кода
+    setAuthMode('telegram_qr');
+    await performDirectTelegramAuth();
+  };
 
   // 3. Вход по Email
   const handleEmailSignIn = async (e: React.FormEvent) => {
@@ -408,12 +419,12 @@ export function AuthModal({
                 <div className="py-12 flex flex-col items-center justify-center gap-3">
                   <Loader2 className="w-8 h-8 animate-spin text-[#229ED9]" />
                   <span className="text-xs text-slate-500 font-medium">
-                    Генерация защищенной ссылки...
+                    Авторизация через Telegram...
                   </span>
                 </div>
               ) : telegramSession ? (
                 <div className="space-y-4">
-                  {/* ДЛЯ СМАРТФОНОВ: КРУПНАЯ КНОПКА ПЕРЕХОДА БЕЗ QR-КОДА */}
+                  {/* ДЛЯ СМАРТФОНОВ: КНОПКА "ВОЙТИ С ПОМОЩЬЮ TELEGRAM" БЕЗ ПЕРЕХОДА В ЧАТ */}
                   {isMobile ? (
                     <div className="p-5 bg-sky-50/60 rounded-3xl border border-sky-200 text-center space-y-4">
                       <div className="w-16 h-16 rounded-2xl bg-[#229ED9] text-white flex items-center justify-center mx-auto shadow-md shadow-sky-500/25">
@@ -427,24 +438,29 @@ export function AuthModal({
                           Подтверждение в Telegram
                         </h3>
                         <p className="text-xs text-slate-600">
-                          Нажмите кнопку ниже, чтобы открыть бота <b>@FlightSaver_AIBot</b> и подтвердить вход
+                          Нажмите кнопку ниже для безопасного входа через ваш аккаунт Telegram
                         </p>
                       </div>
 
-                      <a
-                        href={telegramSession.deepLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full min-h-[52px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                      <button
+                        type="button"
+                        onClick={performDirectTelegramAuth}
+                        disabled={isQrLoading || isLoading}
+                        className="w-full min-h-[52px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                       >
-                        <Smartphone className="w-5 h-5 shrink-0" />
-                        <span>Открыть Telegram и войти</span>
-                        <ExternalLink className="w-4 h-4 opacity-75 shrink-0" />
-                      </a>
+                        {isQrLoading || isLoading ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <>
+                            <Smartphone className="w-5 h-5 shrink-0" />
+                            <span>Войти с помощью Telegram</span>
+                          </>
+                        )}
+                      </button>
 
                       <div className="flex items-center justify-center gap-2 text-xs text-slate-500 pt-1">
-                        <Loader2 className="w-4 h-4 animate-spin text-[#229ED9]" />
-                        <span>Ожидание нажатия START в Telegram...</span>
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>Безопасная авторизация без перехода в чат</span>
                       </div>
                     </div>
                   ) : (
@@ -487,7 +503,7 @@ export function AuthModal({
 
                       <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-[#229ED9]" />
-                        <span>Ожидание нажатия START в Telegram...</span>
+                        <span>Ожидание подтверждения входа...</span>
                       </div>
                     </>
                   )}
@@ -534,7 +550,7 @@ export function AuthModal({
                   )}
                   <span>
                     {isMobile
-                      ? 'Войти через Telegram'
+                      ? 'Войти с помощью Telegram'
                       : 'Войти через Telegram (по QR-коду)'}
                   </span>
                 </button>
