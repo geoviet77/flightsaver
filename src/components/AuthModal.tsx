@@ -166,7 +166,78 @@ export function AuthModal({
       setIsQrLoading(true);
       setErrorMessage(null);
 
-      // 1. Создаем серверную сессию для Telegram
+      // 1. Если запущено внутри Telegram Web App (TWA): нативный In-App онбординг без закрытия приложения
+      if (typeof window !== 'undefined') {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg && tg.initData && tg.initData.trim().length > 0) {
+          setIsQrLoading(true);
+
+          // Шаг 1: Нативный запрос номера телефона через Telegram WebApp SDK
+          let phone: string | null = null;
+          if (typeof tg.requestContact === 'function') {
+            try {
+              const contactRes: any = await new Promise((resolve) => {
+                tg.requestContact((status: boolean, response: any) => {
+                  if (status && response?.responseUnsafe?.contact?.phone_number) {
+                    resolve(response.responseUnsafe.contact.phone_number);
+                  } else {
+                    resolve(null);
+                  }
+                });
+              });
+              phone = contactRes || null;
+            } catch {}
+          }
+
+          // Шаг 2: Запрос геопозиции через браузерный API (с таймаутом)
+          let location: { latitude: number; longitude: number } | null = null;
+          if (typeof navigator !== 'undefined' && navigator.geolocation) {
+            try {
+              const locRes: any = await new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+                  () => resolve(null),
+                  { timeout: 4000, enableHighAccuracy: false }
+                );
+              });
+              location = locRes || null;
+            } catch {}
+          }
+
+          // Шаг 3: Мгновенная авторизация на сервере
+          const authRes = await fetch('/api/auth/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              initData: tg.initData,
+              phone,
+              location,
+            }),
+          });
+
+          const authData = await authRes.json();
+          if (authData.success && authData.user) {
+            const profile: UserProfile = {
+              id: authData.user.id,
+              email: authData.user.email,
+              fullName: authData.user.fullName || authData.user.username || 'Telegram User',
+              avatarUrl: authData.user.avatarUrl || '',
+              preferredCurrency: 'RUB',
+              isAccessibilityMode: false,
+            };
+            setStoredUser(profile);
+            setIsSessionConfirmed(true);
+            onSuccess?.(profile);
+            setTimeout(() => {
+              onClose();
+            }, 600);
+            setIsQrLoading(false);
+            return;
+          }
+        }
+      }
+
+      // 2. Для десктопа (сканирование QR-кода): создаем серверную сессию
       const res = await fetch('/api/auth/telegram/session', {
         method: 'POST',
       });
@@ -176,36 +247,6 @@ export function AuthModal({
         throw new Error(data.error || 'Не удалось создать сессию Telegram');
       }
 
-      // Сохраняем pending sessionId для автоподхвата сессии при повторном открытии
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('flightsaver_pending_auth_session', data.sessionId);
-      }
-
-      // 2. Если запущено внутри Telegram Web App (TWA): сворачиваем шторку и открываем диалог с ботом
-      if (typeof window !== 'undefined') {
-        const tg = (window as any).Telegram?.WebApp;
-        if (tg) {
-          setIsQrLoading(false);
-          onClose();
-
-          // Переключаемся в диалог с ботом
-          if (typeof tg.openTelegramLink === 'function') {
-            tg.openTelegramLink(data.deepLink);
-          } else {
-            window.location.href = data.deepLink;
-          }
-
-          // Закрываем шторку TWA, чтобы не зависала поверх чата
-          setTimeout(() => {
-            if (typeof tg.close === 'function') {
-              tg.close();
-            }
-          }, 150);
-          return;
-        }
-      }
-
-      // 3. Для десктопа и обычного браузера: открываем экран ожидания QR
       setTelegramSession({
         sessionId: data.sessionId,
         deepLink: data.deepLink,
@@ -213,6 +254,7 @@ export function AuthModal({
       });
       setAuthMode('telegram_qr');
       setIsQrLoading(false);
+
 
       // Запускаем опрос статуса подтверждения (каждые 1.5 сек)
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);

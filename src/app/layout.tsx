@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -21,7 +22,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className="scroll-smooth">
+      <head>
+        <Script
+          src="https://telegram.org/js/telegram-web-app.js"
+          strategy="beforeInteractive"
+        />
+      </head>
       <body
+
         className="antialiased min-h-screen text-slate-900"
         style={{
           background: 'linear-gradient(180deg, #f0f7ff 0%, #e1effe 35%, #ebf4ff 70%, #f8fafc 100%)',

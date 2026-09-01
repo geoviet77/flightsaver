@@ -70,6 +70,12 @@ export async function POST(req: NextRequest) {
     let supabaseUserId: string | null = null;
     let isNewUser = false;
 
+    const phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim() : null;
+    const location =
+      body.location && typeof body.location.latitude === 'number'
+        ? { latitude: body.location.latitude, longitude: body.location.longitude }
+        : null;
+
     // 2. Интеграция с Supabase PostgreSQL & Auth
     try {
       const supabaseAdmin = createAdminClient();
@@ -77,7 +83,7 @@ export async function POST(req: NextRequest) {
       // Поиск существующего профиля по telegram_id
       const { data: existingProfile, error: profileSelectError } = await supabaseAdmin
         .from('profiles')
-        .select('id, email, full_name, username, avatar_url, telegram_id')
+        .select('id, email, full_name, username, avatar_url, phone, telegram_id')
         .eq('telegram_id', telegramUser.id)
         .maybeSingle();
 
@@ -94,6 +100,7 @@ export async function POST(req: NextRequest) {
             last_name: telegramUser.last_name || null,
             username: telegramUser.username || null,
             avatar_url: telegramUser.photo_url || null,
+            phone: phone || null,
             telegram_id: telegramUser.id,
             provider: 'telegram',
           },
@@ -115,6 +122,7 @@ export async function POST(req: NextRequest) {
             email: syntheticEmail,
             full_name: fullName,
             username: telegramUser.username || null,
+            phone: phone || existingProfile?.phone || null,
             avatar_url: telegramUser.photo_url || null,
             telegram_id: telegramUser.id,
             auth_provider: 'telegram',
@@ -141,11 +149,14 @@ export async function POST(req: NextRequest) {
         fullName,
         username: telegramUser.username || null,
         avatarUrl: telegramUser.photo_url || null,
+        phone: phone || null,
+        location: location || null,
         authProvider: 'telegram',
       },
       authDate: validation.authDate,
       redirectUrl: '/dashboard',
     };
+
 
     const res = NextResponse.json(responsePayload, { status: 200 });
 
