@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Mail, CheckCircle2, Loader2, Gem, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { createClient } from '../lib/supabase/client';
 import { Language } from '../lib/types';
@@ -14,6 +14,9 @@ export interface AuthModalProps {
   language?: Language;
 }
 
+const DEFAULT_BOT_ID = '8910477599';
+const DEFAULT_BOT_USERNAME = 'FlightSaver_AIBot';
+
 export function AuthModal({
   isOpen,
   onClose,
@@ -26,6 +29,71 @@ export function AuthModal({
   const [isSuccessMessage, setIsSuccessMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const t = TRANSLATIONS[language] || TRANSLATIONS.ru;
+
+  const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || DEFAULT_BOT_ID;
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || DEFAULT_BOT_USERNAME;
+
+  // Обработчик успешного получения данных от Telegram
+  const processTelegramAuthData = useCallback(async (authData: any) => {
+    try {
+      setIsTelegramLoading(true);
+      setErrorMessage(null);
+
+      const res = await fetch('/api/auth/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authData),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.user) {
+        const profile: UserProfile = {
+          id: data.user.id,
+          email: data.user.email,
+          fullName: data.user.fullName || data.user.username || 'Telegram User',
+          avatarUrl: data.user.avatarUrl || '',
+          preferredCurrency: 'RUB',
+          isAccessibilityMode: false,
+        };
+
+        setStoredUser(profile);
+        onSuccess?.(profile);
+        onClose();
+      } else {
+        setErrorMessage(data.error || 'Ошибка входа через Telegram');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Не удалось завершить авторизацию Telegram');
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  }, [onSuccess, onClose]);
+
+  // Регистрация глобального обработчика для виджета Telegram
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).onTelegramAuth = (user: any) => {
+        processTelegramAuthData(user);
+      };
+
+      // Динамическая подгрузка скрипта официального виджета Telegram
+      const existingScript = document.getElementById('telegram-widget-script');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.id = 'telegram-widget-script';
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.async = true;
+        document.head.appendChild(script);
+      }
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).onTelegramAuth;
+      }
+    };
+  }, [processTelegramAuthData]);
 
   if (!isOpen) return null;
 
@@ -63,45 +131,37 @@ export function AuthModal({
       setIsTelegramLoading(true);
       setErrorMessage(null);
 
-      // 1. Проверяем, запущен ли клиент внутри Telegram Web App (TMA)
+      // 1. Если приложение открыто внутри Telegram Web App (TMA)
       if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
         const initData = (window as any).Telegram.WebApp.initData;
-        const res = await fetch('/api/auth/telegram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ initData }),
-        });
-        const data = await res.json();
-        if (data.success && data.user) {
-          const profile: UserProfile = {
-            id: data.user.id,
-            email: data.user.email,
-            fullName: data.user.fullName || data.user.username || 'Telegram User',
-            avatarUrl: data.user.avatarUrl || '',
-            preferredCurrency: 'RUB',
-            isAccessibilityMode: false,
-          };
-          setStoredUser(profile);
-          onSuccess?.(profile);
-          onClose();
-          return;
-        } else {
-          setErrorMessage(data.error || 'Ошибка входа через Telegram');
-          setIsTelegramLoading(false);
-          return;
-        }
+        await processTelegramAuthData({ initData });
+        return;
       }
 
-      // 2. В обычном десктопном браузере открываем Telegram OAuth окно или виджет
+      // 2. Если доступен официальный модуль Telegram.Login.auth из telegram-widget.js
+      if (typeof window !== 'undefined' && (window as any).Telegram?.Login?.auth) {
+        (window as any).Telegram.Login.auth(
+          { bot_id: botId, request_access: true },
+          (data: any) => {
+            if (data) {
+              processTelegramAuthData(data);
+            } else {
+              setIsTelegramLoading(false);
+            }
+          }
+        );
+        return;
+      }
+
+      // 3. Браузерный Telegram OAuth Popup с точным боевым Bot ID
       if (typeof window !== 'undefined') {
-        const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'FlightSaverBot';
         const width = 550;
         const height = 470;
         const left = window.screenX + (window.outerWidth - width) / 2;
         const top = window.screenY + (window.outerHeight - height) / 2;
 
-        const authUrl = `https://oauth.telegram.org/auth?bot_id=${process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || '7531984260'}&origin=${encodeURIComponent(window.location.origin)}&embed=1&request_access=write`;
-        
+        const authUrl = `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(window.location.origin)}&embed=1&request_access=write`;
+
         const popup = window.open(
           authUrl,
           'telegram_oauth',
@@ -114,42 +174,30 @@ export function AuthModal({
             const tgData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
             if (tgData?.event === 'auth_result' && tgData?.result) {
               window.removeEventListener('message', handleMessage);
-              if (popup) popup.close();
-
-              const res = await fetch('/api/auth/telegram', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(tgData.result),
-              });
-              const data = await res.json();
-              if (data.success && data.user) {
-                const profile: UserProfile = {
-                  id: data.user.id,
-                  email: data.user.email,
-                  fullName: data.user.fullName || data.user.username || 'Telegram User',
-                  avatarUrl: data.user.avatarUrl || '',
-                  preferredCurrency: 'RUB',
-                  isAccessibilityMode: false,
-                };
-                setStoredUser(profile);
-                onSuccess?.(profile);
-                onClose();
-              } else {
-                setErrorMessage(data.error || 'Ошибка входа через Telegram');
-              }
-              setIsTelegramLoading(false);
+              if (popup && !popup.closed) popup.close();
+              await processTelegramAuthData(tgData.result);
             }
           } catch {}
         };
 
         window.addEventListener('message', handleMessage);
 
+        // Таймер сброса индикатора загрузки
+        const checkClosedInterval = setInterval(() => {
+          if (popup && popup.closed) {
+            clearInterval(checkClosedInterval);
+            setIsTelegramLoading(false);
+            window.removeEventListener('message', handleMessage);
+          }
+        }, 1000);
+
         setTimeout(() => {
+          clearInterval(checkClosedInterval);
           setIsTelegramLoading(false);
-        }, 20000);
+        }, 30000);
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Не удалось авторизоваться через Telegram');
+      setErrorMessage(err?.message || 'Не удалось открыть окно авторизации Telegram');
       setIsTelegramLoading(false);
     }
   };
