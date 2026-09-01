@@ -38,6 +38,7 @@ export function AuthModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccessMessage, setIsSuccessMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Состояние Telegram QR / Deep Link сессии
   const [telegramSession, setTelegramSession] = useState<{
@@ -51,7 +52,35 @@ export function AuthModal({
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const t = TRANSLATIONS[language] || TRANSLATIONS.ru;
 
-  // Очистка интервала опроса при размонтировании или закрытии
+  // Определение мобильного устройства
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkMobile = () => {
+        setIsMobile(
+          window.innerWidth < 768 ||
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+              navigator.userAgent
+            )
+        );
+      };
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+    }
+  }, []);
+
+  // Бесшовная авторизация внутри Telegram Web App (TMA)
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg && tg.initData && tg.initData.trim().length > 0) {
+        // Пользователь открыл модалку внутри Telegram -> сразу авторизуем без показа QR
+        handleTmaAutoAuth(tg.initData);
+      }
+    }
+  }, [isOpen]);
+
+  // Очистка таймеров
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
@@ -74,9 +103,44 @@ export function AuthModal({
     }
   }, [isOpen]);
 
+  // Автоматический вход внутри TMA
+  const handleTmaAutoAuth = async (initData: string) => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      const res = await fetch('/api/auth/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.user) {
+        const profile: UserProfile = {
+          id: data.user.id,
+          email: data.user.email,
+          fullName: data.user.fullName || data.user.username || 'Telegram User',
+          avatarUrl: data.user.avatarUrl || '',
+          preferredCurrency: 'RUB',
+          isAccessibilityMode: false,
+        };
+        setStoredUser(profile);
+        onSuccess?.(profile);
+        onClose();
+      } else {
+        setErrorMessage(data.error || 'Не удалось выполнить вход через Telegram');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Ошибка связи с сервером');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
-  // 1. Google 1-Click OAuth
+  // 1. Google OAuth
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
@@ -106,39 +170,25 @@ export function AuthModal({
     }
   };
 
-  // 2. Инициализация Telegram QR / Deep Link сессии
+  // 2. Инициализация Telegram сессии
   const startTelegramQrAuth = async () => {
     try {
       setIsQrLoading(true);
       setErrorMessage(null);
-      setAuthMode('telegram_qr');
 
-      // Проверяем, если запущено внутри Telegram Web App
-      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
-        const initData = (window as any).Telegram.WebApp.initData;
-        const res = await fetch('/api/auth/telegram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ initData }),
-        });
-        const data = await res.json();
-        if (data.success && data.user) {
-          const profile: UserProfile = {
-            id: data.user.id,
-            email: data.user.email,
-            fullName: data.user.fullName || data.user.username || 'Telegram User',
-            avatarUrl: data.user.avatarUrl || '',
-            preferredCurrency: 'RUB',
-            isAccessibilityMode: false,
-          };
-          setStoredUser(profile);
-          onSuccess?.(profile);
-          onClose();
+      // Если запущено внутри Telegram Mini App -> мгновенный вход
+      if (typeof window !== 'undefined') {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg && tg.initData && tg.initData.trim().length > 0) {
+          await handleTmaAutoAuth(tg.initData);
+          setIsQrLoading(false);
           return;
         }
       }
 
-      // Создаем серверную сессию для QR и Deep Link
+      // Для браузера переходим в режим ожидания бота
+      setAuthMode('telegram_qr');
+
       const res = await fetch('/api/auth/telegram/session', {
         method: 'POST',
       });
@@ -155,7 +205,7 @@ export function AuthModal({
       });
       setIsQrLoading(false);
 
-      // Запускаем легкий опрос статуса подтверждения (каждые 1.5 сек)
+      // Запускаем опрос статуса подтверждения (каждые 1.5 сек)
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
       pollIntervalRef.current = setInterval(async () => {
@@ -179,14 +229,11 @@ export function AuthModal({
             setStoredUser(profile);
             onSuccess?.(profile);
 
-            // Закрываем окно через 800мс после анимации успеха
             setTimeout(() => {
               onClose();
             }, 800);
           }
-        } catch {
-          // Игнорируем сетевые сбои поллинга
-        }
+        } catch {}
       }, 1500);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Ошибка запуска авторизации Telegram');
@@ -261,7 +308,9 @@ export function AuthModal({
               </h2>
               <p className="text-[11px] text-sky-100 font-medium">
                 {authMode === 'telegram_qr'
-                  ? 'По QR-коду или кнопке приложения'
+                  ? isMobile
+                    ? 'Через приложение Telegram'
+                    : 'По QR-коду или ссылке'
                   : t.authSubtitle}
               </p>
             </div>
@@ -285,7 +334,7 @@ export function AuthModal({
             </div>
           )}
 
-          {/* РЕЖИМ 1: ТЕЛЕГРАМ QR-КОД И ПРЯМАЯ ССЫЛКА */}
+          {/* РЕЖИМ 1: ТЕЛЕГРАМ (АДАПТИВНО ДЛЯ ПК И МОБИЛЬНЫХ) */}
           {authMode === 'telegram_qr' ? (
             <div className="space-y-4 text-center">
               {isSessionConfirmed ? (
@@ -309,47 +358,84 @@ export function AuthModal({
                 </div>
               ) : telegramSession ? (
                 <div className="space-y-4">
-                  {/* QR Code Container */}
-                  <div className="relative inline-block p-3 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
-                    <img
-                      src={telegramSession.qrCodeUrl}
-                      alt="QR Код для входа в Telegram"
-                      className="w-48 h-48 rounded-xl mx-auto"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-10 h-10 rounded-full bg-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-white">
-                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                  {/* ДЛЯ СМАРТФОНОВ: КРУПНАЯ КНОПКА ПЕРЕХОДА БЕЗ QR-КОДА */}
+                  {isMobile ? (
+                    <div className="p-5 bg-sky-50/60 rounded-3xl border border-sky-200 text-center space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-[#229ED9] text-white flex items-center justify-center mx-auto shadow-md shadow-sky-500/25">
+                        <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
                           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .37z" />
                         </svg>
                       </div>
+
+                      <div className="space-y-1">
+                        <h3 className="text-base font-bold text-slate-900">
+                          Подтверждение в Telegram
+                        </h3>
+                        <p className="text-xs text-slate-600">
+                          Нажмите кнопку ниже, чтобы открыть бота <b>@FlightSaver_AIBot</b> и подтвердить вход
+                        </p>
+                      </div>
+
+                      <a
+                        href={telegramSession.deepLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full min-h-[52px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                      >
+                        <Smartphone className="w-5 h-5 shrink-0" />
+                        <span>Открыть Telegram и войти</span>
+                        <ExternalLink className="w-4 h-4 opacity-75 shrink-0" />
+                      </a>
+
+                      <div className="flex items-center justify-center gap-2 text-xs text-slate-500 pt-1">
+                        <Loader2 className="w-4 h-4 animate-spin text-[#229ED9]" />
+                        <span>Ожидание нажатия START в Telegram...</span>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* ДЛЯ ДЕСКТОПА: QR-КОД + КНОПКА */
+                    <>
+                      <div className="relative inline-block p-3 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
+                        <img
+                          src={telegramSession.qrCodeUrl}
+                          alt="QR Код для входа в Telegram"
+                          className="w-48 h-48 rounded-xl mx-auto"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="w-10 h-10 rounded-full bg-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-white">
+                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .37z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
 
-                  <div className="space-y-1">
-                    <p className="text-xs sm:text-sm font-bold text-slate-800">
-                      Отсканируйте QR-код камерой телефона
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      Откроется диалог с ботом — нажмите кнопку <b>START</b>
-                    </p>
-                  </div>
+                      <div className="space-y-1">
+                        <p className="text-xs sm:text-sm font-bold text-slate-800">
+                          Отсканируйте QR-код камерой телефона
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Откроется диалог с ботом — нажмите кнопку <b>START</b>
+                        </p>
+                      </div>
 
-                  {/* Кнопка прямого перехода в Telegram (для телефонов и Telegram Desktop) */}
-                  <a
-                    href={telegramSession.deepLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                  >
-                    <Smartphone className="w-5 h-5 shrink-0" />
-                    <span>Открыть приложение Telegram</span>
-                    <ExternalLink className="w-4 h-4 opacity-75 shrink-0" />
-                  </a>
+                      <a
+                        href={telegramSession.deepLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                      >
+                        <Smartphone className="w-5 h-5 shrink-0" />
+                        <span>Открыть приложение Telegram Desktop</span>
+                        <ExternalLink className="w-4 h-4 opacity-75 shrink-0" />
+                      </a>
 
-                  <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#229ED9]" />
-                    <span>Ожидание нажатия START в Telegram...</span>
-                  </div>
+                      <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#229ED9]" />
+                        <span>Ожидание нажатия START в Telegram...</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -370,7 +456,7 @@ export function AuthModal({
             /* РЕЖИМ 3: ГЛАВНЫЙ ЭКРАН ВХОДА */
             <>
               <div className="space-y-2.5">
-                {/* 1. Кнопка Telegram (QR / Deep Link) */}
+                {/* 1. Кнопка Telegram */}
                 <button
                   type="button"
                   id="btn-auth-telegram"
@@ -378,7 +464,7 @@ export function AuthModal({
                   onClick={startTelegramQrAuth}
                   className="w-full min-h-[52px] h-auto p-3 rounded-2xl bg-sky-50/70 hover:bg-sky-50 border-2 border-sky-300 hover:border-sky-500 text-slate-900 font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-sky-100 cursor-pointer"
                 >
-                  {isQrLoading ? (
+                  {isQrLoading || isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin text-[#229ED9] shrink-0" />
                   ) : (
                     <div className="flex items-center gap-2 shrink-0">
@@ -388,10 +474,14 @@ export function AuthModal({
                           fill="#229ED9"
                         />
                       </svg>
-                      <QrCode className="w-4 h-4 text-sky-600" />
+                      {!isMobile && <QrCode className="w-4 h-4 text-sky-600" />}
                     </div>
                   )}
-                  <span>Войти через Telegram (по QR-коду)</span>
+                  <span>
+                    {isMobile
+                      ? 'Войти через Telegram'
+                      : 'Войти через Telegram (по QR-коду)'}
+                  </span>
                 </button>
 
                 {/* 2. Кнопка Google 1-Click OAuth */}

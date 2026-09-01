@@ -311,16 +311,19 @@ export function validateAnyTelegramAuth(
 /**
  * 4. Отправка текстового сообщения пользователю через Telegram Bot API
  */
+const DEFAULT_BOT_TOKEN = '8910477599:AAFI-xX2Jj3chf5HvNTwB_v2JvdY1SnlXD4';
+
 export async function sendTelegramMessage(
   chatId: string | number,
   text: string,
   options?: TelegramSendMessageOptions
 ): Promise<TelegramApiResponse> {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = process.env.TELEGRAM_BOT_TOKEN || DEFAULT_BOT_TOKEN;
   if (!botToken) {
     console.warn('[Telegram] TELEGRAM_BOT_TOKEN is not configured in server environment.');
     return { ok: false, description: 'TELEGRAM_BOT_TOKEN not configured' };
   }
+
 
   const payload: Record<string, any> = {
     chat_id: chatId,
@@ -356,11 +359,12 @@ export async function sendTelegramDocument(
   documentUrl: string,
   caption?: string
 ): Promise<TelegramApiResponse> {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = process.env.TELEGRAM_BOT_TOKEN || DEFAULT_BOT_TOKEN;
   if (!botToken) {
     console.warn('[Telegram] TELEGRAM_BOT_TOKEN is not configured in server environment.');
     return { ok: false, description: 'TELEGRAM_BOT_TOKEN not configured' };
   }
+
 
   const payload: Record<string, any> = {
     chat_id: chatId,

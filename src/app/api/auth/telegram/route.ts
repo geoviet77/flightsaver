@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
+    const DEFAULT_BOT_TOKEN = '8910477599:AAFI-xX2Jj3chf5HvNTwB_v2JvdY1SnlXD4';
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || DEFAULT_BOT_TOKEN;
     if (!botToken) {
       console.warn('[/api/auth/telegram] TELEGRAM_BOT_TOKEN is not configured on server.');
       return NextResponse.json(
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
 
     // 1. Унифицированная валидация (TWA initData или Login Widget)
     const validation = validateAnyTelegramAuth(body, botToken);
