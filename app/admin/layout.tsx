@@ -118,8 +118,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: 'Техподдержка',
       href: '/admin/support',
       icon: Headphones,
-      badge: 'Этап 4',
-      badgeColor: 'bg-slate-700/50 text-slate-400 border-slate-600',
+      badge: 'Client Care L1',
+      badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
     },
   ];
 
