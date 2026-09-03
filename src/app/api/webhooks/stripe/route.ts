@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PdfReceiptService } from '@/services/pdfReceiptService';
 import { EmailService } from '@/services/emailService';
+import { sentry } from '@/src/lib/monitoring/sentry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -191,6 +192,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (globalError: any) {
     console.error('[Stripe Webhook Fatal Error]:', globalError);
+    sentry.captureException(globalError, { service: 'stripe', level: 'fatal', tags: { webhook: 'stripe_fatal' } });
     return NextResponse.json(
       { error: globalError?.message || 'Internal webhook error' },
       { status: 500 }

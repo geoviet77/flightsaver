@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/adminAuth';
+import { sentry } from '@/src/lib/monitoring/sentry';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -68,6 +69,7 @@ export async function GET() {
         jwtSessionSecurity: 'HttpOnly Lax Secure',
         auditTrailImmutability: 'ENFORCED (PostgreSQL RLS Protected)',
       },
+      sentry: sentry.getTelemetryStats(),
     };
 
     return NextResponse.json({ success: true, telemetry: systemTelemetry });
