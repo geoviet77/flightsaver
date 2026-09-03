@@ -55,9 +55,12 @@ Reports/*.pdf
 Reports/*.html
 Reports/*.json
 docs/reports/*.json
+docs/reports/*.html
+docs/reports/*.pdf
 *.pdf
 .quarantine_duplicates/
 docs/manuals/
+
 
 
 
