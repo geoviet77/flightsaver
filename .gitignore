@@ -50,6 +50,8 @@ desktop.ini
 
 # Internal Corporate Documents & Manuals (Confidential)
 Reports/FlightSaver_Enterprise_Operations_Manual.md
+Reports/FlightSaver_Training_Manual.html
 Reports/*.pdf
+Reports/*.html
 *.pdf
 
