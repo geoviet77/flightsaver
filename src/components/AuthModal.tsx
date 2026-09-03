@@ -430,12 +430,54 @@ export function AuthModal({
 
       // =========================================================================
       // 🌐 СЦЕНАРИЙ 3: МОБИЛЬНЫЙ БРАУЗЕР (Safari / Chrome на смартфоне вне Telegram)
-      // Никаких QR-кодов! Запрашиваем геолокацию и сразу переходим к вводу телефона
+      // Создаем сессию, запускаем поллинг и автоматически переходим в приложение Telegram
+      // Без QR-кодов и без кнопок-дублеров!
       // =========================================================================
       if (isMobileWeb) {
-        await requestUserLocation();
+        const res = await fetch('/api/auth/telegram/session', { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.sessionId) {
+          setTelegramSession({
+            sessionId: data.sessionId,
+            deepLink: data.deepLink,
+            qrCodeUrl: data.qrCodeUrl,
+          });
+          setAuthMode('telegram_qr');
+
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = setInterval(async () => {
+            try {
+              const checkRes = await fetch(`/api/auth/telegram/session?id=${data.sessionId}`);
+              const checkData = await checkRes.json();
+              if (checkData.success && checkData.status === 'confirmed' && checkData.user) {
+                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                setIsSessionConfirmed(true);
+                const profile: UserProfile = {
+                  id: checkData.user.id,
+                  email: checkData.user.email,
+                  fullName: checkData.user.fullName || checkData.user.username || 'Telegram User',
+                  avatarUrl: checkData.user.avatarUrl || '',
+                  phone: checkData.user.phone || undefined,
+                  originIata: checkData.user.originIata || undefined,
+                  originCity: checkData.user.originCity || undefined,
+                  preferredCurrency: 'RUB',
+                  isAccessibilityMode: false,
+                };
+                setStoredUser(profile);
+                setTimeout(() => {
+                  onSuccess?.(profile);
+                  onClose();
+                }, 800);
+              }
+            } catch {}
+          }, 1500);
+
+          // Мгновенный автоматический переход в приложение Telegram
+          window.location.href = data.deepLink;
+        } else {
+          setErrorMessage(data.error || 'Не удалось создать сессию Telegram');
+        }
         setIsQrLoading(false);
-        setAuthMode('phone_prompt');
         return;
       }
 
@@ -831,47 +873,69 @@ export function AuthModal({
                   </span>
                 </div>
               ) : telegramSession ? (
-                <div className="space-y-4">
-                  <div className="relative inline-block p-3 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
-                    <img
-                      src={telegramSession.qrCodeUrl}
-                      alt="QR Код для входа в Telegram"
-                      className="w-48 h-48 rounded-xl mx-auto"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-10 h-10 rounded-full bg-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-white">
-                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .37z" />
-                        </svg>
-                      </div>
+                isMobile ? (
+                  /* 📱 МОБИЛЬНЫЙ БРАУЗЕР: Только спиннер ожидания БЕЗ QR и БЕЗ кнопок-дублеров */
+                  <div className="py-8 flex flex-col items-center justify-center gap-4 text-center animate-fadeIn">
+                    <div className="w-16 h-16 rounded-3xl bg-sky-50 text-[#229ED9] flex items-center justify-center shadow-inner">
+                      <Loader2 className="w-8 h-8 animate-spin text-[#229ED9]" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="text-base font-bold text-slate-800">
+                        Переходим в Telegram...
+                      </p>
+                      <p className="text-xs text-slate-500 max-w-[260px] mx-auto leading-relaxed">
+                        Подтвердите вход в Telegram, после чего вернитесь в эту вкладку браузера.
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 pt-2">
+                      <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
+                      <span>Ожидание подтверждения...</span>
                     </div>
                   </div>
+                ) : (
+                  /* 🖥️ ДЕСКТОП: QR-код для сканирования телефоном (ЗАФИКСИРОВАН) */
+                  <div className="space-y-4">
+                    <div className="relative inline-block p-3 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
+                      <img
+                        src={telegramSession.qrCodeUrl}
+                        alt="QR Код для входа в Telegram"
+                        className="w-48 h-48 rounded-xl mx-auto"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-10 h-10 rounded-full bg-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-white">
+                          <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .37z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
 
-                  <div className="space-y-1">
-                    <p className="text-xs sm:text-sm font-bold text-slate-800">
-                      Отсканируйте QR-код камерой телефона
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      Откроется диалог с ботом — нажмите кнопку <b>START</b>
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs sm:text-sm font-bold text-slate-800">
+                        Отсканируйте QR-код камерой телефона
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Откроется диалог с ботом — нажмите кнопку <b>START</b>
+                      </p>
+                    </div>
+
+                    <a
+                      href={telegramSession.deepLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                    >
+                      <Smartphone className="w-5 h-5 shrink-0" />
+                      <span>Открыть Telegram Desktop</span>
+                      <ExternalLink className="w-4 h-4 opacity-75 shrink-0" />
+                    </a>
+
+                    <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#229ED9]" />
+                      <span>Ожидание подтверждения входа...</span>
+                    </div>
                   </div>
-
-                  <a
-                    href={telegramSession.deepLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                  >
-                    <Smartphone className="w-5 h-5 shrink-0" />
-                    <span>Открыть Telegram Desktop</span>
-                    <ExternalLink className="w-4 h-4 opacity-75 shrink-0" />
-                  </a>
-
-                  <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#229ED9]" />
-                    <span>Ожидание подтверждения входа...</span>
-                  </div>
-                </div>
+                )
               ) : null}
             </div>
           ) : isSuccessMessage ? (

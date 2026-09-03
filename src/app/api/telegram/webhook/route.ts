@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         await confirmTelegramAuthSession(sessionId, telegramUser, onboarding.phone || null, location);
       }
 
-      const finishHtml = `🎉 <b>Вход на компьютере успешно выполнен!</b>${airportInfo}\n\nМожете вернуться к экрану компьютера. Этот чат можно закрыть.`;
+      const finishHtml = `🎉 <b>Вход успешно выполнен!</b>${airportInfo}\n\nВы успешно авторизовались, можете вернуться в браузер.`;
 
       await sendTelegramMessage(chatId, finishHtml, {
         parseMode: 'HTML',
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
         await associateTelegramUser(sessionId, telegramUser);
         setUserOnboarding(telegramId, { step: 'awaiting_phone' });
 
-        const promptHtml = `💻 <b>Вход во FlightSaver на компьютере</b>\n\n👋 Здравствуйте, ${firstName}!\n\n📱 <b>Шаг 1 из 2: Поделитесь номером телефона</b> для входа и выписки билетов:`;
+        const promptHtml = `✈️ <b>Вход во FlightSaver</b>\n\n👋 Здравствуйте, ${firstName}!\n\n📱 <b>Шаг 1 из 2: Поделитесь номером телефона</b> для входа и выписки билетов:`;
 
         const replyMarkup = {
           keyboard: [
