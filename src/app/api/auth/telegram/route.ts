@@ -66,6 +66,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim() : null;
+
+    // Fallback для Мобильного Браузера (Safari / Chrome на смартфоне):
+    // Пользователь авторизуется через ввод номера телефона и подтверждение локации
+    if (!telegramUser && phone) {
+      const cleanDigits = phone.replace(/\D/g, '');
+      const syntheticId = Number(cleanDigits.slice(-9)) || Math.floor(100000000 + Math.random() * 900000000);
+      telegramUser = {
+        id: syntheticId,
+        first_name: 'Пользователь',
+        last_name: phone.slice(-4),
+        username: undefined,
+        photo_url: undefined,
+      };
+    }
+
     if (!telegramUser) {
       return NextResponse.json(
         {
@@ -85,7 +101,6 @@ export async function POST(req: NextRequest) {
     let supabaseUserId: string | null = null;
     let isNewUser = false;
 
-    const phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim() : null;
     const location =
       body.location && typeof body.location.latitude === 'number'
         ? { latitude: body.location.latitude, longitude: body.location.longitude }
@@ -150,6 +165,17 @@ export async function POST(req: NextRequest) {
       console.warn('[/api/auth/telegram] Supabase integration notice (proceeding with fallback session):', dbErr?.message || dbErr);
     }
 
+    let originIata: string | null = null;
+    let originCity: string | null = null;
+    if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
+      try {
+        const { findNearestAirport } = require('@/lib/geoAirports');
+        const nearest = findNearestAirport(location.latitude, location.longitude);
+        originIata = nearest.iata;
+        originCity = nearest.city;
+      } catch {}
+    }
+
     const finalUserId = supabaseUserId || `tg_${telegramUser.id}`;
 
     // 3. Формирование сессионного ответа и защищенных Cookies
@@ -166,6 +192,8 @@ export async function POST(req: NextRequest) {
         avatarUrl: telegramUser.photo_url || null,
         phone: phone || null,
         location: location || null,
+        originIata,
+        originCity,
         authProvider: 'telegram',
       },
       authDate: validation.authDate,

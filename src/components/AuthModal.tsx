@@ -292,6 +292,32 @@ export function AuthModal({
     }
   };
 
+  // Проверка: выполняется ли код внутри Telegram Mini App
+  const isTwaEnvironment = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      if (tg.platform && tg.platform !== 'unknown') return true;
+      if (tg.version) return true;
+      if (typeof tg.initData === 'string' && tg.initData.trim().length > 0) return true;
+      if (tg.initDataUnsafe && Object.keys(tg.initDataUnsafe).length > 0) return true;
+    }
+    if (/Telegram/i.test(navigator.userAgent)) return true;
+    if (window.location.hash && window.location.hash.includes('tgWebApp')) return true;
+    if (window.location.search && window.location.search.includes('tgWebApp')) return true;
+    return false;
+  };
+
+  // Проверка: открыт ли сайт в обычном мобильном браузере (Safari / Chrome на смартфоне вне Telegram)
+  const isMobileBrowser = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    if (isTwaEnvironment()) return false;
+    return (
+      window.innerWidth < 768 ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    );
+  };
+
   // Завершение авторизации Telegram на сервере с собранным телефоном и локацией
   const finalizeTelegramAuth = async (rawPhone: string | null) => {
     try {
@@ -303,8 +329,9 @@ export function AuthModal({
       const rawInitData = getTelegramInitData();
       const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
 
-      // Если мы внутри Telegram (есть rawInitData или tg) -> производим авторизацию на месте
-      if ((rawInitData && rawInitData.trim().length > 0) || tg) {
+      // Если мы внутри Telegram TWA ИЛИ в мобильном браузере (Safari/Chrome):
+      // производим прямую авторизацию на месте без показа QR-кода!
+      if (isTwaEnvironment() || isMobileBrowser() || rawPhone) {
         const authRes = await fetch('/api/auth/telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -321,7 +348,7 @@ export function AuthModal({
           const profile: UserProfile = {
             id: authData.user.id,
             email: authData.user.email,
-            fullName: authData.user.fullName || authData.user.username || 'Telegram User',
+            fullName: authData.user.fullName || authData.user.username || 'Пользователь',
             avatarUrl: authData.user.avatarUrl || '',
             phone: authData.user.phone || undefined,
             originIata: authData.user.originIata || undefined,
@@ -340,13 +367,13 @@ export function AuthModal({
           }, 800);
           return;
         } else {
-          setErrorMessage(authData.error || 'Ошибка подтверждения сессии Telegram');
+          setErrorMessage(authData.error || 'Ошибка подтверждения сессии');
           setIsQrLoading(false);
           return;
         }
       }
 
-      // Если мы вне Telegram (обычный десктопный браузер Safari/Chrome): открываем QR-сессию
+      // Если мы вне Telegram на ПК (десктопный браузер): открываем QR-сессию
       const res = await fetch('/api/auth/telegram/session', { method: 'POST' });
       const data = await res.json();
       if (data.success && data.sessionId) {
@@ -392,22 +419,6 @@ export function AuthModal({
     }
   };
 
-  // Проверка: выполняется ли код внутри Telegram Mini App
-  const isTwaEnvironment = (): boolean => {
-    if (typeof window === 'undefined') return false;
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      if (tg.platform && tg.platform !== 'unknown') return true;
-      if (tg.version) return true;
-      if (typeof tg.initData === 'string' && tg.initData.trim().length > 0) return true;
-      if (tg.initDataUnsafe && Object.keys(tg.initDataUnsafe).length > 0) return true;
-    }
-    if (/Telegram/i.test(navigator.userAgent)) return true;
-    if (window.location.hash && window.location.hash.includes('tgWebApp')) return true;
-    if (window.location.search && window.location.search.includes('tgWebApp')) return true;
-    return false;
-  };
-
   // Точка входа авторизации через Telegram
   const startTelegramAuth = async () => {
     try {
@@ -415,9 +426,24 @@ export function AuthModal({
       setErrorMessage(null);
 
       const isInsideTwa = isTwaEnvironment();
+      const isMobileWeb = isMobileBrowser();
 
-      // 🖥️ ДЕСКТОП: Нажатие кнопки со Скриншота 1 сразу открывает QR-код (Скриншот 3)!
-      // Никаких экранов ручного ввода номера (Скриншот 2) на компьютере!
+      // =========================================================================
+      // 🌐 СЦЕНАРИЙ 3: МОБИЛЬНЫЙ БРАУЗЕР (Safari / Chrome на смартфоне вне Telegram)
+      // Никаких QR-кодов! Запрашиваем геолокацию и сразу переходим к вводу телефона
+      // =========================================================================
+      if (isMobileWeb) {
+        await requestUserLocation();
+        setIsQrLoading(false);
+        setAuthMode('phone_prompt');
+        return;
+      }
+
+      // =========================================================================
+      // 🖥️ СЦЕНАРИЙ 1: ДЕСКТОП (ПК / Ноутбук - Chrome, Safari, Edge)
+      // ЗАФИКСИРОВАН НА 100%, НЕ МЕНЯЕМ ЛОГИКУ!
+      // Нажатие кнопки со Скриншота 1 сразу открывает QR-код (Скриншот 3)!
+      // =========================================================================
       if (!isInsideTwa) {
         const res = await fetch('/api/auth/telegram/session', { method: 'POST' });
         const data = await res.json();
@@ -463,7 +489,10 @@ export function AuthModal({
         return;
       }
 
-      // 📱 TWA (ВНУТРИ МОБИЛЬНОГО TELEGRAM MINI APP): Строго внутри TWA без QR и чата!
+      // =========================================================================
+      // 📱 СЦЕНАРИЙ 2: TWA (ВНУТРИ МОБИЛЬНОГО TELEGRAM MINI APP)
+      // ЗАФИКСИРОВАН НА 100%, НЕ МЕНЯЕМ ЛОГИКУ!
+      // =========================================================================
       const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
       if (tg && typeof tg.ready === 'function') {
         tg.ready();
