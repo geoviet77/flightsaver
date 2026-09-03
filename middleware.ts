@@ -32,11 +32,25 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Разрешаем доступ к /dashboard/orders для просмотра локальных и оформленных гостевых заказов
+    // 1. Защита клиентского дашборда
     if (!user && request.nextUrl.pathname === '/dashboard') {
       const url = request.nextUrl.clone();
       url.pathname = '/';
       return NextResponse.redirect(url);
+    }
+
+    // 2. Защита административного кабинета (/admin/*)
+    const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
+    const isAdminLogin = request.nextUrl.pathname === '/admin/login';
+
+    if (isAdminRoute && !isAdminLogin) {
+      const adminCookie = request.cookies.get('fs_admin_session');
+      if (!adminCookie?.value) {
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = '/admin/login';
+        loginUrl.searchParams.set('returnUrl', request.nextUrl.pathname);
+        return NextResponse.redirect(loginUrl);
+      }
     }
 
     return supabaseResponse;
@@ -47,5 +61,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*"],
 };
