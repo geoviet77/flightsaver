@@ -47,3 +47,9 @@ yarn-error.log*
 *.sln
 *.sw?
 desktop.ini
+
+# Internal Corporate Documents & Manuals (Confidential)
+Reports/FlightSaver_Enterprise_Operations_Manual.md
+Reports/*.pdf
+*.pdf
+
