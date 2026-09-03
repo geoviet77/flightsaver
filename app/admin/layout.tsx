@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   ChevronRight,
   Sparkles,
+  Activity,
 } from 'lucide-react';
 
 interface StaffUser {
@@ -96,15 +97,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: 'Заказы и PNR',
       href: '/admin/orders',
       icon: PlaneTakeoff,
-      badge: 'Этап 2',
-      badgeColor: 'bg-slate-700/50 text-slate-400 border-slate-600',
+      badge: 'Concierge Ops',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
     },
     {
       label: 'Журнал аудита',
       href: '/admin/audit',
       icon: ShieldCheck,
-      badge: 'Этап 3',
-      badgeColor: 'bg-slate-700/50 text-slate-400 border-slate-600',
+      badge: 'Audit Trail',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    },
+    {
+      label: 'Системный мониторинг',
+      href: '/admin/system',
+      icon: Activity,
+      badge: 'SLA & Health',
+      badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
     },
     {
       label: 'Техподдержка',
