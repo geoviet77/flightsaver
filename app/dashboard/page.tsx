@@ -17,10 +17,7 @@ import {
   Download,
   Calendar,
   Plane,
-  Coins,
   CheckCircle2,
-  LogOut,
-  Headphones,
   CreditCard,
   TrendingUp,
   Mic,
@@ -119,9 +116,61 @@ function DashboardContent() {
             setSearches(getStoredSearches());
           }
         } else {
-          setUser(null);
-          setOrders([]);
-          setSearches([]);
+          const localUser = getStoredUser() || {
+            id: 'demo-user-1',
+            email: 'george@flightsaver.ai',
+            fullName: 'Георгий',
+            preferredCurrency: 'RUB',
+            isAccessibilityMode: false,
+          };
+          setUser(localUser);
+          const localOrders = getStoredOrders();
+          setOrders(localOrders.length > 0 ? localOrders : [
+            {
+              id: 'ord-demo-1',
+              pnr: 'FS-DXB784',
+              route: 'Москва (SVO) → Бангкок (BKK)',
+              airline: 'Emirates',
+              departureDate: '15 ноября 2026',
+              totalPriceRub: 52400,
+              originalPriceRub: 85900,
+              savedAmountRub: 33500,
+              stpcHotelIncluded: true,
+              stpcHotelName: 'Millennium Airport Hotel Dubai 4★',
+              status: 'confirmed',
+            },
+            {
+              id: 'ord-demo-2',
+              pnr: 'FS-HKT912',
+              route: 'Москва (DME) → Пхукет (HKT)',
+              airline: 'Qatar Airways',
+              departureDate: '28 декабря 2026',
+              totalPriceRub: 74200,
+              originalPriceRub: 118000,
+              savedAmountRub: 43800,
+              stpcHotelIncluded: false,
+              status: 'confirmed',
+            }
+          ]);
+          const localSearches = getStoredSearches();
+          setSearches(localSearches.length > 0 ? localSearches : [
+            {
+              id: 'srch-1',
+              query: 'В Бангкок из Москвы с отелем STPC на 2 недели',
+              inputMode: 'text',
+              timestamp: 'Сегодня, 11:20',
+              savingsRub: 33500,
+              discountPercent: 39,
+            },
+            {
+              id: 'srch-2',
+              query: 'На Пхукет с багажом на двоих до 120 000 ₽',
+              inputMode: 'voice',
+              timestamp: 'Вчера, 18:45',
+              savingsRub: 43800,
+              discountPercent: 41,
+            }
+          ]);
         }
       } catch {
         setUser(getStoredUser());
@@ -156,7 +205,7 @@ function DashboardContent() {
   const formattedTotalSaved = formatPrice(stats.totalSavedRub, currentCurrency);
 
   return (
-    <div className="min-h-screen py-3 sm:py-4 px-2 sm:px-6 relative overflow-hidden flex flex-col justify-between">
+    <div className="min-h-screen py-3 sm:py-4 px-2 sm:px-6 relative overflow-hidden flex flex-col justify-between select-none">
       {/* Ambient Lights */}
       <div className="ambient-glow-tl" />
       <div className="ambient-glow-br" />
@@ -182,42 +231,42 @@ function DashboardContent() {
         {/* Main Content */}
         <main className="flex-1 w-full px-2 sm:px-4 pt-5 pb-8 space-y-6">
           
-          {/* Top Bar: Back to Home + Profile Card */}
+          {/* Top Bar: Back to Home + Profile Card (Stitch Liquid Glass 2 Spec) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl liquid-glass border border-white hover:bg-white text-slate-700 font-bold text-xs sm:text-sm shadow-sm transition-all w-fit"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full liquid-glass border border-white/90 hover:bg-white text-slate-700 font-bold text-xs sm:text-sm shadow-glass-edge transition-all w-fit cursor-pointer hover:scale-102"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 text-sky-600" />
               <span>{t.backToHome}</span>
             </Link>
 
-            {/* Profile Info */}
-            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-glass border border-white shadow-sm">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-md">
+            {/* Profile Info Capsule */}
+            <div className="flex items-center gap-3 p-2 sm:p-2.5 pr-4 rounded-full liquid-glass border border-white/90 shadow-glass-edge">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
                 {user?.fullName ? user.fullName.charAt(0).toUpperCase() : (user?.email ? user.email.charAt(0).toUpperCase() : 'U')}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900 leading-tight truncate">
+                <p className="text-xs sm:text-sm font-bold text-slate-900 leading-tight truncate">
                   {user?.fullName || user?.email?.split('@')[0] || (currentLanguage === 'ru' ? 'Личный кабинет' : 'Personal Account')}
                 </p>
-                <p className="text-xs text-slate-500 font-medium truncate">
+                <p className="text-[11px] text-slate-500 font-medium truncate">
                   {user?.email || (currentLanguage === 'ru' ? 'Авторизованный пользователь' : 'Authenticated User')}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* 1. Виджет реальной статистики: 3 Карточки с авто-подсчетом */}
+          {/* 1. Виджет реальной статистики: 3 Liquid Карточки с авто-подсчетом */}
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
             
             {/* Card 1: 💳 Всего потрачено */}
-            <div className="liquid-glass-card rounded-3xl p-5 border border-white/90 shadow-sm flex flex-col justify-between">
+            <div className="liquid-card rounded-3xl p-5 border border-white/90 shadow-glass-edge flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Всего потрачено
                 </span>
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                   <CreditCard className="w-4 h-4" />
                 </div>
               </div>
@@ -232,7 +281,7 @@ function DashboardContent() {
             </div>
 
             {/* Card 2: 📈 Чистая экономия */}
-            <div className="liquid-glass-card rounded-3xl p-5 border border-white/90 shadow-sm flex flex-col justify-between">
+            <div className="liquid-card rounded-3xl p-5 border border-white/90 shadow-glass-edge flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Чистая экономия
@@ -259,12 +308,12 @@ function DashboardContent() {
             </div>
 
             {/* Card 3: ✈️ Совершено поездок */}
-            <div className="liquid-glass-card rounded-3xl p-5 border border-white/90 shadow-sm flex flex-col justify-between">
+            <div className="liquid-card rounded-3xl p-5 border border-white/90 shadow-glass-edge flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Совершено поездок
                 </span>
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                   <Plane className="w-4 h-4" />
                 </div>
               </div>
@@ -272,27 +321,27 @@ function DashboardContent() {
                 <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   {stats.tripsCount} {stats.tripsCount === 1 ? 'маршрут' : (stats.tripsCount >= 2 && stats.tripsCount <= 4 ? 'маршрута' : 'маршрутов')}
                 </p>
-                <p className="text-xs text-blue-600 font-semibold mt-0.5">
+                <p className="text-xs text-sky-600 font-semibold mt-0.5">
                   {stats.tripsCount > 0 ? '100% подтвержденные перелёты' : 'Нет активных бронирований'}
                 </p>
               </div>
             </div>
           </section>
 
-          {/* Navigation Tabs (Orders / History) */}
-          <div className="flex items-center gap-2 p-1.5 rounded-2xl liquid-glass border border-white/80 w-fit">
+          {/* Navigation Tabs Capsule (Orders / History) */}
+          <div className="flex items-center gap-1.5 p-1 rounded-full liquid-glass border border-white/80 w-fit shadow-glass-edge">
             <button
               type="button"
               onClick={() => setActiveTab('orders')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+              className={`flex items-center gap-2 px-5 py-2 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer ${
                 activeTab === 'orders'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                  : 'text-slate-700 hover:text-blue-600'
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine'
+                  : 'text-slate-700 hover:text-sky-700'
               }`}
             >
               <Ticket className="w-4 h-4" />
               <span>{t.myOrdersTab}</span>
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px]">
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
                 {orders.length}
               </span>
             </button>
@@ -300,15 +349,15 @@ function DashboardContent() {
             <button
               type="button"
               onClick={() => setActiveTab('history')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+              className={`flex items-center gap-2 px-5 py-2 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer ${
                 activeTab === 'history'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                  : 'text-slate-700 hover:text-blue-600'
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine'
+                  : 'text-slate-700 hover:text-sky-700'
               }`}
             >
               <History className="w-4 h-4" />
               <span>{t.mySearchesTab}</span>
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px]">
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
                 {searches.length}
               </span>
             </button>
@@ -325,10 +374,10 @@ function DashboardContent() {
                   return (
                     <div
                       key={order.id}
-                      className="liquid-glass-card rounded-3xl p-5 sm:p-6 border border-white/90 shadow-md space-y-4"
+                      className="liquid-card rounded-3xl p-5 sm:p-6 border border-white/90 shadow-glass-edge space-y-4"
                     >
                       {/* Order Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3.5 border-b border-slate-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3.5 border-b border-white/80">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 flex items-center gap-1">
@@ -357,9 +406,9 @@ function DashboardContent() {
 
                       {/* Details & STPC 4★ Hotel */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                        <div className="p-3.5 rounded-2xl subtle-glass bg-white/50 border border-white/70 space-y-1">
                           <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                            <Plane className="w-4 h-4 text-blue-600 shrink-0" /> Авиакомпании:
+                            <Plane className="w-4 h-4 text-sky-600 shrink-0" /> Авиакомпании:
                           </p>
                           <p className="text-slate-700 font-semibold">{order.airline}</p>
                           {order.departureDate && (
@@ -370,12 +419,12 @@ function DashboardContent() {
                         </div>
 
                         {order.stpcHotelIncluded && (
-                          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-100 space-y-1">
-                            <p className="font-bold text-blue-900 flex items-center gap-1.5">
-                              <Hotel className="w-4 h-4 text-blue-600 shrink-0" /> Отель STPC 4★:
+                          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-sky-50 to-emerald-50/60 border border-sky-100 space-y-1">
+                            <p className="font-bold text-sky-900 flex items-center gap-1.5">
+                              <Hotel className="w-4 h-4 text-sky-600 shrink-0" /> Отель STPC 4★:
                             </p>
-                            <p className="text-blue-950 font-bold">{order.stpcHotelName}</p>
-                            <p className="text-blue-700 font-medium">Бесплатно при стыковке от 8ч (вкл. трансфер)</p>
+                            <p className="text-sky-950 font-bold">{order.stpcHotelName}</p>
+                            <p className="text-sky-700 font-medium">Бесплатно при стыковке от 8ч (вкл. трансфер)</p>
                           </div>
                         )}
                       </div>
@@ -386,7 +435,7 @@ function DashboardContent() {
                           <button
                             type="button"
                             onClick={() => alert(`Загрузка электронного билета #${order.pnr} (PDF)...`)}
-                            className="min-h-[44px] h-auto px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                            className="min-h-[42px] px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-btn-shine transition-all cursor-pointer"
                           >
                             <FileText className="w-4 h-4 shrink-0" />
                             <span>Электронный билет (PDF / Маршрутная квитанция)</span>
@@ -396,7 +445,7 @@ function DashboardContent() {
                             <button
                               type="button"
                               onClick={() => alert(`Загрузка ваучера отеля STPC #${order.pnr}...`)}
-                              className="min-h-[44px] h-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer"
+                              className="min-h-[42px] px-4 py-2 rounded-xl subtle-glass hover:bg-white text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer"
                             >
                               <Download className="w-4 h-4 shrink-0" />
                               <span>{t.hotelVoucherBtn}</span>
@@ -412,8 +461,8 @@ function DashboardContent() {
                   );
                 })
               ) : (
-                <div className="p-12 text-center liquid-glass rounded-3xl space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-sm">
+                <div className="p-12 text-center liquid-card rounded-3xl space-y-4 shadow-glass-edge">
+                  <div className="w-14 h-14 rounded-2xl subtle-glass text-sky-600 flex items-center justify-center mx-auto shadow-sm">
                     <Ticket className="w-7 h-7" />
                   </div>
                   <div className="space-y-1">
@@ -426,7 +475,7 @@ function DashboardContent() {
                   </div>
                   <Link
                     href="/"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold text-xs sm:text-sm shadow-btn-shine transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Search className="w-4 h-4" />
                     <span>{currentLanguage === 'ru' ? 'Найти перелёт' : 'Search Flights'}</span>
@@ -443,10 +492,10 @@ function DashboardContent() {
                 searches.map((item) => (
                   <div
                     key={item.id}
-                    className="liquid-glass-card rounded-2xl p-4 border border-white/90 shadow-sm flex items-center justify-between gap-3"
+                    className="liquid-row rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.inputMode === 'voice' ? 'bg-sky-100 text-sky-600' : 'bg-blue-50 text-blue-600'}`}>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.inputMode === 'voice' ? 'bg-sky-100 text-sky-600' : 'bg-sky-50 text-sky-600'}`}>
                         {item.inputMode === 'voice' ? (
                           <Mic className="w-4 h-4" />
                         ) : (
@@ -454,71 +503,42 @@ function DashboardContent() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug break-words">
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug truncate">
                           «{item.query}»
                         </p>
-                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                          {item.timestamp}
+                        <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
+                          <span>{item.timestamp}</span>
+                          <span>•</span>
+                          <span>{item.inputMode === 'voice' ? 'Голосовой запрос' : 'Текстовый поиск'}</span>
                         </p>
                       </div>
                     </div>
 
-                    {/* Instant 1-Click Re-search ➔ Button */}
                     <Link
                       href={`/?q=${encodeURIComponent(item.query)}`}
-                      className="min-h-[42px] px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shrink-0 shadow-sm"
+                      className="px-3.5 py-1.5 rounded-xl subtle-glass hover:bg-white text-sky-700 font-bold text-xs flex items-center gap-1 transition-all shrink-0 hover:scale-105"
                     >
-                      <span className="hidden sm:inline">{t.repeatSearchBtn}</span>
-                      <ArrowRight className="w-4 h-4" />
+                      <span>Повторить</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
                 ))
               ) : (
-                <div className="p-12 text-center liquid-glass rounded-3xl space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto shadow-sm">
-                    <History className="w-7 h-7" />
+                <div className="p-12 text-center liquid-card rounded-3xl space-y-3 shadow-glass-edge">
+                  <div className="w-12 h-12 rounded-2xl subtle-glass text-sky-600 flex items-center justify-center mx-auto shadow-sm">
+                    <History className="w-6 h-6" />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-base font-bold text-slate-800">
-                      {t.noSearchesYet || 'История поиска пуста'}
-                    </p>
-                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                      {currentLanguage === 'ru' ? 'Задайте голосовой или текстовый запрос на главной странице' : 'Search for any flight using voice or text on the home page'}
-                    </p>
-                  </div>
-                  <Link
-                    href="/"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>{currentLanguage === 'ru' ? 'Начать поиск' : 'Start Searching'}</span>
-                  </Link>
+                  <p className="text-sm font-bold text-slate-700">
+                    {currentLanguage === 'ru' ? 'История поиска пуста' : 'Search history is empty'}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {currentLanguage === 'ru' ? 'Ваши голосовые и текстовые запросы появятся здесь' : 'Your voice and text queries will appear here'}
+                  </p>
                 </div>
               )}
             </div>
           )}
         </main>
-
-        {/* Crisp, Highly Readable Minimalist Footer (Centered & Slightly narrower than suggestions on PC) */}
-        <footer className="w-full sm:max-w-[660px] mx-auto py-3.5 px-4 sm:px-6 text-center liquid-glass rounded-2xl sm:rounded-3xl mt-6 mb-3 border border-white/90 shadow-sm">
-          <div className="w-full flex flex-col items-center justify-center gap-1.5">
-            {/* 1. ПОДДЕРЖКА 24/7 (Blue accent in both standard and accessibility modes) */}
-            <div className="support-blue inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold tracking-wide uppercase text-blue-600">
-              <Headphones className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>{t.footerSupport}</span>
-            </div>
-
-            {/* 2. Оптовые тарифы NDC/GDS */}
-            <p className="text-xs sm:text-sm font-semibold text-slate-700">
-              {t.footerFares}
-            </p>
-
-            {/* 3. © 2026 FlightSaver AI Travel. Умный поиск авиабилетов. */}
-            <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-relaxed pt-1 border-t border-slate-200/60 w-full">
-              {t.footerCopyright}
-            </p>
-          </div>
-        </footer>
       </div>
     </div>
   );

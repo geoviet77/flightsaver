@@ -665,25 +665,25 @@ export function AuthModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden"
+        className="w-full max-w-md liquid-glass-card rounded-3xl shadow-glass-elevated border border-white/80 overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Top Header (БЕЗ кнопки назад, только статус и крестик) */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-sky-500 text-white">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/20 text-white flex items-center justify-center shadow-sm shrink-0">
+        {/* Modal Top Header */}
+        <div className="flex items-center justify-between px-6 py-4.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-white/20 text-white flex items-center justify-center shadow-inner shrink-0 backdrop-blur-md">
               {authMode === 'phone_prompt' ? (
-                <Phone className="w-4 h-4" />
+                <Phone className="w-4.5 h-4.5" />
               ) : (
-                <Gem className="w-4 h-4" />
+                <Gem className="w-4.5 h-4.5" />
               )}
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight">
+              <h2 className="text-base sm:text-lg font-black tracking-tight font-heading">
                 {authMode === 'phone_prompt'
                   ? 'Номер телефона'
                   : authMode === 'telegram_qr'
@@ -705,7 +705,7 @@ export function AuthModal({
             type="button"
             onClick={onClose}
             aria-label="Закрыть окно"
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-all shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -714,7 +714,7 @@ export function AuthModal({
         {/* Modal Body */}
         <div className="p-6 space-y-4">
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+            <div className="p-3.5 rounded-2xl bg-rose-50/90 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2.5 shadow-sm">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
               <span>{errorMessage}</span>
             </div>
@@ -722,12 +722,12 @@ export function AuthModal({
 
           {/* 🌟 ГЛОБАЛЬНЫЙ ЭКРАН УСПЕХА ДЛЯ ВСЕХ РЕЖИМОВ */}
           {isSessionConfirmed ? (
-            <div className="p-8 text-center space-y-4 bg-emerald-50 rounded-2xl border border-emerald-200 animate-fadeIn">
-              <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
+            <div className="p-8 text-center space-y-4 subtle-glass rounded-2xl border border-emerald-200/80 bg-emerald-50/60 shadow-sm animate-fadeIn">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <div className="space-y-1">
-                <p className="text-lg font-bold text-emerald-900">
+                <p className="text-lg font-black text-emerald-900 font-heading">
                   Вход успешно выполнен!
                 </p>
                 <p className="text-xs text-emerald-700 font-medium">
@@ -739,10 +739,10 @@ export function AuthModal({
             /* 📱 РЕЖИМ СБОРА НОМЕРА ТЕЛЕФОНА С ВЫБОРОМ РЕГИОНА И НЕСТИРАЕМЫМ "+" */
             <div className="space-y-4 animate-fadeIn">
               <div className="text-center space-y-1.5">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center mx-auto shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-sky-100/80 text-sky-600 flex items-center justify-center mx-auto shadow-sm border border-sky-200/50">
                   <Phone className="w-6 h-6" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-black text-slate-900 font-heading">
                   Укажите ваш номер телефона
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
@@ -753,12 +753,12 @@ export function AuthModal({
               <div className="space-y-3 pt-1">
                 {/* Компонент ввода телефона: Выбор страны + Нестираемый префикс "+" */}
                 <div className="relative" ref={dropdownRef}>
-                  <div className="flex rounded-2xl border-2 border-slate-200 focus-within:border-blue-600 bg-slate-50 transition-all overflow-visible">
+                  <div className="flex rounded-2xl border-2 border-sky-100 focus-within:border-sky-500 bg-white/90 shadow-sm transition-all overflow-visible">
                     {/* Кнопка выпадающего списка страны */}
                     <button
                       type="button"
                       onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                      className="flex items-center gap-1.5 px-3 py-3 bg-slate-100 hover:bg-slate-200/80 rounded-l-2xl border-r border-slate-200 text-slate-800 font-bold text-sm sm:text-base shrink-0 cursor-pointer transition-colors"
+                      className="flex items-center gap-1.5 px-3.5 py-3 bg-sky-50/70 hover:bg-sky-100/70 rounded-l-2xl border-r border-sky-100 text-slate-800 font-bold text-sm sm:text-base shrink-0 cursor-pointer transition-colors"
                     >
                       <span className="text-lg leading-none">{selectedCountry.flag}</span>
                       <span>{selectedCountry.dial}</span>
@@ -778,14 +778,14 @@ export function AuthModal({
                         }}
                         placeholder="912 345-67-89"
                         autoFocus
-                        className="w-full h-full px-3 py-3 bg-transparent text-slate-900 font-semibold text-sm sm:text-base focus:outline-none"
+                        className="w-full h-full px-3.5 py-3 bg-transparent text-slate-900 font-bold text-sm sm:text-base focus:outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Выпадающий список выбора страны с поиском */}
                   {isCountryDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 space-y-2 max-h-60 overflow-hidden flex flex-col animate-fadeIn">
+                    <div className="absolute top-full left-0 right-0 mt-2 z-50 liquid-glass-card rounded-2xl shadow-glass-elevated border border-sky-100 p-2.5 space-y-2 max-h-60 overflow-hidden flex flex-col animate-fadeIn">
                       {/* Поиск региона */}
                       <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -794,7 +794,7 @@ export function AuthModal({
                           value={countrySearchQuery}
                           onChange={(e) => setCountrySearchQuery(e.target.value)}
                           placeholder="Поиск страны или кода (+7, +84...)"
-                          className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          className="w-full pl-9 pr-3 py-2 text-xs bg-white/90 border border-sky-200/80 rounded-xl focus:outline-none focus:border-sky-500 font-medium"
                         />
                       </div>
 
@@ -811,15 +811,15 @@ export function AuthModal({
                             }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer ${
                               selectedCountry.code === country.code
-                                ? 'bg-blue-50 text-blue-700 font-bold'
-                                : 'hover:bg-slate-50 text-slate-700'
+                                ? 'bg-sky-500 text-white font-bold'
+                                : 'hover:bg-sky-50/70 text-slate-700'
                             }`}
                           >
                             <div className="flex items-center gap-2">
                               <span className="text-base">{country.flag}</span>
                               <span>{country.name}</span>
                             </div>
-                            <span className="text-slate-400 font-mono">{country.dial}</span>
+                            <span className={`font-mono ${selectedCountry.code === country.code ? 'text-sky-100' : 'text-slate-400'}`}>{country.dial}</span>
                           </button>
                         ))}
                       </div>
@@ -838,7 +838,7 @@ export function AuthModal({
                       : null;
                     finalizeTelegramAuth(fullPhone);
                   }}
-                  className="w-full min-h-[52px] p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  className="w-full min-h-[52px] p-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-liquid-glow transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   {isQrLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -856,7 +856,7 @@ export function AuthModal({
                   id="btn-skip-phone"
                   disabled={isQrLoading}
                   onClick={() => finalizeTelegramAuth(null)}
-                  className="w-full py-2.5 text-xs text-slate-500 hover:text-slate-700 font-medium transition-colors cursor-pointer text-center"
+                  className="w-full py-2.5 text-xs text-slate-500 hover:text-slate-700 font-bold transition-colors cursor-pointer text-center"
                 >
                   Пропустить (укажу при покупке билета)
                 </button>
@@ -876,18 +876,18 @@ export function AuthModal({
                 isMobile ? (
                   /* 📱 МОБИЛЬНЫЙ БРАУЗЕР: Только спиннер ожидания БЕЗ QR и БЕЗ кнопок-дублеров */
                   <div className="py-8 flex flex-col items-center justify-center gap-4 text-center animate-fadeIn">
-                    <div className="w-16 h-16 rounded-3xl bg-sky-50 text-[#229ED9] flex items-center justify-center shadow-inner">
+                    <div className="w-16 h-16 rounded-3xl subtle-glass text-[#229ED9] flex items-center justify-center shadow-inner border border-sky-100">
                       <Loader2 className="w-8 h-8 animate-spin text-[#229ED9]" />
                     </div>
                     <div className="space-y-1.5">
-                      <p className="text-base font-bold text-slate-800">
+                      <p className="text-base font-black text-slate-800 font-heading">
                         Переходим в Telegram...
                       </p>
-                      <p className="text-xs text-slate-500 max-w-[260px] mx-auto leading-relaxed">
+                      <p className="text-xs text-slate-500 max-w-[260px] mx-auto leading-relaxed font-medium">
                         Подтвердите вход в Telegram, после чего вернитесь в эту вкладку браузера.
                       </p>
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 pt-2">
+                    <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 pt-2 font-medium">
                       <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
                       <span>Ожидание подтверждения...</span>
                     </div>
@@ -895,11 +895,11 @@ export function AuthModal({
                 ) : (
                   /* 🖥️ ДЕСКТОП: QR-код для сканирования телефоном (ЗАФИКСИРОВАН) */
                   <div className="space-y-4">
-                    <div className="relative inline-block p-3 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
+                    <div className="relative inline-block p-3.5 subtle-glass rounded-2xl border-2 border-sky-100 shadow-inner">
                       <img
                         src={telegramSession.qrCodeUrl}
                         alt="QR Код для входа в Telegram"
-                        className="w-48 h-48 rounded-xl mx-auto"
+                        className="w-48 h-48 rounded-xl mx-auto shadow-sm"
                       />
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="w-10 h-10 rounded-full bg-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-white">
@@ -911,7 +911,7 @@ export function AuthModal({
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs sm:text-sm font-bold text-slate-800">
+                      <p className="text-xs sm:text-sm font-black text-slate-800 font-heading">
                         Отсканируйте QR-код камерой телефона
                       </p>
                       <p className="text-[11px] text-slate-500">
@@ -923,14 +923,14 @@ export function AuthModal({
                       href={telegramSession.deepLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                      className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#1E88E5] hover:from-[#1E88E5] hover:to-[#1976D2] text-white font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-liquid-glow transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                     >
                       <Smartphone className="w-5 h-5 shrink-0" />
                       <span>Открыть Telegram Desktop</span>
                       <ExternalLink className="w-4 h-4 opacity-75 shrink-0" />
                     </a>
 
-                    <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                    <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 font-medium">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-[#229ED9]" />
                       <span>Ожидание подтверждения входа...</span>
                     </div>
@@ -940,12 +940,12 @@ export function AuthModal({
             </div>
           ) : isSuccessMessage ? (
             /* РЕЖИМ 2: УСПЕХ MAGIC LINK */
-            <div className="p-6 text-center space-y-3 bg-emerald-50 rounded-2xl border border-emerald-200">
+            <div className="p-6 text-center space-y-3 subtle-glass rounded-2xl border border-emerald-200/80 bg-emerald-50/60">
               <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/30">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <p className="text-sm font-bold text-emerald-900">{t.magicLinkSent}</p>
-              <p className="text-xs text-emerald-700">
+              <p className="text-sm font-black text-emerald-900 font-heading">{t.magicLinkSent}</p>
+              <p className="text-xs text-emerald-700 font-medium">
                 {language === 'ru'
                   ? 'Проверьте входящие сообщения и перейдите по ссылке'
                   : 'Check your inbox and click the link to proceed'}
@@ -961,7 +961,7 @@ export function AuthModal({
                   id="btn-auth-telegram"
                   disabled={isLoading || isQrLoading}
                   onClick={startTelegramAuth}
-                  className="w-full min-h-[52px] h-auto p-3 rounded-2xl bg-sky-50/70 hover:bg-sky-50 border-2 border-sky-300 hover:border-sky-500 text-slate-900 font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-sky-100 cursor-pointer"
+                  className="w-full min-h-[52px] h-auto p-3 rounded-2xl subtle-glass hover:bg-sky-50/80 border-2 border-sky-300 hover:border-sky-500 text-slate-900 font-black text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow-liquid-glow transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-sky-100 cursor-pointer font-heading"
                 >
                   {isQrLoading || isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin text-[#229ED9] shrink-0" />
@@ -989,7 +989,7 @@ export function AuthModal({
                   id="btn-auth-google"
                   disabled={isLoading || isQrLoading}
                   onClick={handleGoogleLogin}
-                  className="w-full min-h-[52px] h-auto p-3 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-blue-400 text-slate-800 font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer"
+                  className="w-full min-h-[52px] h-auto p-3 rounded-2xl bg-white/90 hover:bg-white border-2 border-slate-200 hover:border-sky-400 text-slate-800 font-black text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer font-heading"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin text-blue-600 shrink-0" />
@@ -1019,8 +1019,8 @@ export function AuthModal({
 
               {/* Divider */}
               <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-200 w-full" />
-                <span className="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                <div className="border-t border-sky-100 w-full" />
+                <span className="bg-white/80 backdrop-blur-sm px-3 text-[11px] font-black text-slate-400 uppercase tracking-wider shrink-0 rounded-full border border-sky-100/50">
                   {t.orEmail}
                 </span>
               </div>
@@ -1038,14 +1038,14 @@ export function AuthModal({
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={t.emailPlaceholder}
                     required
-                    className="w-full min-h-[52px] h-auto pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 focus:border-blue-600 focus:bg-white rounded-2xl text-slate-900 font-semibold text-sm sm:text-base focus:outline-none transition-all"
+                    className="w-full min-h-[52px] h-auto pl-12 pr-4 py-3 bg-white/90 border-2 border-sky-100 focus:border-sky-500 focus:bg-white rounded-2xl text-slate-900 font-bold text-sm sm:text-base focus:outline-none transition-all shadow-sm"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading || isQrLoading || !email.trim()}
-                  className="w-full min-h-[50px] h-auto py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 disabled:opacity-50 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  className="w-full min-h-[50px] h-auto py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-liquid-glow transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -1061,7 +1061,7 @@ export function AuthModal({
           )}
 
           {/* Privacy Guarantee */}
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 justify-center">
+          <div className="flex items-center gap-2 text-[11px] text-slate-400 justify-center font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
             <span>Официальная авторизация Supabase, Google & Telegram</span>
           </div>

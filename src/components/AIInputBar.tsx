@@ -103,7 +103,6 @@ export function AIInputBar({
     const trimmed = searchTerm.trim();
     const words = trimmed.split(/\s+/);
 
-    // Disable suggestions popup if multiple words are entered (complex phrase for AI, not a single city lookup)
     if (!trimmed || trimmed.length < 2 || words.length > 1) {
       setSuggestions([]);
       setIsLoadingSuggestions(false);
@@ -118,13 +117,17 @@ export function AIInputBar({
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
-      const places: PlaceSuggestion[] = Array.isArray(data?.places) ? data.places : [];
-      setSuggestions(places);
-      setIsDropdownOpen(places.length > 0);
-      setSelectedIndex(-1);
-    } catch (err) {
-      console.error('[AIInputBar] Failed to fetch suggestions:', err);
+      if (Array.isArray(data.suggestions)) {
+        setSuggestions(data.suggestions);
+        setIsDropdownOpen(data.suggestions.length > 0);
+        setSelectedIndex(-1);
+      } else {
+        setSuggestions([]);
+        setIsDropdownOpen(false);
+      }
+    } catch {
       setSuggestions([]);
+      setIsDropdownOpen(false);
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -138,53 +141,59 @@ export function AIInputBar({
       clearTimeout(debounceTimerRef.current);
     }
 
-    const trimmed = val.trim();
-    const words = trimmed.split(/\s+/);
-
-    // Only fetch suggestions if it's a single word (e.g. "Moscow", "Пхукет", "UUS")
-    if (trimmed.length >= 2 && words.length === 1) {
-      debounceTimerRef.current = setTimeout(() => {
-        fetchSuggestions(val);
-      }, 300);
-    } else {
-      setSuggestions([]);
-      setIsDropdownOpen(false);
-      setSelectedIndex(-1);
-    }
+    debounceTimerRef.current = setTimeout(() => {
+      fetchSuggestions(val);
+    }, 250);
   };
 
   const handleSelectPlace = (place: PlaceSuggestion) => {
-    const displayName = place.cityName || place.name;
-    const formatted = place.iataCode ? `${displayName} [${place.iataCode}]` : displayName;
-    
-    setQuery(formatted);
+    const cityName = place.cityName || place.name;
+    const iataCode = place.iataCode;
+    const replacement = iataCode ? `${cityName} (${iataCode})` : cityName;
+
+    const trimmed = query.trim();
+    const words = trimmed.split(/\s+/);
+    let newQuery = '';
+
+    if (words.length <= 1) {
+      newQuery = `Из ${replacement} в `;
+    } else {
+      words[words.length - 1] = replacement;
+      newQuery = words.join(' ');
+    }
+
+    setQuery(newQuery);
     setIsDropdownOpen(false);
+    setSuggestions([]);
     setSelectedIndex(-1);
-    inputRef.current?.focus();
+
+    if (inputRef.current) {
+      inputRef.current.value = newQuery;
+      inputRef.current.focus();
+      const len = newQuery.length;
+      inputRef.current.setSelectionRange(len, len);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isDropdownOpen && suggestions.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % suggestions.length);
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
-        return;
-      }
-      if (e.key === 'Enter' && selectedIndex >= 0 && selectedIndex < suggestions.length) {
+    if (!isDropdownOpen || suggestions.length === 0) {
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+    } else if (e.key === 'Enter') {
+      if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
         e.preventDefault();
         handleSelectPlace(suggestions[selectedIndex]);
-        return;
       }
-      if (e.key === 'Escape') {
-        setIsDropdownOpen(false);
-        setSelectedIndex(-1);
-        return;
-      }
+    } else if (e.key === 'Escape') {
+      setIsDropdownOpen(false);
+      setSelectedIndex(-1);
     }
   };
 
@@ -192,11 +201,8 @@ export function AIInputBar({
     e.preventDefault();
     const cleanQuery = query.trim();
     if (!cleanQuery || isLoading) return;
-    if (isListening) {
-      toggleListening();
-    }
+
     setIsDropdownOpen(false);
-    setQuery('');
     setSuggestions([]);
     if (inputRef.current) {
       inputRef.current.value = '';
@@ -222,16 +228,16 @@ export function AIInputBar({
         aria-label={t.searchBtn}
       >
         {/* Glow halo behind input on hover/focus */}
-        <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-sky-400 via-cyan-400 to-blue-500 opacity-25 group-hover:opacity-50 group-focus-within:opacity-75 blur-xl transition duration-500 pointer-events-none" />
+        <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-sky-400 via-cyan-400 to-blue-500 opacity-20 group-hover:opacity-40 group-focus-within:opacity-70 blur-xl transition duration-500 pointer-events-none" />
 
-        {/* Elastic Solid Pill Bar Container (min-h-[64px], never overflows) */}
+        {/* Stitch Liquid Capsule Bar Container */}
         <div
-          className={`relative min-h-[60px] sm:min-h-[64px] h-auto w-full rounded-full bg-white border-2 transition-all duration-300 shadow-[0_12px_35px_-8px_rgba(14,165,233,0.15)] flex items-center px-3 sm:px-5 py-2 gap-2 ${
+          className={`relative min-h-[60px] sm:min-h-[64px] h-auto w-full liquid-capsule specular-rim shadow-pill-capsule rounded-full transition-all duration-300 flex items-center px-3.5 sm:px-5 py-2 gap-2.5 border ${
             isListening
-              ? 'border-sky-500 ring-4 ring-sky-300/40'
+              ? 'border-sky-500 ring-4 ring-sky-300/40 shadow-liquid-active'
               : isDropdownOpen
-              ? 'border-sky-500 ring-4 ring-sky-400/20'
-              : 'border-sky-100 hover:border-sky-300 group-focus-within:border-sky-500 group-focus-within:ring-4 group-focus-within:ring-sky-400/20'
+              ? 'border-sky-400 ring-4 ring-sky-400/20'
+              : 'border-white/90 hover:border-sky-300 group-focus-within:border-sky-500 group-focus-within:ring-4 group-focus-within:ring-sky-400/25'
           }`}
         >
           {/* AI Sparkle Icon */}
@@ -239,7 +245,7 @@ export function AIInputBar({
             {isLoading || isLoadingSuggestions ? (
               <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-sky-500" />
             ) : (
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-sky-500 sparkle-icon" />
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-sky-500 animate-pulse" />
             )}
           </div>
 
@@ -258,7 +264,7 @@ export function AIInputBar({
             placeholder={isListening ? t.searchListening : t.searchPlaceholder}
             aria-label={t.searchPlaceholder}
             autoComplete="off"
-            className="w-full bg-transparent text-slate-900 placeholder-slate-400 font-semibold text-xs sm:text-base focus:outline-none min-w-0"
+            className="w-full bg-transparent text-slate-800 placeholder-slate-400 font-semibold text-xs sm:text-base focus:outline-none focus:ring-0 min-w-0"
           />
 
           {/* Clear button */}
@@ -280,15 +286,14 @@ export function AIInputBar({
             disabled={isLoading}
           />
 
-          {/* Submit Arrow Button */}
+          {/* Submit Arrow Button with Vibrant Stitch Blue */}
           <button
             type="submit"
-            disabled={!query.trim() || isLoading}
             aria-label={t.searchBtn}
             title={t.searchBtn}
-            className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center shadow-md shadow-sky-500/25 transition-all hover:scale-105 active:scale-95 shrink-0 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            className="h-10 w-10 sm:h-10.5 sm:w-10.5 rounded-full bg-sky-500 hover:bg-blue-600 text-white flex items-center justify-center shadow-md shadow-sky-500/30 transition-all hover:scale-105 active:scale-95 shrink-0 focus:outline-none focus:ring-2 focus:ring-sky-300 cursor-pointer"
           >
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
         </div>
       </form>
@@ -296,13 +301,13 @@ export function AIInputBar({
       {/* Autocomplete Dropdown List */}
       {isDropdownOpen && suggestions.length > 0 && (
         <div
-          className="absolute z-50 top-full mt-2 w-full bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fadeIn"
+          className="absolute z-50 top-full mt-2 w-full liquid-glass-card shadow-glass-elevated rounded-3xl border border-white/95 overflow-hidden animate-fadeIn backdrop-blur-2xl"
           role="listbox"
           aria-label={t.searchingAirports}
         >
           {/* Header indicator */}
-          <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-b border-gray-100 text-[11px] font-semibold text-slate-500">
-            <span className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-white/40 border-b border-white/80 text-[11px] font-semibold text-slate-600">
+            <span className="flex items-center gap-1.5 text-sky-700 font-bold">
               <Sparkles className="w-3.5 h-3.5 text-sky-500" />
               {language === 'ru' ? 'Выберите город или аэропорт' : 'Select city or airport'}
             </span>
@@ -312,7 +317,7 @@ export function AIInputBar({
           </div>
 
           {/* List items */}
-          <div className="max-h-[320px] sm:max-h-[380px] overflow-y-auto divide-y divide-gray-50">
+          <div className="max-h-[320px] sm:max-h-[380px] overflow-y-auto divide-y divide-white/60 no-scrollbar">
             {suggestions.map((place, idx) => {
               const isSelected = selectedIndex === idx;
               const isAirport = place.type === 'airport';
@@ -326,17 +331,17 @@ export function AIInputBar({
                   onClick={() => handleSelectPlace(place)}
                   className={`w-full px-4 py-3 transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                     isSelected
-                      ? 'bg-sky-50/80 text-sky-950'
-                      : 'hover:bg-slate-50 text-slate-800'
+                      ? 'bg-sky-100/70 text-sky-950'
+                      : 'hover:bg-white/50 text-slate-800'
                   }`}
                 >
                   {/* Left: Icon, City & Airport Name, Country */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-xs ${
                         isAirport
-                          ? 'bg-sky-50 text-sky-600 border-sky-100'
-                          : 'bg-amber-50 text-amber-600 border-amber-100'
+                          ? 'bg-sky-50 text-sky-600 border-sky-200/80'
+                          : 'bg-amber-50 text-amber-600 border-amber-200/80'
                       }`}
                     >
                       {isAirport ? (

@@ -40,17 +40,17 @@ export function PriceBreakdownModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="breakdown-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-xl animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/35 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/80 overflow-hidden"
+        className="w-full max-w-2xl liquid-glass-card bg-white/95 rounded-3xl shadow-glass-elevated border border-white/90 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-sky-100 bg-sky-50/60">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/80 subtle-glass bg-white/50">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-tr from-sky-500 to-blue-600 text-white rounded-2xl shadow-md">
+            <div className="p-2.5 bg-gradient-to-tr from-sky-500 to-blue-600 text-white rounded-2xl shadow-btn-shine">
               <TrendingDown className="w-5 h-5" />
             </div>
             <div>
@@ -66,21 +66,21 @@ export function PriceBreakdownModal({
             type="button"
             onClick={onClose}
             aria-label="Закрыть окно расчета"
-            className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-sky-100 transition-colors"
+            className="p-2 rounded-full subtle-glass text-slate-400 hover:text-slate-700 hover:bg-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Content */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
           {/* Savings Banner */}
-          <div className="p-4 rounded-2xl bg-sky-50/80 border border-sky-200 flex items-start gap-4 shadow-sm">
+          <div className="p-4 rounded-2xl subtle-glass bg-sky-50/80 border border-sky-200/80 flex items-start gap-4 shadow-xs">
             <div className="p-2.5 rounded-xl bg-sky-600 text-white font-black text-sm shrink-0 shadow-md">
               -{flight.pricing.savedPercentage}%
             </div>
             <div>
-              <p className="text-base font-black text-sky-800">
+              <p className="text-base font-black text-sky-900">
                 Ваша чистая выгода: {flight.pricing.savedAmount.toLocaleString('ru-RU')} {currencySymbol}
               </p>
               <p className="text-xs sm:text-sm text-slate-600 font-bold mt-0.5">
@@ -98,7 +98,7 @@ export function PriceBreakdownModal({
               {flight.pricing.segmentBreakdowns.map((seg, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-4 rounded-2xl bg-white border border-sky-100 shadow-sm"
+                  className="flex items-center justify-between p-4 rounded-2xl subtle-glass bg-white/70 border border-white/90 shadow-xs"
                 >
                   <div>
                     <p className="text-sm font-black text-slate-900">
@@ -119,7 +119,7 @@ export function PriceBreakdownModal({
           </div>
 
           {/* Total Comparison Grid */}
-          <div className="p-5 rounded-2xl bg-sky-50/60 border border-sky-100 grid grid-cols-2 gap-4">
+          <div className="p-5 rounded-2xl liquid-card border border-white/90 shadow-glass-edge grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-slate-500 font-bold">
                 Обычные агрегаторы:
@@ -152,11 +152,11 @@ export function PriceBreakdownModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 bg-sky-50/40 border-t border-sky-100 flex justify-end">
+        <div className="px-6 py-4 subtle-glass bg-white/40 border-t border-white/80 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-black shadow-md transition-all"
+            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-sm font-black shadow-btn-shine transition-all cursor-pointer"
           >
             Понятно
           </button>

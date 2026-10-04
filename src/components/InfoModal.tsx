@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { X, Hotel, Plane, Info, CheckCircle2, ArrowRight, Sparkles, Shield, Clock } from 'lucide-react';
+import { X, Hotel, Plane, Info, CheckCircle2, ArrowRight, Sparkles, Shield } from 'lucide-react';
 import { Language } from '../lib/types';
 import { TRANSLATIONS } from '../lib/i18n';
 
@@ -49,7 +49,7 @@ export function InfoModal({
       icon: Hotel,
       title: isRu ? 'Бесплатные отели STPC' : 'Free STPC Transit Hotels',
       subtitle: isRu ? 'Stopover Paid by Carrier' : 'Stopover Paid by Carrier',
-      headerBg: 'from-blue-600 to-sky-500',
+      headerBg: 'from-sky-500 to-blue-600',
       bullets: isRu
         ? [
             'Бесплатный 4★ или 5★ отель, трансфер и питание при пересадке от 8 до 24 часов.',
@@ -68,7 +68,7 @@ export function InfoModal({
       icon: Plane,
       title: isRu ? 'Безвизовый транзит TWOV' : 'Visa-Free Transit TWOV',
       subtitle: isRu ? 'Transit Without Visa' : 'Transit Without Visa',
-      headerBg: 'from-sky-500 to-cyan-600',
+      headerBg: 'from-sky-400 to-cyan-600',
       bullets: isRu
         ? [
             'Пересадки и выход в город без оформления визы страны транзита.',
@@ -89,7 +89,7 @@ export function InfoModal({
       icon: Info,
       title: isRu ? 'Технология Split-Ticketing' : 'Split-Ticketing Tech',
       subtitle: isRu ? 'Умная раздельная выписка' : 'Wholesale Segment Fares',
-      headerBg: 'from-indigo-600 to-blue-600',
+      headerBg: 'from-indigo-600 to-sky-600',
       bullets: isRu
         ? [
             'Прямые агентские тарифы NDC/GDS без наценок и переплат агрегаторов.',
@@ -114,12 +114,12 @@ export function InfoModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="info-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/35 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
     >
-      {/* 3x Smaller, Highly Readable, Compact Card (max-w-md) */}
+      {/* Stitch Liquid Glass Compact Card */}
       <div
-        className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden"
+        className="w-full max-w-md liquid-glass-card bg-white/95 rounded-3xl shadow-glass-elevated border border-white/90 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Compact Header */}
@@ -141,7 +141,7 @@ export function InfoModal({
             type="button"
             onClick={onClose}
             aria-label="Закрыть"
-            className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+            className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -151,7 +151,7 @@ export function InfoModal({
         <div className="p-5 space-y-3">
           {currentModal.bullets.map((bullet, idx) => (
             <div key={idx} className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
               <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
                 {bullet}
               </p>
@@ -160,11 +160,11 @@ export function InfoModal({
         </div>
 
         {/* Compact Actions Footer */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2.5">
+        <div className="px-5 py-3 subtle-glass bg-white/60 border-t border-white/80 flex items-center justify-between gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-white transition-all"
+            className="px-4 py-2 rounded-xl subtle-glass text-slate-600 font-semibold text-xs hover:bg-white transition-all cursor-pointer"
           >
             {t.modalClose}
           </button>
@@ -174,7 +174,7 @@ export function InfoModal({
               onClose();
               onSelectScenario(currentModal.query);
             }}
-            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-600/25 transition-all"
+            className="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-btn-shine transition-all cursor-pointer"
           >
             <span>{currentModal.actionText}</span>
             <ArrowRight className="w-3.5 h-3.5" />

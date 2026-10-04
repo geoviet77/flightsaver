@@ -7,14 +7,13 @@ import {
   Plane,
   ArrowRight,
   Filter,
-  ArrowUpDown,
   RefreshCw,
   Search,
   AlertCircle,
   Clock,
   Sparkles,
-  Luggage,
-  Hotel
+  Hotel,
+  SlidersHorizontal
 } from 'lucide-react';
 import { Header } from '../../../components/Header';
 import { FlightCard } from '../../../components/FlightCard';
@@ -35,8 +34,6 @@ const RATES_TO_RUB: Record<string, number> = {
   CNY: 12.8,
   THB: 2.65,
 };
-
-const STPC_WHITELIST_AIRLINES = ['TK', 'EK', 'QR', 'GF', 'EY', 'CA', 'CZ', 'MU', 'ET'];
 
 function parseDurationString(dur?: string): { formatted: string; minutes: number } {
   if (!dur) return { formatted: '8ч 30м', minutes: 510 };
@@ -99,7 +96,6 @@ function transformDuffelOfferToFlight(
   const offerCurrency = (offer.total_currency || 'USD').toUpperCase();
   const rate = RATES_TO_RUB[offerCurrency] || 92;
 
-  // Безопасный расчет конвертации валют (USD -> RUB)
   let totalPriceRub = Math.round(rawAmount * rate * 1.015 + 1500);
   if (totalPriceRub < 5000 && originIata !== destinationIata) {
     totalPriceRub = Math.max(totalPriceRub, 18500);
@@ -120,7 +116,6 @@ function transformDuffelOfferToFlight(
     transitMinutes = calculateLayoverMinutes(segments[0].arriving_at, segments[1].departing_at);
   }
 
-  // Строгая проверка STPC программы через сервис stpcService
   const stpcInfo = checkStpcEligibility(
     {
       airlineCode: firstSeg?.operating_carrier?.iata_code || offer.owner?.iata_code || '',
@@ -256,7 +251,6 @@ function ResultsContent() {
       if (!res.offers || res.offers.length === 0) {
         setFlights([]);
       } else {
-        // Дедупликация офферов перед отображением
         const seenKeys = new Set<string>();
         const uniqueOffers = res.offers.filter((offer: any) => {
           const seg0 = offer.slices?.[0]?.segments?.[0];
@@ -309,7 +303,13 @@ function ResultsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen text-slate-900 flex flex-col font-sans relative overflow-x-hidden select-none">
+      {/* Ambient Lighting Volumetric Orbs (Stitch Spec) */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-24 left-1/3 w-[600px] h-[350px] bg-sky-300/35 rounded-full blur-[80px]" />
+        <div className="absolute bottom-10 right-10 w-[500px] h-[400px] bg-blue-300/25 rounded-full blur-[90px]" />
+      </div>
+
       <Header
         currentCurrency={currency}
         onCurrencyChange={setCurrency}
@@ -317,21 +317,21 @@ function ResultsContent() {
         onLanguageChange={setLanguage}
       />
 
-      {/* Top Search Summary Bar */}
-      <div className="bg-white border-b border-slate-200 py-4 px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
+      {/* Top Search Summary Bar (Stitch Liquid Glass Capsule) */}
+      <div className="liquid-glass border-b border-white/80 py-3.5 px-4 sm:px-6 sticky top-0 z-30 shadow-glass-inner backdrop-blur-2xl">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition text-slate-600"
+              className="p-2.5 rounded-2xl subtle-glass hover:bg-white transition text-slate-700 shadow-xs flex items-center justify-center cursor-pointer"
               title="Изменить поиск"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-4 h-4 text-sky-600" />
             </Link>
             <div>
               <div className="flex items-center gap-2 text-base sm:text-lg font-black text-slate-900">
                 <span>{origin || 'MOW'}</span>
-                <ArrowRight className="w-4 h-4 text-blue-600" />
+                <ArrowRight className="w-4 h-4 text-sky-600" />
                 <span>{destination || 'BKK'}</span>
               </div>
               <p className="text-xs text-slate-500 font-medium">
@@ -347,21 +347,21 @@ function ResultsContent() {
             <button
               onClick={() => fetchFlightOffers()}
               disabled={loading}
-              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3.5 py-2 subtle-glass hover:bg-white text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-sky-600 ${loading ? 'animate-spin' : ''}`} />
               <span>Обновить</span>
             </button>
           </div>
         </div>
       </div>
 
-      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex-1 relative z-10">
         {/* Loading State */}
         {loading && (
           <div className="space-y-4 py-8">
-            <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center space-y-4 shadow-sm">
-              <Plane className="w-10 h-10 text-blue-600 animate-bounce mx-auto" />
+            <div className="p-8 liquid-glass-card border border-white/90 rounded-3xl text-center space-y-4 shadow-glass-elevated">
+              <Plane className="w-10 h-10 text-sky-600 animate-bounce mx-auto" />
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
                   Поиск перелетов через глобальную сеть авиакомпаний...
@@ -376,8 +376,8 @@ function ResultsContent() {
 
         {/* Error State */}
         {!loading && error && (
-          <div className="p-8 bg-rose-50 border border-rose-200 rounded-2xl text-center space-y-4 my-8 shadow-sm">
-            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+          <div className="p-8 liquid-glass-card border border-rose-200 rounded-3xl text-center space-y-4 my-8 shadow-glass-elevated bg-rose-50/50">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
               <AlertCircle className="w-6 h-6" />
             </div>
             <div>
@@ -387,13 +387,13 @@ function ResultsContent() {
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => fetchFlightOffers()}
-                className="px-5 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 transition"
+                className="px-5 py-2.5 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-xl text-sm font-semibold hover:from-rose-600 hover:to-rose-700 transition shadow-sm cursor-pointer"
               >
                 Попробовать снова
               </button>
               <Link
                 href="/"
-                className="px-5 py-2.5 bg-white border border-rose-300 text-rose-800 rounded-xl text-sm font-semibold hover:bg-rose-100/50 transition"
+                className="px-5 py-2.5 subtle-glass border border-white/90 text-rose-800 rounded-xl text-sm font-semibold hover:bg-white transition"
               >
                 Вернуться к поиску
               </Link>
@@ -403,9 +403,9 @@ function ResultsContent() {
 
         {/* Empty State */}
         {!loading && !error && flights.length === 0 && (
-          <div className="p-12 bg-white border border-slate-200 rounded-2xl text-center space-y-4 my-8 shadow-sm">
-            <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
-              <Search className="w-8 h-8" />
+          <div className="p-12 liquid-glass-card border border-white/90 rounded-3xl text-center space-y-4 my-8 shadow-glass-elevated">
+            <div className="w-16 h-16 subtle-glass text-slate-400 rounded-full flex items-center justify-center mx-auto shadow-xs">
+              <Search className="w-8 h-8 text-sky-600" />
             </div>
             <div>
               <h3 className="text-xl font-bold text-slate-900">Прямых и стыковочных рейсов не найдено</h3>
@@ -416,14 +416,14 @@ function ResultsContent() {
             <div className="flex justify-center gap-3 pt-2">
               <button
                 onClick={() => fetchFlightOffers()}
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2"
+                className="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl text-sm font-semibold hover:from-sky-600 hover:to-blue-700 transition flex items-center gap-2 shadow-btn-shine cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Попробовать снова</span>
               </button>
               <Link
                 href="/"
-                className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-100 transition"
+                className="px-5 py-2.5 subtle-glass border border-white/90 text-slate-700 rounded-xl text-sm font-semibold hover:bg-white transition"
               >
                 Изменить маршрут
               </Link>
@@ -435,45 +435,45 @@ function ResultsContent() {
         {!loading && !error && flights.length > 0 && (
           <div className="space-y-6">
             {/* Filter and Sorting Tabs */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 liquid-glass-card p-3.5 rounded-3xl border border-white/90 shadow-glass-elevated">
               {/* Quick Filters */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => setFilterStops('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                     filterStops === 'all'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine'
+                      : 'subtle-glass text-slate-600 hover:bg-white'
                   }`}
                 >
                   Все рейсы ({flights.length})
                 </button>
                 <button
                   onClick={() => setFilterStops('direct')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                     filterStops === 'direct'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine'
+                      : 'subtle-glass text-slate-600 hover:bg-white'
                   }`}
                 >
                   Прямые
                 </button>
                 <button
                   onClick={() => setFilterStops('1stop')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                     filterStops === '1stop'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine'
+                      : 'subtle-glass text-slate-600 hover:bg-white'
                   }`}
                 >
                   1 пересадка
                 </button>
                 <button
                   onClick={() => setFilterStops('stpc')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 cursor-pointer ${
                     filterStops === 'stpc'
                       ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
                   }`}
                 >
                   <Hotel className="w-3.5 h-3.5" />
@@ -487,7 +487,7 @@ function ResultsContent() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as FlightSortOption)}
-                  className="text-xs font-semibold px-3 py-1.5 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+                  className="text-xs font-semibold px-3 py-1.5 border border-white/90 rounded-xl subtle-glass bg-white/70 focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 cursor-pointer"
                 >
                   <option value="cheap">Сначала дешевые</option>
                   <option value="fast">Самые быстрые</option>
@@ -537,7 +537,7 @@ export default function ResultsPage() {
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="flex flex-col items-center gap-3">
-            <Plane className="w-8 h-8 text-blue-600 animate-bounce" />
+            <Plane className="w-8 h-8 text-sky-600 animate-bounce" />
             <p className="text-sm font-medium text-slate-500">Загрузка результатов поиска...</p>
           </div>
         </div>

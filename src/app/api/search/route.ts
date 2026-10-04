@@ -255,35 +255,36 @@ export async function POST(req: NextRequest) {
 - Если названа СТРАНА, а не город (например, "Бангладеш", "Вьетнам"), обязательно уточни конкретный город: "В какой город Бангладеш вы планируете перелет: Дакка (DAC) или Читтагонг (CGP)?".
 - НИКОГДА не подставляй наугад город прилета (например, Бангкок BKK), если пользователь его не называл!
 - Если не назван город вылета — спроси: "Укажите, пожалуйста, город вылета (например, Москва, Санкт-Петербург, Иркутск)".
-- Если названы города и дата, но не указан тип поездки — спроси: "Вам нужен билет в одну сторону или планируете возвращение?", предложив кнопки: ["🛫 В одну сторону", "🔄 Обратно через 7 дней", "🔄 Обратно через 14 дней"].
-- Если все параметры согласованы (есть откуда, куда, дата вылета, понятен тип поездки) — установи is_complete = true.
+- Если названы города вылета и прилета, но пользователь не назвал дату — установи departure_date на ближайшую удобную дату через 2-3 недели от сегодняшнего дня (${currentDate}), установи is_complete = true, чтобы пользователь СЮЖЕСЕКУНДНО увидел реальные цены, билеты и варианты перелёта, а в assistant_message сгенерируй живой, тёплый, персонализированный комментарий к этому направлению.
+- Если все параметры согласованы (есть откуда, куда, дата вылета) — установи is_complete = true.
 
 ОБЯЗАТЕЛЬНЫЕ IATA КОДЫ:
-- Иркутск -> IKT, Красноярск -> KJA, Самара -> KUF, Чебоксары -> CSY, Екатеринбург -> SVX
-- Москва -> MOW (SVO/DME/VKO), Санкт-Петербург -> LED, Новосибирск -> OVB, Владивосток -> VVO
-- Дюссельдорф -> DUS, Мюнхен -> MUC, Берлин -> BER, Франкфурт -> FRA, Люксембург -> LUX
-- Дакка -> DAC, Читтагонг -> CGP, Пекин -> PEK, Гуанчжоу -> CAN, Бангкок -> BKK, Пхукет -> HKT
-- Ханой -> HAN, Дананг -> DAD, Хошимин -> SGN, Рим -> ROM, Париж -> PAR, Стамбул -> IST, Дубай -> DXB
+- Иркутск -> IKT, Красноярск -> KJA, Самара -> KUF, Чебоксары -> CSY, Екатеринбург -> SVX, Новосибирск -> OVB
+- Москва -> MOW (SVO/DME/VKO), Санкт-Петербург -> LED, Владивосток -> VVO, Сочи -> AER, Казань -> KZN
+- Дананг -> DAD, Ханой -> HAN, Хошимин -> SGN, Нячанг -> CXR, Бангкок -> BKK, Пхукет -> HKT, Бали -> DPS
+- Пекин -> PEK, Гуанчжоу -> CAN, Шанхай -> PVG, Токио -> TYO, Сеул -> ICN, Дакка -> DAC
+- Дюссельдорф -> DUS, Мюнхен -> MUC, Берлин -> BER, Франкфурт -> FRA, Люксембург -> LUX, Париж -> PAR, Рим -> ROM
+- Стамбул -> IST, Дубай -> DXB, Доха -> DOH, Абу-Даби -> AUH
 
 ФОРМАТ ОТВЕТА (СТРОГО JSON):
 {
-  "origin_iata": "IKT",
-  "origin_name": "Иркутск",
-  "destination_iata": "DUS",
-  "destination_name": "Дюссельдорф",
-  "departure_date": "2026-11-16",
+  "origin_iata": "MOW",
+  "origin_name": "Москва",
+  "destination_iata": "DAD",
+  "destination_name": "Дананг",
+  "departure_date": "2026-11-20",
   "return_date": null,
   "is_round_trip": false,
   "passengers_count": 1,
   "cabin_class": "economy",
   "baggage_info": "Багаж 23 кг",
-  "user_target_price": 65000,
-  "user_target_source": "Авиасейлс",
+  "user_target_price": null,
+  "user_target_source": null,
   "search_stpc": false,
   "prefer_stpc_hotel": false,
   "preferred_stopover_hub": null,
   "is_complete": true,
-  "assistant_message": "Подобрал оптимальные сплит-маршруты Иркутск → Дюссельдорф. Сравнение рассчитано относительно сквозного тарифа GDS. Если вы уже нашли рейс на другом сайте — назовите вашу цену, и я найду еще выгоднее!",
+  "assistant_message": "Подобрал отличные сплит-маршруты Москва → Дананг. Сравнение рассчитано относительно сквозного тарифа GDS. Если вы уже нашли рейс на другом сайте — назовите цену, и я найду еще выгоднее!",
   "quick_options": ["💬 Назвать свою цену", "🔄 Добавить обратный билет", "👥 2 пассажира", "💎 Бизнес-класс"]
 }
 `;
@@ -291,31 +292,54 @@ export async function POST(req: NextRequest) {
 
     let parsed: any = null;
 
-    // 2. Распознавание через Gemini 2.5 Flash
-    if (apiKey && userText) {
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const res = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `Диалог пользователя: "${userText}". Текущее состояние: ${JSON.stringify(stateContext)}`,
-          config: {
-            systemInstruction,
-            responseMimeType: 'application/json',
-            temperature: 0.1,
-          },
-        });
+    // 2. Живое онлайн-распознавание через Gemini API (высокоскоростной каскад современных моделей)
+    const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
+    if (effectiveApiKey && userText) {
+      const liveModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+      for (const model of liveModels) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveApiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      {
+                        text: `${systemInstruction}\n\nЗапрос пользователя: "${userText}". Текущее состояние диалога: ${JSON.stringify(stateContext)}`,
+                      },
+                    ],
+                  },
+                ],
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                  temperature: 0.2,
+                },
+              }),
+              signal: AbortSignal.timeout(9000),
+            }
+          );
 
-        const raw = res.text?.trim() || '';
-        if (raw) {
-          const jsonClean = raw.replace(/```json|```/g, '').trim();
-          parsed = JSON.parse(jsonClean);
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+            if (rawText) {
+              const jsonClean = rawText.replace(/```json|```/g, '').trim();
+              parsed = JSON.parse(jsonClean);
+              break;
+            }
+          } else {
+            console.warn(`[Gemini Live API] Model ${model} returned HTTP ${geminiRes.status}`);
+          }
+        } catch (err: any) {
+          console.warn(`[Gemini Live API] Error calling model ${model}:`, err?.message || err);
         }
-      } catch (err: any) {
-        console.warn('Gemini parser notice:', err?.message || err);
       }
     }
 
-    // 3. Детерминированный fallback
+    // 3. Детерминированный fallback (на случай отсутствия сети)
     if (!parsed) {
       parsed = extractDeterministicState(userText, stateContext);
     }
@@ -1134,50 +1158,149 @@ function extractDeterministicState(text: string, context: any) {
   }
 
 
-  if (textLower.includes('иркутск') || textLower.includes('ikt')) {
-    origin_iata = 'IKT';
-    origin_name = 'Иркутск';
-  } else if (textLower.includes('красноярск') || textLower.includes('kja')) {
-    origin_iata = 'KJA';
-    origin_name = 'Красноярск';
-  } else if (textLower.includes('чебоксар') || textLower.includes('csy')) {
-    origin_iata = 'CSY';
-    origin_name = 'Чебоксары';
-  } else if (textLower.includes('москв') || textLower.includes('mow')) {
-    origin_iata = 'MOW';
-    origin_name = 'Москва';
-  } else if (textLower.includes('питер') || textLower.includes('led')) {
-    origin_iata = 'LED';
-    origin_name = 'Санкт-Петербург';
+  // Полный справочник ключевых аэропортов и городов для надежного автономного распознавания
+  const CITY_MATCHERS: Array<{ iata: string; name: string; patterns: string[] }> = [
+    // Города вылета РФ и СНГ
+    { iata: 'MOW', name: 'Москва', patterns: ['москв', 'mow', 'svo', 'dme', 'vko', 'шереметьев', 'домодедов', 'внуков'] },
+    { iata: 'LED', name: 'Санкт-Петербург', patterns: ['санкт-петербург', 'петербург', 'питер', 'пулков', 'led'] },
+    { iata: 'IKT', name: 'Иркутск', patterns: ['иркутск', 'байкал', 'ikt'] },
+    { iata: 'KJA', name: 'Красноярск', patterns: ['красноярск', 'емельянов', 'kja'] },
+    { iata: 'OVB', name: 'Новосибирск', patterns: ['новосибирск', 'толмачев', 'ovb'] },
+    { iata: 'SVX', name: 'Екатеринбург', patterns: ['екатеринбург', 'кольцов', 'svx'] },
+    { iata: 'KUF', name: 'Самара', patterns: ['самар', 'курумоч', 'kuf'] },
+    { iata: 'KZN', name: 'Казань', patterns: ['казан', 'kzn'] },
+    { iata: 'CSY', name: 'Чебоксары', patterns: ['чебоксар', 'csy'] },
+    { iata: 'AER', name: 'Сочи', patterns: ['сочи', 'адлер', 'aer'] },
+    { iata: 'VVO', name: 'Владивосток', patterns: ['владивосток', 'кневич', 'vvo'] },
+    { iata: 'KHV', name: 'Хабаровск', patterns: ['хабаровск', 'khv'] },
+    { iata: 'UUS', name: 'Южно-Сахалинск', patterns: ['южно-сахалинск', 'сахалин', 'хомутов', 'uus'] },
+    { iata: 'MSQ', name: 'Минск', patterns: ['минск', 'msq'] },
+
+    // Вьетнам & ЮВА (включая Дананг DAD)
+    { iata: 'DAD', name: 'Дананг', patterns: ['дананг', 'да нанг', 'da nang', 'danang', 'dad'] },
+    { iata: 'HAN', name: 'Ханой', patterns: ['ханой', 'нойбай', 'hanoi', 'han'] },
+    { iata: 'SGN', name: 'Хошимин', patterns: ['хошимин', 'сайгон', 'таншоннят', 'ho chi minh', 'saigon', 'sgn'] },
+    { iata: 'CXR', name: 'Нячанг', patterns: ['нячанг', 'камрань', 'nha trang', 'cxr'] },
+    { iata: 'BKK', name: 'Бангкок', patterns: ['бангкок', 'суварнабхум', 'bangkok', 'bkk'] },
+    { iata: 'HKT', name: 'Пхукет', patterns: ['пхукет', 'phuket', 'hkt'] },
+    { iata: 'DPS', name: 'Бали', patterns: ['бали', 'денпасар', 'нгурах', 'bali', 'dps'] },
+    { iata: 'SIN', name: 'Сингапур', patterns: ['сингапур', 'чанги', 'singapore', 'sin'] },
+    { iata: 'KUL', name: 'Куала-Лумпур', patterns: ['куала-лумпур', 'kuala lumpur', 'kul'] },
+
+    // Ближний Восток и транзитные хабы STPC
+    { iata: 'IST', name: 'Стамбул', patterns: ['стамбул', 'сабих', 'новый стамбул', 'istanbul', 'ist', 'saw'] },
+    { iata: 'AYT', name: 'Анталья', patterns: ['анталь', 'antalya', 'ayt'] },
+    { iata: 'DXB', name: 'Дубай', patterns: ['дубай', 'dubai', 'dxb'] },
+    { iata: 'AUH', name: 'Абу-Даби', patterns: ['абу-даби', 'abu dhabi', 'auh'] },
+    { iata: 'DOH', name: 'Доха', patterns: ['доха', 'хамад', 'doha', 'doh'] },
+    { iata: 'TAS', name: 'Ташкент', patterns: ['ташкент', 'tashkent', 'tas'] },
+    { iata: 'ALA', name: 'Алматы', patterns: ['алмат', 'almaty', 'ala'] },
+    { iata: 'NQZ', name: 'Астана', patterns: ['астан', 'нур-султан', 'astana', 'nqz'] },
+
+    // Азия & Китай
+    { iata: 'PEK', name: 'Пекин', patterns: ['пекин', 'шоуду', 'дасин', 'beijing', 'pek', 'pkx'] },
+    { iata: 'CAN', name: 'Гуанчжоу', patterns: ['гуанчжоу', 'байюнь', 'guangzhou', 'can'] },
+    { iata: 'PVG', name: 'Шанхай', patterns: ['шанхай', 'пудун', 'shanghai', 'pvg'] },
+    { iata: 'TYO', name: 'Токио', patterns: ['токио', 'нарит', 'ханед', 'tokyo', 'tyo', 'nrt', 'hnd'] },
+    { iata: 'ICN', name: 'Сеул', patterns: ['сеул', 'инчхон', 'seoul', 'icn'] },
+    { iata: 'DAC', name: 'Дакка', patterns: ['дакк', 'dhaka', 'dac'] },
+    { iata: 'CGP', name: 'Читтагонг', patterns: ['читтагонг', 'chittagong', 'cgp'] },
+
+    // Европа
+    { iata: 'DUS', name: 'Дюссельдорф', patterns: ['дюссельдорф', 'dusseldorf', 'dus'] },
+    { iata: 'MUC', name: 'Мюнхен', patterns: ['мюнхен', 'munich', 'muc'] },
+    { iata: 'BER', name: 'Берлин', patterns: ['берлин', 'бранденбург', 'berlin', 'ber'] },
+    { iata: 'FRA', name: 'Франкфурт', patterns: ['франкфурт', 'frankfurt', 'fra'] },
+    { iata: 'LUX', name: 'Люксембург', patterns: ['люксембург', 'luxembourg', 'lux'] },
+    { iata: 'PAR', name: 'Париж', patterns: ['париж', 'де голль', 'орли', 'paris', 'par', 'cdg'] },
+    { iata: 'ROM', name: 'Рим', patterns: ['рим', 'фьюмичин', 'rome', 'rom', 'fco'] },
+    { iata: 'MXP', name: 'Милан', patterns: ['милан', 'мальпенс', 'milan', 'mxp'] },
+    { iata: 'VIE', name: 'Вена', patterns: ['вен', 'швехат', 'vienna', 'vie'] },
+    { iata: 'AMS', name: 'Амстердам', patterns: ['амстердам', 'схипхол', 'amsterdam', 'ams'] },
+    { iata: 'MAD', name: 'Мадрид', patterns: ['мадрид', 'барахас', 'madrid', 'mad'] },
+    { iata: 'BCN', name: 'Барселона', patterns: ['барселон', 'эль-прат', 'barcelona', 'bcn'] },
+    { iata: 'PRG', name: 'Прага', patterns: ['праг', 'prague', 'prg'] },
+  ];
+
+  // Поиск всех совпадений городов в строке с сохранением индекса первого символа
+  interface CityMatch {
+    iata: string;
+    name: string;
+    index: number;
+    matchLength: number;
   }
 
-  if (textLower.includes('дюссельдорф') || textLower.includes('dus')) {
-    destination_iata = 'DUS';
-    destination_name = 'Дюссельдорф';
-  } else if (textLower.includes('мюнхен') || textLower.includes('muc')) {
-    destination_iata = 'MUC';
-    destination_name = 'Мюнхен';
-  } else if (textLower.includes('люксембург') || textLower.includes('lux')) {
-    destination_iata = 'LUX';
-    destination_name = 'Люксембург';
-  } else if (textLower.includes('пекин') || textLower.includes('pek')) {
-    destination_iata = 'PEK';
-    destination_name = 'Пекин';
-  } else if (textLower.includes('дакк') || textLower.includes('dac')) {
-    destination_iata = 'DAC';
-    destination_name = 'Дакка';
-  } else if (textLower.includes('бангкок') || textLower.includes('bkk')) {
-    destination_iata = 'BKK';
-    destination_name = 'Бангкок';
-  } else if (textLower.includes('пхукет') || textLower.includes('hkt')) {
-    destination_iata = 'HKT';
-    destination_name = 'Пхукет';
-  } else if (textLower.includes('стамбул') || textLower.includes('ist')) {
-    destination_iata = destination_iata || 'IST';
-    destination_name = destination_name || 'Стамбул';
-  } else if (textLower.includes('дубай') || textLower.includes('dxb')) {
-    destination_iata = destination_iata || 'DXB';
-    destination_name = destination_name || 'Дубай';
+  const foundMatches: CityMatch[] = [];
+
+  for (const item of CITY_MATCHERS) {
+    for (const pat of item.patterns) {
+      const idx = textLower.indexOf(pat);
+      if (idx !== -1) {
+        // Проверяем, нет ли уже более точного/раннего совпадения
+        const exists = foundMatches.some((m) => m.iata === item.iata);
+        if (!exists) {
+          foundMatches.push({
+            iata: item.iata,
+            name: item.name,
+            index: idx,
+            matchLength: pat.length,
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  // Сортируем совпадения по позиции в тексте
+  foundMatches.sort((a, b) => a.index - b.index);
+
+  // Определение origin и destination на основе контекста, предлогов и порядка слов
+  let identifiedOrigin: { iata: string; name: string } | null = null;
+  let identifiedDestination: { iata: string; name: string } | null = null;
+
+  for (const m of foundMatches) {
+    const beforeText = textLower.substring(Math.max(0, m.index - 6), m.index).trim();
+    if (/(?:из|от)\s*$/i.test(beforeText)) {
+      identifiedOrigin = { iata: m.iata, name: m.name };
+    } else if (/(?:в|во|до|на)\s*$/i.test(beforeText)) {
+      identifiedDestination = { iata: m.iata, name: m.name };
+    }
+  }
+
+  // Если предлоги не использовались (например "Москва Дананг" или "Иркутск Дюссельдорф")
+  if (foundMatches.length >= 2) {
+    if (!identifiedOrigin && !identifiedDestination) {
+      identifiedOrigin = { iata: foundMatches[0].iata, name: foundMatches[0].name };
+      identifiedDestination = { iata: foundMatches[1].iata, name: foundMatches[1].name };
+    } else if (identifiedOrigin && !identifiedDestination) {
+      const other = foundMatches.find((m) => m.iata !== identifiedOrigin!.iata);
+      if (other) identifiedDestination = { iata: other.iata, name: other.name };
+    } else if (!identifiedOrigin && identifiedDestination) {
+      const other = foundMatches.find((m) => m.iata !== identifiedDestination!.iata);
+      if (other) identifiedOrigin = { iata: other.iata, name: other.name };
+    }
+  } else if (foundMatches.length === 1) {
+    const single = foundMatches[0];
+    const beforeText = textLower.substring(Math.max(0, single.index - 6), single.index).trim();
+    if (/(?:в|во|до|на)\s*$/i.test(beforeText)) {
+      identifiedDestination = { iata: single.iata, name: single.name };
+    } else if (/(?:из|от)\s*$/i.test(beforeText)) {
+      identifiedOrigin = { iata: single.iata, name: single.name };
+    } else if (origin_iata && !destination_iata && origin_iata !== single.iata) {
+      // Если пункт вылета уже известен в контексте — значит назван пункт назначения
+      identifiedDestination = { iata: single.iata, name: single.name };
+    } else if (!origin_iata) {
+      identifiedOrigin = { iata: single.iata, name: single.name };
+    }
+  }
+
+  if (identifiedOrigin) {
+    origin_iata = identifiedOrigin.iata;
+    origin_name = identifiedOrigin.name;
+  }
+  if (identifiedDestination) {
+    destination_iata = identifiedDestination.iata;
+    destination_name = identifiedDestination.name;
   }
 
   // STPC & Stopover recognition

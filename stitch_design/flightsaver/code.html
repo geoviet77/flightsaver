@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+
+<html lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FlightSaver — Умный поиск перелётов и ИИ Консьерж</title>
+<!-- Google Fonts: Plus Jakarta Sans & Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+            body: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              200: '#bae0fd',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+            }
+          },
+          boxShadow: {
+            'liquid-glow': '0 0 50px -10px rgba(56, 189, 248, 0.35)',
+            'liquid-active': '0 0 35px 0 rgba(14, 165, 233, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.95)',
+            'glass-inner': 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 2px 0 rgba(255, 255, 255, 0.25)',
+            'glass-elevated': '0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(255, 255, 255, 0.85)',
+            'btn-shine': '0 4px 20px -2px rgba(14, 165, 233, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.7)',
+            'voice-ring': '0 0 0 4px rgba(56, 189, 248, 0.25), 0 0 25px rgba(14, 165, 233, 0.55)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles for Glassmorphism Effects -->
+<style data-purpose="glassmorphic-materials">
+    .liquid-glass-card {
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+    }
+    
+    .liquid-glass-pill {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+    }
+
+    .subtle-glass {
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+    }
+
+    .ambient-bg {
+      background: radial-gradient(circle at 18% 12%, rgba(224, 242, 254, 0.95) 0%, rgba(240, 249, 255, 0.65) 45%, rgba(238, 242, 255, 0.75) 100%),
+                  radial-gradient(circle at 82% 85%, rgba(186, 230, 253, 0.7) 0%, rgba(224, 242, 254, 0.35) 50%, transparent 80%),
+                  linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #eff6ff 100%);
+    }
+
+    /* Pulse wave effect for live voice indicator */
+    @keyframes voice-wave {
+      0%, 100% { height: 6px; }
+      50% { height: 18px; }
+    }
+    .wave-bar:nth-child(1) { animation: voice-wave 1.1s ease-in-out infinite; }
+    .wave-bar:nth-child(2) { animation: voice-wave 0.8s ease-in-out infinite 0.15s; }
+    .wave-bar:nth-child(3) { animation: voice-wave 1.3s ease-in-out infinite 0.3s; }
+    .wave-bar:nth-child(4) { animation: voice-wave 0.9s ease-in-out infinite 0.1s; }
+  </style>
+<!-- END: Custom Styles for Glassmorphism Effects -->
+</head>
+<body class="ambient-bg text-slate-800 font-sans h-screen w-screen overflow-hidden flex flex-col justify-between select-none relative">
+<!-- Ambient Light Orbs behind glass for liquid effect -->
+<div class="pointer-events-none absolute -top-24 left-1/4 w-96 h-96 bg-sky-300/35 rounded-full blur-3xl mix-blend-multiply"></div>
+<div class="pointer-events-none absolute bottom-4 right-1/4 w-[500px] h-[500px] bg-blue-300/30 rounded-full blur-3xl mix-blend-multiply"></div>
+<div class="pointer-events-none absolute top-1/2 left-2/3 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-cyan-200/40 rounded-full blur-2xl"></div>
+<!-- BEGIN: TopBar (Main Navigation Chrome) -->
+<header class="w-full px-6 pt-3 pb-1 flex justify-between items-center z-20 shrink-0">
+<!-- Brand Logo Capsule -->
+<div class="liquid-glass-pill shadow-glass-inner shadow-sm px-4 py-1.5 rounded-full flex items-center gap-2.5 transition hover:shadow-md cursor-pointer" data-purpose="brand-logo">
+<div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-sky-600 to-blue-500 flex items-center justify-center text-white shadow-sm">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 24 24">
+<polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon>
+<line x1="12" x2="12" y1="22" y2="15.5"></line>
+<polyline points="22 8.5 12 15.5 2 8.5"></polyline>
+</svg>
+</div>
+<span class="font-extrabold tracking-tight text-slate-800 text-sm sm:text-base uppercase flex items-center">
+        FLIGHT<span class="text-sky-600">SAVER</span>
+</span>
+<span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 ml-1 border border-sky-200/60">AI Smart</span>
+</div>
+<!-- Center Live System Status Indicator -->
+<div class="hidden md:flex items-center gap-2 subtle-glass px-3.5 py-1 rounded-full text-xs text-slate-600">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-medium text-slate-700">ИИ Консьерж готов</span>
+<span class="text-slate-300">•</span>
+<span class="text-[11px] text-sky-700 font-semibold">Голос + Текст</span>
+</div>
+<!-- Right Controls: Profile and Apps Grid -->
+<div class="flex items-center gap-2.5" data-purpose="user-navigation">
+<!-- Profile Capsule -->
+<div class="liquid-glass-pill shadow-glass-inner shadow-sm px-3.5 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-white/80 transition text-xs font-semibold text-slate-700">
+<div class="w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+          Г
+        </div>
+<span>Георгий</span>
+<svg class="w-3.5 h-3.5 text-slate-500 ml-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<!-- Services Grid Button -->
+<button aria-label="Все сервисы" class="liquid-glass-pill shadow-glass-inner shadow-sm w-9 h-9 rounded-full flex items-center justify-center text-sky-700 hover:text-sky-800 hover:bg-white/80 transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="7" rx="2" stroke-width="2" width="7" x="3" y="3"></rect>
+<rect height="7" rx="2" stroke-width="2" width="7" x="14" y="3"></rect>
+<rect height="7" rx="2" stroke-width="2" width="7" x="3" y="14"></rect>
+<rect height="7" rx="2" stroke-width="2" width="7" x="14" y="14"></rect>
+</svg>
+</button>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- BEGIN: PrimaryTopVoiceSearchBar (ГЛАВНАЯ ИНТЕРАКТИВНАЯ ПОИСКОВАЯ СТРОКА ВСЕГДА СВЕРХУ) -->
+<section class="w-full max-w-5xl mx-auto px-5 z-20 shrink-0 mb-2 mt-1" data-purpose="primary-voice-search-bar">
+<!-- Voice Helper / Hint label above the bar -->
+<div class="flex items-center justify-between px-4 pb-1 text-[11px]">
+<div class="flex items-center gap-1.5 text-slate-500 font-medium">
+<span class="text-sky-600 font-bold flex items-center gap-1">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+          Говорите или пишите:
+        </span>
+<span class="text-slate-700 font-semibold bg-white/60 px-2 py-0.5 rounded-md border border-white/80">
+          «Иркутск — Дюссельдорф 16 ноября, самый дешевый с багажом»
+        </span>
+</div>
+<div class="hidden sm:flex items-center gap-2 text-sky-700 font-semibold">
+<span class="w-2 h-2 rounded-full bg-sky-500 animate-ping"></span>
+<span>Голосовой поиск активен</span>
+</div>
+</div>
+<!-- The Liquid Glass Master Search Capsule -->
+<div class="liquid-glass-card shadow-liquid-active rounded-3xl sm:rounded-full p-2 pl-3 pr-2 flex flex-col sm:flex-row items-center gap-2.5 transition-all border border-white/95">
+<!-- Prominent Glowing Voice / Mic Section -->
+<div class="flex items-center gap-2.5 pl-1 shrink-0">
+<!-- Interactive Big Microphone Button with Glowing Radar Effect -->
+<button class="relative group flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white shadow-voice-ring hover:scale-105 transition-all duration-200 cursor-pointer" title="Нажмите для голосового поиска">
+<div class="relative flex items-center justify-center">
+<!-- Pulsing mic icon -->
+<svg class="w-5 h-5 text-white animate-pulse" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.3" viewbox="0 0 24 24">
+<path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"></path>
+<path d="M19 10v2a7 7 0 01-14 0v-2"></path>
+<line x1="12" x2="12" y1="19" y2="23"></line>
+<line x1="8" x2="16" y1="23" y2="23"></line>
+</svg>
+</div>
+<!-- Voice Visualizer Waves -->
+<div class="flex items-center gap-0.5 h-4 px-0.5">
+<span class="wave-bar w-1 bg-white rounded-full"></span>
+<span class="wave-bar w-1 bg-white/90 rounded-full"></span>
+<span class="wave-bar w-1 bg-white rounded-full"></span>
+<span class="wave-bar w-1 bg-white/80 rounded-full"></span>
+</div>
+<span class="text-xs font-bold tracking-tight pr-1 hidden lg:inline">Слушаю вас...</span>
+</button>
+</div>
+<!-- Text Query Input Area -->
+<div class="flex-1 w-full flex items-center min-w-0 px-2 font-body">
+<input class="w-full bg-transparent border-0 p-0 text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:ring-0 cursor-text font-sans truncate" placeholder="Куда и когда вы хотите полететь? Скажите или введите запрос..." type="text" value="Иркутск — Дюссельдорф 16 ноября, 1 пассажир, с багажом"/>
+</div>
+<!-- Quick Context Tags inside Main Bar -->
+<div class="hidden xl:flex items-center gap-1.5 text-xs text-slate-600 border-l border-slate-300/60 pl-3 shrink-0">
+<span class="px-2.5 py-1 rounded-full bg-white/80 text-[11px] font-bold text-slate-700 shadow-xs border border-white">16.11.2026</span>
+<span class="px-2.5 py-1 rounded-full bg-white/80 text-[11px] font-bold text-slate-700 shadow-xs border border-white">1 пассажир</span>
+<span class="px-2.5 py-1 rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-700 shadow-xs border border-emerald-200/60">Багаж 23кг</span>
+</div>
+<!-- Submit / Update Flight Button -->
+<button class="w-10 h-10 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white flex items-center justify-center shadow-btn-shine transition-all hover:scale-105 shrink-0" title="Найти перелёты">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</section>
+<!-- END: PrimaryTopVoiceSearchBar -->
+<!-- BEGIN: MainContentWorkspace (ДВЕ КОЛОНКИ: СЛЕВА ЧАТ ИИ, СПРАВА КАРТОЧКИ РЕЙСОВ — В ПРЕДЕЛАХ ЭКРАНА) -->
+<main class="w-full max-w-7xl mx-auto px-5 flex-1 grid grid-cols-12 gap-5 min-h-0 z-10 py-1" data-purpose="dashboard-workspace">
+<!-- LEFT COLUMN: Frosted Glass AI Concierge Chat Context (5 cols) -->
+<section class="col-span-12 lg:col-span-5 flex flex-col h-full min-h-0 liquid-glass-card rounded-3xl p-4 shadow-glass-elevated relative overflow-hidden" data-purpose="ai-concierge-panel">
+<!-- Concierge Header Card -->
+<div class="flex items-center justify-between pb-2.5 border-b border-white/70 shrink-0">
+<div class="flex items-center gap-2.5">
+<div class="relative">
+<div class="w-8 h-8 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-white shadow-md">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+</svg>
+</div>
+<span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white"></span>
+</div>
+<div>
+<h2 class="text-xs font-bold text-slate-800 leading-tight">ИИ Консьерж FlightSaver</h2>
+<p class="text-[11px] text-sky-700 font-semibold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              На связи • Слушает микрофон
+            </p>
+</div>
+</div>
+<!-- Reset Query Button -->
+<button class="subtle-glass text-[11px] text-slate-600 hover:text-slate-900 font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 transition hover:bg-white/80">
+<svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+          Очистить диалог
+        </button>
+</div>
+<!-- Active Flight Param Badges -->
+<div class="flex items-center gap-1.5 py-2 overflow-x-auto shrink-0 no-scrollbar text-[11px]">
+<div class="subtle-glass text-sky-800 font-semibold px-2.5 py-0.5 rounded-xl flex items-center gap-1 shadow-xs">
+<span>✈</span> IKT → DUS
+        </div>
+<div class="subtle-glass text-slate-700 font-medium px-2.5 py-0.5 rounded-xl flex items-center gap-1 shadow-xs">
+<span>📅</span> 16 ноя 2026
+        </div>
+<div class="subtle-glass text-slate-700 font-medium px-2.5 py-0.5 rounded-xl flex items-center gap-1 shadow-xs">
+<span>🧳</span> С багажом 23кг
+        </div>
+</div>
+<!-- Chat History Container (Scrollable within column) -->
+<div class="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1 my-1 text-xs font-body" data-purpose="chat-messages">
+<!-- User Voice Query Bubble -->
+<div class="flex justify-end">
+<div class="max-w-[88%] bg-gradient-to-tr from-sky-600 to-blue-600 text-white rounded-2xl rounded-br-none px-3.5 py-2 shadow-md shadow-sky-500/20">
+<div class="flex items-center justify-between text-[10px] text-sky-100 mb-0.5">
+<span class="font-bold flex items-center gap-1">
+<svg class="w-3 h-3 text-sky-200" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+                Вы (голосовой запрос)
+              </span>
+<span>09:46</span>
+</div>
+<p class="font-medium leading-relaxed font-sans">
+              Иркутск — Дюссельдорф 16 ноября, самый дешевый с багажом
+            </p>
+</div>
+</div>
+<!-- AI Concierge Response Bubble -->
+<div class="flex justify-start items-start gap-2">
+<div class="w-6 h-6 rounded-full bg-white/95 shadow-sm border border-sky-200 flex-shrink-0 flex items-center justify-center text-sky-600 mt-0.5 text-[10px] font-black">
+            AI
+          </div>
+<div class="max-w-[92%] subtle-glass bg-white/75 rounded-2xl rounded-tl-none p-3 shadow-sm border border-white/95">
+<div class="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+<span class="font-bold text-sky-700">ИИ Консьерж FlightSaver</span>
+<span>09:47</span>
+</div>
+<p class="text-slate-700 leading-snug mb-2 font-normal">
+              Нашёл 3 оптимальных маршрута! В рекомендованный тариф включен полноценный багаж 23 кг, а также обнаружена <strong class="text-sky-900 font-semibold">бесплатная транзитная стыковка в Стамбуле</strong> с возможностью оформления отеля STPC от Turkish Airlines.
+            </p>
+<!-- AI Highlight Box -->
+<div class="bg-sky-50/90 border border-sky-200 rounded-xl p-2 text-[11px] text-sky-950 flex items-start gap-2">
+<span class="text-sm shrink-0">💡</span>
+<span>Экономия <strong>34 200 ₽</strong> по сравнению с раздельными бронированиями через агрегаторы. Багаж и отель подтверждены в едином билете.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Suggestion Filter Chips (AI Filters) -->
+<div class="pt-2 shrink-0 border-t border-white/70">
+<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+<span>Быстрые фильтры ИИ</span>
+<span class="text-sky-600 font-semibold lowercase text-[10px]">в 1 клик</span>
+</p>
+<div class="flex flex-wrap gap-1.5">
+<button class="subtle-glass text-[11px] font-semibold text-slate-700 hover:text-sky-700 hover:bg-white/90 px-2.5 py-1 rounded-full transition shadow-xs">
+            ⚡ Только 1 пересадка
+          </button>
+<button class="subtle-glass text-[11px] font-semibold text-sky-800 bg-sky-50/70 border-sky-200/80 hover:bg-sky-100/80 px-2.5 py-1 rounded-full transition shadow-xs">
+            🏨 С отелем STPC
+          </button>
+<button class="subtle-glass text-[11px] font-semibold text-slate-700 hover:text-sky-700 hover:bg-white/90 px-2.5 py-1 rounded-full transition shadow-xs">
+            🛡️ Добавить страховку
+          </button>
+</div>
+<!-- Chat Status Notice (No extra input needed, voice & typing are in the main top bar) -->
+<div class="mt-2.5 subtle-glass bg-white/50 rounded-xl p-2 flex items-center justify-between text-[11px] text-slate-600 border border-white/80">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-sky-500 animate-ping"></span>
+<span class="text-slate-700 font-medium">Голосовой ввод и команды активны в верхней строке</span>
+</div>
+<button class="text-sky-700 font-bold hover:underline">Подробнее</button>
+</div>
+</div>
+</section>
+<!-- RIGHT COLUMN: Search Results (Flight Cards) (7 cols) -->
+<section class="col-span-12 lg:col-span-7 flex flex-col h-full min-h-0 space-y-3 overflow-y-auto pr-1" data-purpose="flight-results-panel">
+<!-- Card 1: Recommended Hit (Best Offer - Turkish Airlines + Lufthansa) -->
+<article class="liquid-glass-card rounded-3xl p-4 shadow-glass-elevated border-2 border-white/95 relative overflow-hidden transition hover:shadow-liquid-glow" data-purpose="flight-card-hit">
+<!-- Top Banner: Badge & Highlights -->
+<div class="flex items-center justify-between mb-2.5">
+<div class="flex items-center gap-2">
+<span class="bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+<span>★</span> Рекомендованный хит
+            </span>
+<span class="subtle-glass text-emerald-700 bg-emerald-50/80 border border-emerald-200 font-bold text-[11px] px-2.5 py-0.5 rounded-full">
+              Выгода 34 200 ₽
+            </span>
+</div>
+<div class="text-[11px] text-slate-500 font-medium">
+            Тариф: <span class="text-slate-800 font-bold">Оптовый NDC GDS</span>
+</div>
+</div>
+<!-- Airline & Route Timeline Grid -->
+<div class="grid grid-cols-12 gap-3 items-center bg-white/45 p-3 rounded-2xl border border-white/70">
+<!-- Origin -->
+<div class="col-span-3 text-left">
+<div class="text-xl font-black text-slate-800 leading-none">05:40</div>
+<div class="text-[11px] font-bold text-sky-700">IKT • Иркутск</div>
+<div class="text-[10px] text-slate-400">16 ноя, Пн</div>
+</div>
+<!-- Flight Path Visualization -->
+<div class="col-span-6 flex flex-col items-center px-1">
+<span class="text-[10px] font-semibold text-slate-500 mb-1">11 ч 20 мин в пути</span>
+<div class="w-full flex items-center relative">
+<div class="w-2 h-2 rounded-full bg-sky-500 ring-2 ring-white"></div>
+<div class="flex-1 h-[2px] bg-gradient-to-r from-sky-400 via-sky-300 to-sky-500 mx-1 relative">
+<div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-sky-600 flex items-center justify-center">
+<div class="w-1 h-1 rounded-full bg-sky-600"></div>
+</div>
+</div>
+<div class="w-2 h-2 rounded-full bg-sky-500 ring-2 ring-white"></div>
+</div>
+<!-- Stopover detail -->
+<div class="mt-1 flex items-center gap-1 text-[10px] text-slate-600 font-medium">
+<span class="text-sky-600 font-bold">Turkish Airlines + Lufthansa</span>
+<span class="text-slate-300">•</span>
+<span class="text-emerald-700 bg-emerald-50 px-1.5 rounded font-semibold">1 пересадка (IST 2ч 15м)</span>
+</div>
+</div>
+<!-- Destination -->
+<div class="col-span-3 text-right">
+<div class="text-xl font-black text-slate-800 leading-none">14:00</div>
+<div class="text-[11px] font-bold text-sky-700">DUS • Дюссельдорф</div>
+<div class="text-[10px] text-slate-400">16 ноя, Пн</div>
+</div>
+</div>
+<!-- Amenities & Price Bar -->
+<div class="mt-3 flex flex-wrap items-center justify-between gap-3 pt-1">
+<!-- Perks List -->
+<div class="flex flex-wrap gap-2 text-[11px] text-slate-700">
+<div class="subtle-glass px-2.5 py-1 rounded-lg flex items-center gap-1 font-medium">
+<span class="text-emerald-600 font-bold">✓</span> Багаж 23 кг включен
+            </div>
+<div class="subtle-glass px-2.5 py-1 rounded-lg flex items-center gap-1 text-sky-800 bg-sky-50/80 border-sky-200 font-semibold">
+<span>🏨</span> Отель STPC бесплатно
+            </div>
+<div class="subtle-glass px-2.5 py-1 rounded-lg flex items-center gap-1 font-medium">
+<span>🍽️</span> Питание на борту
+            </div>
+</div>
+<!-- Price & CTA -->
+<div class="flex items-center gap-3 ml-auto">
+<div class="text-right">
+<span class="text-[10px] text-slate-400 line-through">92 600 ₽</span>
+<div class="text-xl font-black text-slate-900 tracking-tight leading-none">58 400 ₽</div>
+</div>
+<button class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white font-bold text-xs shadow-btn-shine hover:brightness-105 transition hover:scale-[1.02] flex items-center gap-1.5">
+<span>Выбрать билет</span>
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 5l7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+</svg>
+</button>
+</div>
+</div>
+</article>
+<!-- Card 2: Fastest Flight Offer (S7 Airlines + Emirates) -->
+<article class="liquid-glass-card rounded-3xl p-4 shadow-glass-elevated border border-white/85 relative overflow-hidden transition hover:shadow-md" data-purpose="flight-card-fast">
+<!-- Top Banner -->
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+              ⚡ Самый быстрый
+            </span>
+<span class="subtle-glass text-slate-700 font-semibold text-[11px] px-2.5 py-0.5 rounded-full">
+              S7 Airlines + Emirates
+            </span>
+</div>
+<div class="text-[11px] text-slate-500 font-medium">
+            Осталось <strong class="text-slate-700">4 билета</strong>
+</div>
+</div>
+<!-- Airline & Route Timeline Grid -->
+<div class="grid grid-cols-12 gap-3 items-center bg-white/35 p-2.5 rounded-2xl border border-white/60">
+<!-- Origin -->
+<div class="col-span-3 text-left">
+<div class="text-lg font-bold text-slate-800 leading-none">08:15</div>
+<div class="text-[11px] font-semibold text-slate-700">IKT • Иркутск</div>
+<div class="text-[10px] text-slate-400">16 ноя</div>
+</div>
+<!-- Flight Path Visualization -->
+<div class="col-span-6 flex flex-col items-center px-1">
+<span class="text-[10px] font-semibold text-sky-700 mb-1">9 ч 45 мин в пути</span>
+<div class="w-full flex items-center relative">
+<div class="w-2 h-2 rounded-full bg-slate-400"></div>
+<div class="flex-1 h-[2px] bg-slate-300 mx-1 relative">
+<div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-sky-500"></div>
+</div>
+<div class="w-2 h-2 rounded-full bg-slate-400"></div>
+</div>
+<div class="mt-1 text-[10px] text-slate-500 font-medium">
+              1 пересадка (DXB 1ч 30м) • Без ночевки
+            </div>
+</div>
+<!-- Destination -->
+<div class="col-span-3 text-right">
+<div class="text-lg font-bold text-slate-800 leading-none">15:00</div>
+<div class="text-[11px] font-semibold text-slate-700">DUS • Дюссельдорф</div>
+<div class="text-[10px] text-slate-400">16 ноя</div>
+</div>
+</div>
+<!-- Amenities & Price Bar -->
+<div class="mt-2.5 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-2 text-[11px] text-slate-600 font-medium">
+<span class="subtle-glass px-2 py-0.5 rounded-lg">🧳 Багаж 20 кг</span>
+<span class="subtle-glass px-2 py-0.5 rounded-lg">⚡ Экспресс-стыковка</span>
+</div>
+<!-- Price & CTA -->
+<div class="flex items-center gap-3 ml-auto">
+<div class="text-right">
+<div class="text-lg font-bold text-slate-900 tracking-tight leading-none">49 100 ₽</div>
+</div>
+<button class="px-4 py-2 rounded-xl bg-white/85 hover:bg-white text-sky-700 hover:text-sky-800 font-bold text-xs border border-sky-200/80 shadow-sm transition hover:shadow">
+              Выбрать
+            </button>
+</div>
+</div>
+</article>
+<!-- Bottom Mini Trust Note -->
+<div class="subtle-glass rounded-2xl p-2.5 flex items-center justify-between text-[11px] text-slate-600 px-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span>Гарантия лучшей цены NDC: мы мониторим снижение стоимости до самой регистрации.</span>
+</div>
+<span class="text-sky-600 font-semibold cursor-pointer hover:underline">Подробнее</span>
+</div>
+</section>
+</main>
+<!-- END: MainContentWorkspace -->
+<!-- BEGIN: BottomStatusBar -->
+<footer class="w-full px-6 py-2 z-20 shrink-0" data-purpose="status-footer">
+<div class="max-w-7xl mx-auto liquid-glass-pill shadow-sm px-6 py-1 rounded-full flex flex-wrap items-center justify-between text-xs text-slate-600">
+<!-- Left: Support & System Status -->
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5 font-bold text-sky-700">
+<svg class="w-3.5 h-3.5 text-sky-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="uppercase tracking-wide text-[11px]">Поддержка 24/7</span>
+</div>
+<span class="text-slate-300">|</span>
+<div class="text-[11px] font-medium text-slate-500">
+          Прямое подключение: <strong class="text-slate-700 font-semibold">Оптовые тарифы NDC / GDS Sabre / Amadeus</strong>
+</div>
+</div>
+<!-- Right: Copyright & Engine -->
+<div class="text-[11px] text-slate-400">
+        © 2026 FlightSaver AI Travel. Безупречный жидкий поиск авиабилетов.
+      </div>
+</div>
+</footer>
+<!-- END: BottomStatusBar -->
+</body></html>

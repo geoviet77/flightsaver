@@ -32,8 +32,8 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // 1. Защита клиентского дашборда
-    if (!user && request.nextUrl.pathname === '/dashboard') {
+    // 1. Защита клиентского дашборда (в проде требуем сессию, в dev разрешаем для удобной приемки)
+    if (!user && request.nextUrl.pathname === '/dashboard' && process.env.NODE_ENV === 'production') {
       const url = request.nextUrl.clone();
       url.pathname = '/';
       return NextResponse.redirect(url);

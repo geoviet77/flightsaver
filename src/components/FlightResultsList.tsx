@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Flight, ParsedSearchParams, ChatMessage, Currency, Language, QuickReplyOption, FlightSortOption, FlightStopsFilter, FlightTimeFilter } from '../lib/types';
 import { FlightCard } from './FlightCard';
 import { TRANSLATIONS } from '../lib/i18n';
-import { Sparkles, Bot, User, Loader2, Plane, Calendar, Users, Luggage, Hotel, HelpCircle, MessageSquare, RotateCcw, SlidersHorizontal, ArrowUpDown, ChevronDown, Check, Zap, Clock, ShieldCheck, Sun, Moon, Sunrise } from 'lucide-react';
+import { Sparkles, Bot, User, Loader2, Plane, Calendar, Users, Luggage, Hotel, HelpCircle, RotateCcw, SlidersHorizontal, ChevronDown } from 'lucide-react';
 
 interface FlightResultsListProps {
   conversationHistory: ChatMessage[];
@@ -116,7 +116,7 @@ export function FlightResultsList({
           <button
             type="button"
             onClick={onResetSearch}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80 text-xs font-semibold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl subtle-glass hover:bg-white text-slate-600 hover:text-slate-900 border border-white/80 text-xs font-semibold shadow-xs transition-all cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>{t.newSearchBtn}</span>
@@ -124,22 +124,22 @@ export function FlightResultsList({
         )}
       </div>
 
-      {/* 2. Scrollable Chat Stream Container (max-h-[380px]) */}
+      {/* 2. Scrollable Chat Stream Container (Stitch Liquid Glass Card) */}
       <div 
         ref={chatContainerRef}
-        className="max-h-[380px] overflow-y-auto custom-scrollbar rounded-3xl p-3 sm:p-4 liquid-glass border border-white/90 shadow-sm space-y-3.5"
+        className="max-h-[380px] overflow-y-auto custom-scrollbar rounded-3xl p-3 sm:p-4 liquid-glass-card border border-white/90 shadow-glass-elevated space-y-3.5"
       >
         {conversationHistory.map((msg, index) => {
           if (msg.role === 'user') {
             return (
               <div key={msg.id || `msg-${index}`} className="flex items-start justify-end gap-2.5 animate-fadeIn">
-                <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 sm:p-3.5 shadow-md shadow-blue-500/20">
+                <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-none bg-gradient-to-r from-sky-600 to-blue-600 text-white p-3 sm:p-3.5 shadow-md shadow-sky-500/20">
                   <div className="flex items-center justify-between gap-3 mb-1">
-                    <span className="text-[11px] font-medium text-blue-100 flex items-center gap-1">
+                    <span className="text-[11px] font-medium text-sky-100 flex items-center gap-1">
                       <User className="w-3 h-3" />
                       Вы
                     </span>
-                    <span className="text-[10px] text-blue-200">{msg.timestamp}</span>
+                    <span className="text-[10px] text-sky-200">{msg.timestamp}</span>
                   </div>
                   <p className="text-xs sm:text-sm font-semibold leading-relaxed">
                     {msg.text}
@@ -154,12 +154,12 @@ export function FlightResultsList({
 
           return (
             <div key={msg.id || `msg-${index}`} className="flex items-start gap-2.5 animate-fadeIn">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25 mt-0.5">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-gradient-to-tr from-sky-600 to-blue-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/25 mt-0.5">
                 <Bot className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </div>
-              <div className="flex-1 max-w-[90%] sm:max-w-[85%] bg-white/95 rounded-2xl rounded-tl-xs p-3.5 sm:p-4 border border-slate-100/80 shadow-xs space-y-2.5">
+              <div className="flex-1 max-w-[90%] sm:max-w-[85%] subtle-glass bg-white/75 rounded-2xl rounded-tl-none p-3.5 sm:p-4 border border-white/90 shadow-xs space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-bold text-blue-600 flex items-center gap-1">
+                  <span className="text-xs font-bold text-sky-700 flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     ИИ Консьерж FlightSaver
                   </span>
@@ -172,16 +172,16 @@ export function FlightResultsList({
 
                 {/* Route metadata pills */}
                 {params && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100">
-                    <div className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100/90 py-1 px-2.5 rounded-lg">
-                      <Plane className="w-3 h-3 text-blue-600" />
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-white/70">
+                    <div className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 subtle-glass py-1 px-2.5 rounded-lg border border-white">
+                      <Plane className="w-3 h-3 text-sky-600" />
                       <span>
                         {params.originCity} [{params.originIata}] ➔ {params.destinationCity} [{params.destinationIata}]
                       </span>
                     </div>
 
                     {(params.departureDate || params.departureMonth) && (
-                      <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100/90 py-1 px-2 rounded-lg">
+                      <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 subtle-glass py-1 px-2 rounded-lg border border-white">
                         <Calendar className="w-3 h-3 text-slate-500" />
                         <span>
                           {params.departureDate}
@@ -192,21 +192,21 @@ export function FlightResultsList({
                     )}
 
                     {params.passengersCount && (
-                      <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100/90 py-1 px-2 rounded-lg">
+                      <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 subtle-glass py-1 px-2 rounded-lg border border-white">
                         <Users className="w-3 h-3 text-slate-500" />
                         <span>{params.passengersCount} {params.passengersCount === 1 ? 'пасс.' : 'пассажира'}</span>
                       </div>
                     )}
 
                     {(params.baggageIncluded || params.hasLuggage) && (
-                      <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 py-1 px-2 rounded-lg border border-emerald-200/60">
+                      <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/80 py-1 px-2 rounded-lg border border-emerald-200/60">
                         <Luggage className="w-3 h-3 text-emerald-600" />
                         <span>Багаж включен</span>
                       </div>
                     )}
 
                     {(params.stpcHotelOnly || params.wantsStpcHotel) && (
-                      <div className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 py-1 px-2 rounded-lg border border-sky-200/60">
+                      <div className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50/80 py-1 px-2 rounded-lg border border-sky-200/60">
                         <Hotel className="w-3 h-3 text-sky-600" />
                         <span>Отель STPC 4★</span>
                       </div>
@@ -220,9 +220,9 @@ export function FlightResultsList({
                   (params?.missingFields && params.missingFields.length > 0) ||
                   (!params?.missingFields && Boolean(params?.needsClarification))
                 ) && (
-                  <div className="mt-2.5 bg-gradient-to-br from-blue-50/90 via-sky-50/60 to-indigo-50/80 border border-blue-200/80 rounded-2xl p-3.5 space-y-3 shadow-xs">
+                  <div className="mt-2.5 bg-gradient-to-br from-sky-50/90 via-sky-50/60 to-blue-50/80 border border-sky-200/80 rounded-2xl p-3.5 space-y-3 shadow-xs">
                     <div className="flex items-start gap-2">
-                      <HelpCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <HelpCircle className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
                       <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                         {params?.clarificationMessage || 'Уточните детали перелёта:'}
                       </p>
@@ -244,7 +244,7 @@ export function FlightResultsList({
                                     queryText: opt,
                                     category: qItem.field as any
                                   })}
-                                  className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-blue-200/80 bg-white text-blue-900 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                                  className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-sky-200/80 bg-white text-sky-900 hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <span>{opt}</span>
                                 </button>
@@ -264,7 +264,7 @@ export function FlightResultsList({
                                   { id: 'ret-14d', label: '🔄 Обратно через 14 дней', queryText: 'обратно через 14 дней', category: 'tripType' },
                                   { id: 'custom-dates', label: '✏️ Свой вариант', queryText: 'свой вариант дат', category: 'tripType', isCustomInputPrompt: true, promptText: 'Укажите дату возврата (например: 25 октября)' }
                                 ]).map(q => (
-                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-blue-200/80 bg-white text-blue-900 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-sky-200/80 bg-white text-sky-900 hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                     <span>{q.label}</span>
                                   </button>
                                 ))}
@@ -282,7 +282,7 @@ export function FlightResultsList({
                                   { id: 'pass-fam', label: '👨‍👩‍👧 Семья (2+1)', queryText: '2 взрослых и 1 ребенок', category: 'passengers' },
                                   { id: 'custom-pass', label: '✏️ Свой вариант', queryText: 'свой вариант пассажиров', category: 'passengers', isCustomInputPrompt: true, promptText: 'Укажите число пассажиров (например: 3 пассажира)' }
                                 ]).map(q => (
-                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                     <span>{q.label}</span>
                                   </button>
                                 ))}
@@ -300,7 +300,7 @@ export function FlightResultsList({
                                   { id: 'cab-biz', label: '💎 Бизнес', queryText: 'бизнес-класс', category: 'cabinClass' },
                                   { id: 'cab-first', label: '👑 Первый класс', queryText: 'первый класс', category: 'cabinClass' }
                                 ]).map(q => (
-                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-800 hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                     <span>{q.label}</span>
                                   </button>
                                 ))}
@@ -317,7 +317,7 @@ export function FlightResultsList({
                                   { id: 'lug-23kg', label: '🧳 С багажом 23 кг', queryText: 'с багажом 23 кг', category: 'luggage' },
                                   { id: 'lug-2bags', label: '🧳🧳 2 места багажа', queryText: '2 места багажа', category: 'luggage' }
                                 ]).map(q => (
-                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                                  <button key={q.id} type="button" onClick={() => handleReplyClick(q as any)} className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-800 hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
                                     <span>{q.label}</span>
                                   </button>
                                 ))}
@@ -337,11 +337,11 @@ export function FlightResultsList({
         {/* Dynamic Loading State Bubble in Chat */}
         {isLoading && (
           <div className="flex items-start gap-2.5 animate-fadeIn">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25 mt-0.5">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-sky-600 to-blue-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/25 mt-0.5">
               <Bot className="w-4.5 h-4.5" />
             </div>
-            <div className="flex-1 max-w-[85%] bg-white/95 rounded-2xl rounded-tl-xs p-3.5 border border-slate-100 shadow-xs flex items-center gap-3">
-              <Loader2 className="w-4.5 h-4.5 text-blue-600 animate-spin shrink-0" />
+            <div className="flex-1 max-w-[85%] subtle-glass bg-white/80 rounded-2xl rounded-tl-none p-3.5 border border-white/90 shadow-xs flex items-center gap-3">
+              <Loader2 className="w-4.5 h-4.5 text-sky-600 animate-spin shrink-0" />
               <div>
                 <p className="text-xs sm:text-sm font-bold text-slate-900">
                   ИИ Консьерж подбирает стыковки и проверяет отели STPC...
@@ -355,19 +355,19 @@ export function FlightResultsList({
         )}
       </div>
 
-      {/* 3. Filter & Sort Control Bar */}
+      {/* 3. Filter & Sort Control Bar (Stitch Liquid Glass Card) */}
       {!isLoading && flights.length > 0 && (
-        <div className="liquid-glass rounded-3xl p-4 border border-white/90 shadow-sm space-y-3.5 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+        <div className="liquid-glass-card rounded-3xl p-4 border border-white/90 shadow-glass-elevated space-y-3.5 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-white/80">
             <div className="flex items-center gap-2">
-              <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+              <SlidersHorizontal className="w-4 h-4 text-sky-600" />
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Фильтры и сортировка
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span>Найдено вариантов:</span>
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 font-extrabold rounded-full text-[11px]">
+              <span className="px-2 py-0.5 bg-sky-100 text-sky-700 font-extrabold rounded-full text-[11px]">
                 {filteredAndSortedFlights.length}
               </span>
             </div>
@@ -390,10 +390,10 @@ export function FlightResultsList({
                     key={s.id}
                     type="button"
                     onClick={() => setSortBy(s.id as FlightSortOption)}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all shadow-2xs cursor-pointer ${
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
                       sortBy === s.id
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-blue-500/25 font-bold'
-                        : 'bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50'
+                        ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-btn-shine font-bold'
+                        : 'subtle-glass bg-white/60 text-slate-700 border-white/80 hover:bg-white'
                     }`}
                   >
                     {s.label}
@@ -423,7 +423,7 @@ export function FlightResultsList({
                       className={`text-xs font-semibold px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
                         stopsFilter === st.id
                           ? 'bg-slate-900 text-white border-slate-900 font-bold shadow-xs'
-                          : 'bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50'
+                          : 'subtle-glass bg-white/60 text-slate-600 border-white/80 hover:bg-white'
                       }`}
                     >
                       {st.label}
@@ -451,7 +451,7 @@ export function FlightResultsList({
                       className={`text-xs font-semibold px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
                         timeFilter === tm.id
                           ? 'bg-slate-900 text-white border-slate-900 font-bold shadow-xs'
-                          : 'bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50'
+                          : 'subtle-glass bg-white/60 text-slate-600 border-white/80 hover:bg-white'
                       }`}
                     >
                       {tm.label}
@@ -469,7 +469,7 @@ export function FlightResultsList({
         <div className="flex items-center justify-between px-1 pt-1">
           <h3 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2">
             <span>Рекомендованные маршруты</span>
-            <span className="px-2 py-0.5 bg-blue-100/80 text-blue-700 text-[11px] font-extrabold rounded-full">
+            <span className="px-2 py-0.5 bg-sky-100 text-sky-700 text-[11px] font-extrabold rounded-full">
               Показано {visibleFlights.length} из {filteredAndSortedFlights.length}
             </span>
           </h3>
@@ -498,7 +498,7 @@ export function FlightResultsList({
 
       {/* Empty State when filters match 0 items */}
       {!isLoading && flights.length > 0 && filteredAndSortedFlights.length === 0 && (
-        <div className="liquid-glass rounded-3xl p-8 text-center space-y-3 border border-white/90 shadow-sm">
+        <div className="liquid-glass-card rounded-3xl p-8 text-center space-y-3 border border-white/90 shadow-glass-elevated">
           <p className="text-sm font-bold text-slate-700">
             По выбранным фильтрам рейсов не найдено
           </p>
@@ -511,7 +511,7 @@ export function FlightResultsList({
               setStopsFilter('all');
               setTimeFilter('all');
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all cursor-pointer shadow-sm shadow-blue-500/20"
+            className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl text-xs font-bold hover:from-sky-600 hover:to-blue-700 transition-all cursor-pointer shadow-btn-shine"
           >
             Сбросить фильтры
           </button>
@@ -528,7 +528,7 @@ export function FlightResultsList({
               e.stopPropagation();
               setVisibleCount((prev) => prev + 10);
             }}
-            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-sm shadow-btn-shine transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
           >
             <span>Показать еще 10 билетов</span>
             <ChevronDown className="w-4 h-4" />
@@ -542,8 +542,8 @@ export function FlightResultsList({
       {/* Skeletons while loading first search */}
       {isLoading && flights.length === 0 && (
         <div className="space-y-3 pt-2">
-          <div className="h-40 rounded-3xl bg-white/60 animate-pulse border border-white/80" />
-          <div className="h-40 rounded-3xl bg-white/40 animate-pulse border border-white/80" />
+          <div className="h-40 rounded-3xl subtle-glass animate-pulse border border-white/80" />
+          <div className="h-40 rounded-3xl subtle-glass animate-pulse border border-white/80" />
         </div>
       )}
     </div>

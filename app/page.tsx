@@ -13,7 +13,7 @@ import { generateMockFlights } from '@/lib/mockFlights';
 import { Flight, ParsedSearchParams, Currency, Language, BookingOrder, AccumulatedSearchParams, ChatMessage } from '@/lib/types';
 import { TRANSLATIONS, formatPrice, useI18n } from '@/lib/i18n';
 import { addStoredSearch, addStoredOrder } from '@/lib/mockStorage';
-import { CheckCircle2, Headphones, Lightbulb, User, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Headphones, Lightbulb } from 'lucide-react';
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -226,7 +226,6 @@ function HomeContent() {
   };
 
   const handleBookingComplete = (order: BookingOrder) => {
-    // Auto-save booked order to Mock Storage / Supabase
     addStoredOrder({
       id: `ord-${Date.now()}`,
       pnr: order.pnr,
@@ -250,12 +249,14 @@ function HomeContent() {
   };
 
   return (
-    <div
-      className="min-h-screen py-3 sm:py-4 px-2 sm:px-6 relative overflow-hidden flex flex-col justify-between"
-    >
-      {/* Soft Ambient Radial Lights */}
-      <div className="ambient-glow-tl" />
-      <div className="ambient-glow-br" />
+    <div className="min-h-screen py-3 sm:py-4 px-2 sm:px-6 relative overflow-hidden flex flex-col justify-between select-none">
+      {/* Ambient Glowing Volumetric Gradient Orbs behind glass (Stitch Spec) */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-b from-sky-300/40 via-sky-200/30 to-transparent rounded-full blur-[80px]" />
+        <div className="absolute top-1/4 -left-20 w-[420px] h-[420px] bg-cyan-200/35 rounded-full blur-[100px]" />
+        <div className="absolute top-1/3 -right-24 w-[480px] h-[480px] bg-indigo-200/30 rounded-full blur-[110px]" />
+        <div className="absolute bottom-10 left-1/3 w-[550px] h-[300px] bg-sky-200/25 rounded-full blur-[90px]" />
+      </div>
 
       {/* Subtle Ambient Watermark */}
       <div className="bg-watermark">
@@ -286,7 +287,7 @@ function HomeContent() {
           
           {/* Confirmed Booking Banner */}
           {bookingSuccessMessage && (
-            <div className="w-full max-w-3xl mb-4 p-3.5 rounded-2xl bg-blue-600 text-white shadow-lg flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="w-full max-w-3xl mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-lg flex items-center justify-between gap-3 animate-fadeIn">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 shrink-0 text-sky-200" />
                 <p className="text-sm font-semibold">
@@ -296,33 +297,30 @@ function HomeContent() {
               <button
                 type="button"
                 onClick={() => setBookingSuccessMessage(null)}
-                className="text-xs font-bold uppercase px-3 py-1 bg-white/20 hover:bg-white/30 rounded-xl transition-all shrink-0"
+                className="text-xs font-bold uppercase px-3 py-1 bg-white/20 hover:bg-white/30 rounded-xl transition-all shrink-0 cursor-pointer"
               >
                 {t.modalClose}
               </button>
             </div>
           )}
 
-          {/* Hero Section (100% Normalized Cyrillic/Latin Typography) */}
-          <section className="text-center w-full max-w-2xl mb-4 sm:mb-5">
-            {/* Core Headline with Gradient Accent */}
-            <h1 className="hero-headline-geometric text-slate-900 mb-2">
+          {/* Hero Section (Stitch Liquid Glass Typography & Specular Badges) */}
+          <section className="text-center w-full max-w-3xl mb-4 sm:mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
               {t.headlineMain} <br className="hidden sm:inline" />
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-sky-500">
+              <span className="bg-gradient-to-r from-blue-600 via-sky-500 to-blue-700 bg-clip-text text-transparent">
                 {t.headlineSub}
               </span>
             </h1>
 
-            {/* Fixed 32px Hint Badge below Headline */}
-            <div className="inline-flex items-center gap-2 h-auto min-h-[32px] py-1 px-4 rounded-full chat-pill-badge text-xs sm:text-sm font-medium text-slate-600 shadow-sm border border-white">
-              <div className="w-4 h-4 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center shrink-0 shadow-sm">
-                <Lightbulb className="w-3 h-3 fill-slate-900" />
-              </div>
+            {/* Subtitle Glass Pill Badge */}
+            <div className="inline-flex items-center gap-2 mt-3 px-4 py-1.5 rounded-full glass-specular specular-rim shadow-card-glass text-xs sm:text-sm font-medium text-slate-700 border border-white/90">
+              <span className="text-amber-500 text-sm">💡</span>
               <span>{t.heroVoiceHint}</span>
             </div>
           </section>
 
-          {/* AI Single Input Bar (min-h-[64px] Elastic Height) */}
+          {/* AI Single Input Bar with Stitch Liquid Capsule */}
           <section className="w-full">
             <AIInputBar
               initialQuery={query}
@@ -342,7 +340,6 @@ function HomeContent() {
           {/* Mode B: Seamless Conversational Stream (User Message -> AI Results) */}
           {activeSearchQuery && (
             <section className="w-full max-w-3xl mx-auto mt-6 space-y-4 animate-fadeIn">
-              {/* AI Results & Multi-Turn Chat Cards Stream */}
               <FlightResultsList
                 conversationHistory={conversationHistory}
                 parsedParams={parsedParams}
@@ -358,29 +355,24 @@ function HomeContent() {
           )}
         </main>
 
-        {/* Crisp, Highly Readable Minimalist Footer (Centered & Slightly narrower than suggestions on PC) */}
-        <footer className="w-full sm:max-w-[660px] mx-auto py-3.5 px-4 sm:px-6 text-center liquid-glass rounded-2xl sm:rounded-3xl mt-6 mb-3 border border-white/90 shadow-sm">
-          <div className="w-full flex flex-col items-center justify-center gap-1.5">
-            {/* 1. ПОДДЕРЖКА 24/7 (Blue accent in both standard and accessibility modes) */}
-            <div className="support-blue inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold tracking-wide uppercase text-blue-600">
-              <Headphones className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>{t.footerSupport}</span>
-            </div>
-
-            {/* 2. Оптовые тарифы NDC/GDS */}
-            <p className="text-xs sm:text-sm font-semibold text-slate-700">
-              {t.footerFares}
-            </p>
-
-            {/* 3. © 2026 FlightSaver AI Travel. Умный поиск авиабилетов. */}
-            <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-relaxed pt-1 border-t border-slate-200/60 w-full">
-              {t.footerCopyright}
-            </p>
+        {/* Floating Minimalist Pill Footer (Stitch Spec) */}
+        <footer className="w-full flex flex-col items-center justify-center text-center mt-8 mb-4">
+          {/* Floating Pill */}
+          <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full glass-specular specular-rim border border-white/90 shadow-card-glass text-xs">
+            <Headphones className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+            <span className="font-black text-sky-600 uppercase tracking-wide font-heading">{t.footerSupport}</span>
+            <span className="text-slate-300 font-bold">•</span>
+            <span className="font-medium text-slate-600">{t.footerFares}</span>
           </div>
+
+          {/* Clean Copyright Text directly on canvas background */}
+          <p className="text-[11px] text-slate-500 font-medium mt-2">
+            {t.footerCopyright}
+          </p>
         </footer>
       </div>
 
-      {/* 3x Smaller, Highly Legible Info Modal for STPC, TWOV, and Split-Ticketing */}
+      {/* Info Modal for STPC, TWOV, and Split-Ticketing */}
       <InfoModal
         type={activeInfoModal}
         isOpen={!!activeInfoModal}

@@ -11,23 +11,19 @@ import {
   Hotel,
   ArrowLeft,
   ArrowRight,
-  Sparkles,
   Download,
   Calendar,
   Plane,
   CheckCircle2,
   Clock,
-  AlertCircle,
   FileText,
   CreditCard,
   TrendingUp,
-  Headphones,
   Search,
   Check,
   RotateCw
 } from 'lucide-react';
 import {
-  UserProfile,
   StoredOrder,
   getStoredOrders,
   calculateStats
@@ -103,7 +99,6 @@ function OrdersDashboardContent() {
           }
         }
 
-        // Merge with client localStorage for instant responsiveness
         const localList = getStoredOrders();
         const mergedMap = new Map<string, StoredOrder>();
 
@@ -123,13 +118,18 @@ function OrdersDashboardContent() {
     fetchOrdersData();
   }, []);
 
-  // Stats calculation
   const stats = calculateStats(orders);
   const formattedTotalSpent = formatPrice(stats.totalSpentRub, currentCurrency);
   const formattedTotalSaved = formatPrice(stats.totalSavedRub, currentCurrency);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen text-slate-900 flex flex-col font-sans select-none relative overflow-x-hidden">
+      {/* Ambient Lighting Volumetric Orbs (Stitch Spec) */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-24 left-1/3 w-[600px] h-[350px] bg-sky-300/35 rounded-full blur-[80px]" />
+        <div className="absolute bottom-10 right-10 w-[500px] h-[400px] bg-blue-300/25 rounded-full blur-[90px]" />
+      </div>
+
       <Header
         currentCurrency={currentCurrency}
         onCurrencyChange={setCurrentCurrency}
@@ -137,7 +137,7 @@ function OrdersDashboardContent() {
         onLanguageChange={setCurrentLanguage}
       />
 
-      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 flex-1 space-y-6">
+      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 flex-1 space-y-6 relative z-10">
         {/* Success Toast Banner */}
         {showSuccessToast && (
           <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/20 flex items-center justify-between gap-4 animate-fadeIn">
@@ -154,7 +154,7 @@ function OrdersDashboardContent() {
             </div>
             <button
               onClick={() => setShowSuccessToast(false)}
-              className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-bold transition shrink-0"
+              className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-bold transition shrink-0 cursor-pointer"
             >
               Закрыть
             </button>
@@ -166,28 +166,28 @@ function OrdersDashboardContent() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm shadow-sm transition"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full liquid-glass border border-white/90 hover:bg-white text-slate-700 font-bold text-xs sm:text-sm shadow-glass-edge transition hover:scale-102 cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 text-sky-600" />
               <span>{t.backToHome}</span>
             </Link>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Мои заказы и билеты</h1>
+            <h1 className="text-xl sm:text-3xl font-black text-slate-900">Мои заказы и билеты</h1>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
+            <span className="px-3 py-1 rounded-full subtle-glass text-sky-700 text-xs font-bold border border-sky-200">
               Всего заказов: {orders.length}
             </span>
           </div>
         </div>
 
-        {/* 1. Верхние плашки статистики (Автоматический расчет) */}
+        {/* 1. Верхние плашки статистики (Stitch Liquid Cards) */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Card 1: Всего потрачено */}
-          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2">
+          <div className="liquid-card rounded-3xl p-5 border border-white/90 shadow-glass-edge flex flex-col justify-between space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Всего потрачено</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
                 <CreditCard className="w-4 h-4" />
               </div>
             </div>
@@ -200,7 +200,7 @@ function OrdersDashboardContent() {
           </div>
 
           {/* Card 2: Сэкономлено */}
-          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2">
+          <div className="liquid-card rounded-3xl p-5 border border-white/90 shadow-glass-edge flex flex-col justify-between space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Сэкономлено</span>
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -223,7 +223,7 @@ function OrdersDashboardContent() {
           </div>
 
           {/* Card 3: Всего поездок */}
-          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2">
+          <div className="liquid-card rounded-3xl p-5 border border-white/90 shadow-glass-edge flex flex-col justify-between space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Всего поездок</span>
               <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
@@ -252,10 +252,10 @@ function OrdersDashboardContent() {
               return (
                 <div
                   key={order.id || order.pnr}
-                  className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm space-y-6"
+                  className="liquid-card rounded-3xl p-6 sm:p-7 border border-white/90 shadow-glass-edge space-y-6"
                 >
                   {/* Order Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/80">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span
@@ -279,7 +279,7 @@ function OrdersDashboardContent() {
                         </span>
 
                         <span className="text-xs font-bold text-slate-500">
-                          PNR: <strong className="text-blue-700">{order.pnr}</strong>
+                          PNR: <strong className="text-sky-700">{order.pnr}</strong>
                         </span>
 
                         {order.departureDate && (
@@ -308,7 +308,7 @@ function OrdersDashboardContent() {
                   </div>
 
                   {/* 3. Интерактивный 4-шаговый статус-трекер */}
-                  <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/80 space-y-3">
+                  <div className="subtle-glass rounded-2xl p-4 sm:p-5 border border-white/80 space-y-3">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                       Статус оформления заказа:
                     </p>
@@ -323,10 +323,10 @@ function OrdersDashboardContent() {
                             key={step.id}
                             className={`p-3 rounded-xl border text-center transition flex flex-col items-center justify-center space-y-1 ${
                               isCurrent
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 ring-2 ring-blue-400/30'
+                                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-btn-shine ring-2 ring-sky-400/30'
                                 : isDone
-                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                                : 'bg-white text-slate-400 border-slate-200 opacity-60'
+                                ? 'bg-emerald-50/90 text-emerald-900 border-emerald-200'
+                                : 'bg-white/60 text-slate-400 border-white/80 opacity-60'
                             }`}
                           >
                             <div className="flex items-center justify-center">
@@ -354,7 +354,7 @@ function OrdersDashboardContent() {
 
                   {/* STPC Hotel Highlight if included */}
                   {order.stpcHotelIncluded && (
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 text-xs text-emerald-950 font-semibold">
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-sky-50/80 border border-emerald-200 flex items-center justify-between gap-3 text-xs text-emerald-950 font-semibold">
                       <div className="flex items-center gap-2.5">
                         <Hotel className="w-5 h-5 text-emerald-700 shrink-0" />
                         <div>
@@ -377,7 +377,7 @@ function OrdersDashboardContent() {
                         href={`/api/receipts/${order.id || order.pnr}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/20 transition"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-btn-shine transition cursor-pointer"
                       >
                         <FileText className="w-4 h-4" />
                         <span>Маршрутная квитанция (PDF)</span>
@@ -387,7 +387,7 @@ function OrdersDashboardContent() {
                         <button
                           type="button"
                           onClick={() => alert(`Загрузка ваучера отеля STPC #${order.pnr}...`)}
-                          className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-2 transition"
+                          className="px-4 py-2.5 rounded-xl subtle-glass hover:bg-white text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer"
                         >
                           <Download className="w-4 h-4" />
                           <span>{t.hotelVoucherBtn}</span>
@@ -403,8 +403,8 @@ function OrdersDashboardContent() {
               );
             })
           ) : (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-4 shadow-sm">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-sm">
+            <div className="p-12 text-center liquid-card rounded-3xl border border-white/90 space-y-4 shadow-glass-edge">
+              <div className="w-16 h-16 rounded-2xl subtle-glass text-sky-600 flex items-center justify-center mx-auto shadow-sm">
                 <Ticket className="w-8 h-8" />
               </div>
               <div className="space-y-1">
@@ -417,7 +417,7 @@ function OrdersDashboardContent() {
               </div>
               <Link
                 href="/"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-sm shadow-btn-shine transition cursor-pointer"
               >
                 <Search className="w-4 h-4" />
                 <span>Найти перелёт</span>

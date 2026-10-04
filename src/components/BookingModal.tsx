@@ -123,23 +123,23 @@ export function BookingModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="booking-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-xl animate-fadeIn overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xl animate-fadeIn overflow-y-auto"
       onClick={() => {
         if (step !== 'confirmed') onClose();
       }}
     >
       <div
-        className="w-full max-w-3xl bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/80 overflow-hidden my-auto"
+        className="w-full max-w-3xl liquid-glass-card shadow-glass-elevated border border-white/80 rounded-3xl overflow-hidden my-auto relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-sky-100 bg-sky-50/60">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-2xl shadow-md shadow-sky-500/25">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-sky-100/70 bg-gradient-to-r from-sky-50/80 via-white/70 to-blue-50/80 backdrop-blur-md">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-2xl shadow-liquid-glow shadow-sky-500/25">
               <Plane className="w-5 h-5 -rotate-45" />
             </div>
             <div>
-              <h2 id="booking-modal-title" className="text-xl font-black text-slate-900">
+              <h2 id="booking-modal-title" className="text-xl font-black text-slate-900 tracking-tight font-heading">
                 Оформление и выписка билетов
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 font-bold">
@@ -153,7 +153,7 @@ export function BookingModal({
               type="button"
               onClick={onClose}
               aria-label="Закрыть окно бронирования"
-              className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-sky-100 transition-colors"
+              className="p-2.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-sky-100/60 transition-all cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -162,17 +162,17 @@ export function BookingModal({
 
         {/* Steps Progress Indicator */}
         {step !== 'confirmed' && (
-          <div className="px-6 py-3 bg-sky-50/40 border-b border-sky-100">
+          <div className="px-6 py-3.5 bg-sky-50/50 border-b border-sky-100/60 backdrop-blur-sm">
             <div className="flex items-center justify-between text-xs font-black">
-              <span className={`flex items-center gap-1.5 ${step === 'passengers' ? 'text-sky-700' : 'text-slate-400'}`}>
+              <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-colors ${step === 'passengers' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400'}`}>
                 1. Пассажиры
               </span>
-              <span className="text-sky-200">→</span>
-              <span className={`flex items-center gap-1.5 ${step === 'contacts' ? 'text-sky-700' : 'text-slate-400'}`}>
+              <span className="text-sky-300 font-bold">→</span>
+              <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-colors ${step === 'contacts' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400'}`}>
                 2. Контакты
               </span>
-              <span className="text-sky-200">→</span>
-              <span className={`flex items-center gap-1.5 ${step === 'payment' ? 'text-sky-700' : 'text-slate-400'}`}>
+              <span className="text-sky-300 font-bold">→</span>
+              <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-colors ${step === 'payment' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400'}`}>
                 3. Оплата и выписка
               </span>
             </div>
@@ -182,13 +182,13 @@ export function BookingModal({
         {/* Modal Body */}
         <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
           {/* Flight Summary Card */}
-          <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="p-4.5 rounded-2xl subtle-glass border border-sky-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-black text-slate-900">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-base font-black text-slate-900 tracking-tight font-heading">
                   {flight.originCity} ({flight.originIata}) → {flight.destinationCity} ({flight.destinationIata})
                 </span>
-                <span className="text-xs font-black text-sky-800 bg-sky-100 px-2.5 py-0.5 rounded-md">
+                <span className="text-xs font-black text-sky-800 bg-sky-100/80 px-2.5 py-0.5 rounded-md border border-sky-200/50">
                   {flight.departureDate}
                 </span>
               </div>
@@ -196,8 +196,8 @@ export function BookingModal({
                 {flight.segments.map((s) => `${s.airline} (${s.fromIata}-${s.toIata})`).join(' + ')}
               </p>
             </div>
-            <div className="text-left sm:text-right">
-              <span className="text-2xl font-black text-slate-900">
+            <div className="text-left sm:text-right shrink-0">
+              <span className="text-2xl font-black text-slate-900 font-heading">
                 {flight.pricing.totalPrice.toLocaleString('ru-RU')} {currencySymbol}
               </span>
               <p className="text-xs font-black text-sky-600">
@@ -210,7 +210,7 @@ export function BookingModal({
           {step === 'passengers' && (
             <div className="space-y-6 animate-fadeIn">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2 font-heading">
                   <User className="w-4 h-4 text-sky-600" />
                   Пассажиры ({passengers.length})
                 </h3>
@@ -220,7 +220,7 @@ export function BookingModal({
               {passengers.map((p, idx) => (
                 <div
                   key={p.id}
-                  className="p-5 rounded-2xl border border-sky-100 bg-white shadow-sm space-y-4"
+                  className="p-5 rounded-2xl subtle-glass border border-sky-100/80 shadow-sm space-y-4"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase text-sky-800 tracking-wider">
@@ -260,7 +260,7 @@ export function BookingModal({
                         placeholder="IVAN"
                         value={p.firstName}
                         onChange={(e) => handlePassengerChange(idx, 'firstName', e.target.value.toUpperCase())}
-                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                       />
                     </div>
                     <div>
@@ -272,7 +272,7 @@ export function BookingModal({
                         placeholder="IVANOV"
                         value={p.lastName}
                         onChange={(e) => handlePassengerChange(idx, 'lastName', e.target.value.toUpperCase())}
-                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                       />
                     </div>
                   </div>
@@ -286,7 +286,7 @@ export function BookingModal({
                         type="date"
                         value={p.birthDate}
                         onChange={(e) => handlePassengerChange(idx, 'birthDate', e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                       />
                     </div>
                     <div>
@@ -298,7 +298,7 @@ export function BookingModal({
                         placeholder="75 1234567"
                         value={p.passportNumber}
                         onChange={(e) => handlePassengerChange(idx, 'passportNumber', e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                       />
                     </div>
                     <div>
@@ -309,7 +309,7 @@ export function BookingModal({
                         type="date"
                         value={p.passportExpiry}
                         onChange={(e) => handlePassengerChange(idx, 'passportExpiry', e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                        className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                       />
                     </div>
                   </div>
@@ -321,11 +321,11 @@ export function BookingModal({
           {/* STEP 2: Contacts Details */}
           {step === 'contacts' && (
             <div className="space-y-6 animate-fadeIn">
-              <h3 className="text-base font-black text-slate-900">
+              <h3 className="text-base font-black text-slate-900 font-heading">
                 Контактные данные для отправки маршрутных квитанций
               </h3>
 
-              <div className="p-5 rounded-2xl border border-sky-100 bg-white shadow-sm space-y-4">
+              <div className="p-5 rounded-2xl subtle-glass border border-sky-100/80 shadow-sm space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">
                     Электронная почта (Email) *
@@ -335,9 +335,9 @@ export function BookingModal({
                     placeholder="traveler@example.com"
                     value={contact.email}
                     onChange={(e) => setContact({ ...contact, email: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                   />
-                  <span className="text-[11px] text-slate-500 mt-1 block">
+                  <span className="text-[11px] text-slate-500 mt-1 block font-medium">
                     Сюда поступят билеты и подтверждение STPC отеля
                   </span>
                 </div>
@@ -351,7 +351,7 @@ export function BookingModal({
                     placeholder="+7 (999) 000-00-00"
                     value={contact.phone}
                     onChange={(e) => setContact({ ...contact, phone: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                   />
                 </div>
 
@@ -364,7 +364,7 @@ export function BookingModal({
                     placeholder="@my_telegram"
                     value={contact.telegram}
                     onChange={(e) => setContact({ ...contact, telegram: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 rounded-xl border border-sky-200/80 bg-white/90 focus:border-sky-500 focus:ring-2 focus:ring-sky-200/50 outline-none font-bold text-slate-900 shadow-sm transition-all"
                   />
                 </div>
               </div>
@@ -374,7 +374,7 @@ export function BookingModal({
           {/* STEP 3: Payment */}
           {step === 'payment' && (
             <div className="space-y-6 animate-fadeIn">
-              <h3 className="text-base font-black text-slate-900">
+              <h3 className="text-base font-black text-slate-900 font-heading">
                 Выберите способ прямой оплаты
               </h3>
 
@@ -382,17 +382,17 @@ export function BookingModal({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('sbp')}
-                  className={`p-5 rounded-2xl border-2 text-left transition-all ${
+                  className={`p-5 rounded-2xl border-2 text-left transition-all cursor-pointer ${
                     paymentMethod === 'sbp'
-                      ? 'border-sky-600 ring-2 ring-sky-400/30 bg-sky-50/70'
-                      : 'border-sky-100 bg-white hover:border-sky-200'
+                      ? 'border-sky-500 ring-2 ring-sky-400/30 bg-sky-50/90 shadow-liquid-glow'
+                      : 'border-sky-100/80 bg-white/80 hover:border-sky-200 hover:bg-sky-50/40'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-black text-sm text-slate-900">
+                    <span className="font-black text-sm text-slate-900 font-heading">
                       Система быстрых платежей (СБП)
                     </span>
-                    <span className="text-[10px] font-black bg-sky-100 text-sky-700 px-2.5 py-0.5 rounded-full">
+                    <span className="text-[10px] font-black bg-sky-100 text-sky-700 px-2.5 py-0.5 rounded-full border border-sky-200/50">
                       0% комиссии
                     </span>
                   </div>
@@ -402,14 +402,14 @@ export function BookingModal({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('card')}
-                  className={`p-5 rounded-2xl border-2 text-left transition-all ${
+                  className={`p-5 rounded-2xl border-2 text-left transition-all cursor-pointer ${
                     paymentMethod === 'card'
-                      ? 'border-sky-600 ring-2 ring-sky-400/30 bg-sky-50/70'
-                      : 'border-sky-100 bg-white hover:border-sky-200'
+                      ? 'border-sky-500 ring-2 ring-sky-400/30 bg-sky-50/90 shadow-liquid-glow'
+                      : 'border-sky-100/80 bg-white/80 hover:border-sky-200 hover:bg-sky-50/40'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-black text-sm text-slate-900">
+                    <span className="font-black text-sm text-slate-900 font-heading">
                       Банковская карта (МИР / РФ)
                     </span>
                     <CreditCard className="w-4 h-4 text-sky-600" />
@@ -419,10 +419,10 @@ export function BookingModal({
               </div>
 
               {/* Total Summary */}
-              <div className="p-5 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-center justify-between">
+              <div className="p-5 rounded-2xl subtle-glass border border-sky-200/70 flex items-center justify-between shadow-sm">
                 <div>
                   <span className="text-xs text-slate-500 font-bold">Итого к списанию за {passengers.length} пасс.:</span>
-                  <p className="text-2xl font-black text-slate-900">
+                  <p className="text-2xl font-black text-slate-900 font-heading">
                     {flight.pricing.totalPrice.toLocaleString('ru-RU')} {currencySymbol}
                   </p>
                 </div>
@@ -443,21 +443,21 @@ export function BookingModal({
               </div>
 
               <div>
-                <h3 className="text-2xl font-black text-slate-900">
+                <h3 className="text-2xl font-black text-slate-900 font-heading tracking-tight">
                   Билеты успешно забронированы и выписаны!
                 </h3>
                 <p className="text-sm text-slate-600 font-bold mt-1">
-                  Номер бронирования FlightSaver: <strong className="text-slate-900">{confirmedOrder.pnr}</strong>
+                  Номер бронирования FlightSaver: <strong className="text-slate-900 font-mono">{confirmedOrder.pnr}</strong>
                 </p>
               </div>
 
               {/* Electronic Receipt & Tickets */}
-              <div className="p-5 rounded-3xl bg-sky-50/80 border border-sky-200 text-left space-y-3 shadow-sm">
+              <div className="p-5 rounded-3xl subtle-glass border border-sky-200/80 text-left space-y-3 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5 font-heading">
                     <Plane className="w-4 h-4 text-sky-600" /> Маршрутная квитанция FlightSaver
                   </span>
-                  <span className="text-xs font-mono font-bold text-sky-700">
+                  <span className="text-xs font-mono font-bold text-sky-700 bg-sky-100/80 px-2.5 py-1 rounded-lg">
                     № {confirmedOrder.pnr}
                   </span>
                 </div>
@@ -474,20 +474,20 @@ export function BookingModal({
         </div>
 
         {/* Footer Navigation Buttons */}
-        <div className="px-6 py-4 bg-sky-50/40 border-t border-sky-100 flex items-center justify-between">
+        <div className="px-6 py-4 bg-sky-50/50 border-t border-sky-100/70 backdrop-blur-sm flex items-center justify-between">
           {step === 'passengers' && (
             <>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-xl border border-sky-200 text-slate-600 font-bold text-sm hover:bg-white transition-all"
+                className="px-5 py-2.5 rounded-xl border border-sky-200/80 bg-white/80 text-slate-600 font-bold text-sm hover:bg-white transition-all cursor-pointer"
               >
                 Отмена
               </button>
               <button
                 type="button"
                 onClick={() => setStep('contacts')}
-                className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-sm flex items-center gap-1.5 shadow-md transition-all"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-sm flex items-center gap-1.5 shadow-liquid-glow transition-all cursor-pointer"
               >
                 <span>Далее к контактам</span>
                 <ArrowRight className="w-4 h-4" />
@@ -500,7 +500,7 @@ export function BookingModal({
               <button
                 type="button"
                 onClick={() => setStep('passengers')}
-                className="px-5 py-2.5 rounded-xl border border-sky-200 text-slate-600 font-bold text-sm hover:bg-white flex items-center gap-1.5 transition-all"
+                className="px-5 py-2.5 rounded-xl border border-sky-200/80 bg-white/80 text-slate-600 font-bold text-sm hover:bg-white flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Назад</span>
@@ -508,7 +508,7 @@ export function BookingModal({
               <button
                 type="button"
                 onClick={() => setStep('payment')}
-                className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-sm flex items-center gap-1.5 shadow-md transition-all"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-sm flex items-center gap-1.5 shadow-liquid-glow transition-all cursor-pointer"
               >
                 <span>К оплате</span>
                 <ArrowRight className="w-4 h-4" />
@@ -522,7 +522,7 @@ export function BookingModal({
                 type="button"
                 onClick={() => setStep('contacts')}
                 disabled={isProcessingPayment}
-                className="px-5 py-2.5 rounded-xl border border-sky-200 text-slate-600 font-bold text-sm hover:bg-white flex items-center gap-1.5 transition-all disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl border border-sky-200/80 bg-white/80 text-slate-600 font-bold text-sm hover:bg-white flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Назад</span>
@@ -531,7 +531,7 @@ export function BookingModal({
                 type="button"
                 onClick={handleProcessPayment}
                 disabled={isProcessingPayment}
-                className="px-7 py-3 rounded-xl bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-sm flex items-center gap-2 shadow-lg shadow-sky-500/25 transition-all disabled:opacity-60"
+                className="px-7 py-3 rounded-xl bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-sm flex items-center gap-2 shadow-liquid-glow shadow-sky-500/25 transition-all disabled:opacity-60 cursor-pointer"
               >
                 <Lock className="w-4 h-4" />
                 <span>
@@ -546,7 +546,7 @@ export function BookingModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-8 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-sm shadow-md transition-all"
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-sm shadow-liquid-glow transition-all cursor-pointer"
               >
                 Готово
               </button>

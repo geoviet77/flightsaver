@@ -11,54 +11,73 @@ interface QuickSuggestionsProps {
 }
 
 export function QuickSuggestions({ onSelectSuggestion, language = 'ru' }: QuickSuggestionsProps) {
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.ru;
+
+  const renderBadgeWithGreenPercent = (badgeText: string) => {
+    if (badgeText.includes('•')) {
+      const parts = badgeText.split('•');
+      const prefix = parts[0].trim();
+      const percent = parts.slice(1).join('•').trim();
+      return (
+        <span className="inline-flex items-center gap-1 text-xs">
+          <span className="text-sky-600 font-medium">{prefix}</span>
+          <span className="text-slate-300">•</span>
+          <span className="text-emerald-600 font-bold">{percent}</span>
+        </span>
+      );
+    }
+    return <span className="text-xs text-sky-600 font-medium">{badgeText}</span>;
+  };
 
   return (
     <div className="w-full max-w-3xl mx-auto mt-6 sm:mt-7 space-y-3">
-      {/* 1. AI Assistant Chat Message Bubble (Elastic Sizing) */}
-      <div className="flex items-start gap-3 animate-fadeIn">
-        {/* Robot Icon Container (shrink-0) */}
-        <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25">
+      {/* 1. AI Assistant Chat Message Bubble with Overlapping Robot Badge */}
+      <div className="relative glass-specular specular-rim p-4 sm:p-5 pt-5 sm:pt-5.5 rounded-2xl border border-white/90 shadow-card-glass animate-fadeIn">
+        {/* Overlapping Robot Icon Badge */}
+        <div className="absolute -top-3 left-4 w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-sky-500/25 z-10">
           <Bot className="w-5 h-5" />
         </div>
 
-        {/* AI Message Bubble */}
-        <div className="flex-1 min-w-0 liquid-glass-card p-3.5 sm:p-4 rounded-2xl rounded-tl-sm border border-white/90 shadow-[0_6px_20px_rgba(37,99,235,0.05)]">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold text-blue-600 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              {t.aiChatBadge}
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-relaxed break-words">
-            {t.aiChatMessage}
-          </p>
+        {/* AI Message Bubble Header */}
+        <div className="flex items-center justify-between mb-2 pl-12 sm:pl-13">
+          <span className="text-xs font-black uppercase tracking-wider text-sky-600 flex items-center gap-1.5 font-heading">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            {t.aiChatBadge}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50/90 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+            <span>ONLINE</span>
+          </span>
         </div>
+
+        {/* Message Text */}
+        <p className="text-xs sm:text-sm font-medium text-slate-700 leading-relaxed break-words">
+          {t.aiChatMessage}
+        </p>
       </div>
 
-      {/* 2. Traveler Interactive Chat Responses (Elastic min-h-[60px] h-auto) */}
-      <div className="pl-6 sm:pl-10 space-y-2.5">
+      {/* 2. Traveler Interactive Prompt Cards (Full-Width Aligned with Card 1) */}
+      <div className="space-y-2.5">
         {/* Prompt 1 */}
         <button
           type="button"
           onClick={() => onSelectSuggestion(t.chatPrompt1Query)}
-          className="w-full min-h-[60px] h-auto text-left liquid-glass-card group p-3 sm:px-4 sm:py-3 rounded-2xl rounded-tr-sm border border-sky-100/80 hover:border-blue-400 hover:bg-white flex items-center justify-between gap-3 cursor-pointer shadow-sm transition-all focus:outline-none focus:ring-4 focus:ring-blue-200"
+          className="w-full min-h-[58px] h-auto text-left glass-specular specular-rim group p-3.5 sm:px-5 sm:py-3.5 rounded-2xl border border-white/90 hover:border-sky-300 hover:bg-white/80 flex items-center justify-between gap-3 cursor-pointer shadow-card-glass transition-all focus:outline-none focus:ring-2 focus:ring-sky-200"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-xl bg-sky-100 group-hover:bg-blue-600 group-hover:text-white text-sky-600 flex items-center justify-center shrink-0 transition-colors">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-sky-100/70 group-hover:bg-sky-600 group-hover:text-white text-sky-600 flex items-center justify-center shrink-0 transition-colors shadow-xs">
               <User className="w-4 h-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug break-words">
+              <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-sky-700 transition-colors leading-snug break-words">
                 «{t.chatPrompt1Query}»
               </p>
-              <div className="flex items-center gap-1.5 mt-0.5 text-xs font-semibold text-blue-600">
-                <span>{t.chatPrompt1Badge}</span>
+              <div className="mt-0.5">
+                {renderBadgeWithGreenPercent(t.chatPrompt1Badge)}
               </div>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-full bg-slate-100 group-hover:bg-blue-600 group-hover:text-white text-slate-400 flex items-center justify-center shrink-0 transition-all">
-            <ArrowUpRight className="w-3.5 h-3.5" />
+          <div className="text-slate-300 group-hover:text-sky-600 transition-all shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+            <ArrowUpRight className="w-4 h-4" />
           </div>
         </button>
 
@@ -66,23 +85,23 @@ export function QuickSuggestions({ onSelectSuggestion, language = 'ru' }: QuickS
         <button
           type="button"
           onClick={() => onSelectSuggestion(t.chatPrompt2Query)}
-          className="w-full min-h-[60px] h-auto text-left liquid-glass-card group p-3 sm:px-4 sm:py-3 rounded-2xl rounded-tr-sm border border-sky-100/80 hover:border-blue-400 hover:bg-white flex items-center justify-between gap-3 cursor-pointer shadow-sm transition-all focus:outline-none focus:ring-4 focus:ring-blue-200"
+          className="w-full min-h-[58px] h-auto text-left glass-specular specular-rim group p-3.5 sm:px-5 sm:py-3.5 rounded-2xl border border-white/90 hover:border-sky-300 hover:bg-white/80 flex items-center justify-between gap-3 cursor-pointer shadow-card-glass transition-all focus:outline-none focus:ring-2 focus:ring-sky-200"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 group-hover:bg-blue-600 group-hover:text-white text-indigo-600 flex items-center justify-center shrink-0 transition-colors">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-sky-100/70 group-hover:bg-sky-600 group-hover:text-white text-sky-600 flex items-center justify-center shrink-0 transition-colors shadow-xs">
               <User className="w-4 h-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug break-words">
+              <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-sky-700 transition-colors leading-snug break-words">
                 «{t.chatPrompt2Query}»
               </p>
-              <div className="flex items-center gap-1.5 mt-0.5 text-xs font-semibold text-indigo-600">
-                <span>{t.chatPrompt2Badge}</span>
+              <div className="mt-0.5">
+                {renderBadgeWithGreenPercent(t.chatPrompt2Badge)}
               </div>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-full bg-slate-100 group-hover:bg-blue-600 group-hover:text-white text-slate-400 flex items-center justify-center shrink-0 transition-all">
-            <ArrowUpRight className="w-3.5 h-3.5" />
+          <div className="text-slate-300 group-hover:text-sky-600 transition-all shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+            <ArrowUpRight className="w-4 h-4" />
           </div>
         </button>
       </div>

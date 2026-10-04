@@ -43,7 +43,6 @@ export function SettingsModal({
     onLanguageChange?.(newLang);
   };
 
-  // Блокировка прокрутки страницы при открытом окне
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -59,16 +58,16 @@ export function SettingsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-end bg-slate-900/60 backdrop-blur-sm p-2 pt-4 sm:p-4 sm:pt-4 transition-opacity duration-200"
+      className="fixed inset-0 z-50 flex items-start justify-end bg-slate-900/35 backdrop-blur-md p-2 pt-4 sm:p-4 sm:pt-4 transition-opacity duration-200"
       onClick={onClose}
     >
-      {/* Карточка меню: позиционируется сверху справа так, чтобы крестик совпадал с кнопкой открытия */}
+      {/* Карточка меню: Stitch Liquid Glass Styling */}
       <div
-        className="w-[calc(100%-8px)] sm:w-[360px] max-w-sm bg-white rounded-3xl p-4 sm:p-5 shadow-2xl max-h-[92vh] overflow-y-auto transform transition-all duration-200 ease-out border border-slate-200/80 mr-1 sm:mr-2 animate-fadeIn"
+        className="w-[calc(100%-8px)] sm:w-[360px] max-w-sm liquid-glass-card bg-white/95 rounded-3xl p-4 sm:p-5 shadow-glass-elevated max-h-[92vh] overflow-y-auto transform transition-all duration-200 ease-out border border-white/90 mr-1 sm:mr-2 animate-fadeIn"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Шапка модального окна */}
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/80">
           <h3 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
             {activeLang === "ru" ? "Настройки и доступность" : "Settings & Accessibility"}
           </h3>
@@ -77,9 +76,9 @@ export function SettingsModal({
             onClick={onClose}
             aria-label="Закрыть настройки"
             id="btn-settings-close"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all hover:scale-105 active:scale-95 shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded-full subtle-glass text-slate-700 hover:bg-white transition-all hover:scale-105 active:scale-95 shrink-0 cursor-pointer"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
@@ -93,12 +92,12 @@ export function SettingsModal({
               onClick={onToggleAccessibility}
               className={`w-full p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 isAccessibility
-                  ? "border-amber-400 bg-amber-50/70 text-slate-900 shadow-sm"
-                  : "border-slate-200 bg-slate-50/80 hover:bg-slate-100 text-slate-700"
+                  ? "border-amber-400 bg-amber-50/80 text-slate-900 shadow-sm"
+                  : "border-white/80 subtle-glass hover:bg-white/90 text-slate-700"
               }`}
             >
-              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0 border border-slate-100">
-                <Eye size={20} className={isAccessibility ? "text-amber-600" : "text-blue-600"} />
+              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs shrink-0 border border-slate-100">
+                <Eye size={18} className={isAccessibility ? "text-amber-600" : "text-sky-600"} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm leading-tight text-slate-900">
@@ -123,19 +122,19 @@ export function SettingsModal({
             {/* Валюта */}
             <div>
               <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-2 px-0.5 flex items-center gap-1">
-                <Coins size={12} className="text-blue-600" />
+                <Coins size={12} className="text-sky-600" />
                 <span>{activeLang === "ru" ? "ВАЛЮТА" : "CURRENCY"}</span>
               </div>
-              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-3 gap-1 subtle-glass p-1 rounded-xl border border-white/80">
                 {CURRENCIES.map((c) => (
                   <button
                     key={c.code}
                     type="button"
                     onClick={() => onSelectCurrency(c.code)}
-                    className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center ${
+                    className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer ${
                       currency === c.code
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                     }`}
                   >
                     {c.symbol}
@@ -147,17 +146,17 @@ export function SettingsModal({
             {/* Язык */}
             <div>
               <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-2 px-0.5 flex items-center gap-1">
-                <Globe size={12} className="text-blue-600" />
+                <Globe size={12} className="text-sky-600" />
                 <span>{activeLang === "ru" ? "ЯЗЫК" : "LANGUAGE"}</span>
               </div>
-              <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-2 gap-1 subtle-glass p-1 rounded-xl border border-white/80">
                 <button
                   type="button"
                   onClick={() => handleSetLanguage("ru")}
-                  className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center ${
+                  className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer ${
                     activeLang === "ru"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                   }`}
                 >
                   RU
@@ -165,10 +164,10 @@ export function SettingsModal({
                 <button
                   type="button"
                   onClick={() => handleSetLanguage("en")}
-                  className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center ${
+                  className={`h-9 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer ${
                     activeLang === "en"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-btn-shine"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                   }`}
                 >
                   EN
@@ -188,9 +187,9 @@ export function SettingsModal({
                   onClose();
                   onOpenInfoModal?.('stpc');
                 }}
-                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+                className="flex items-center gap-3 p-2.5 rounded-xl liquid-row text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer"
               >
-                <Plane size={18} className="text-blue-600 shrink-0" />
+                <Plane size={18} className="text-sky-600 shrink-0" />
                 <span className="leading-snug">{activeLang === "ru" ? "Бесплатные отели STPC" : "Free STPC Transit Hotels"}</span>
               </div>
               <div
@@ -198,7 +197,7 @@ export function SettingsModal({
                   onClose();
                   onOpenInfoModal?.('twov');
                 }}
-                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+                className="flex items-center gap-3 p-2.5 rounded-xl liquid-row text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 <Shield size={18} className="text-sky-500 shrink-0" />
                 <span className="leading-snug">{activeLang === "ru" ? "Безвизовый транзит TWOV" : "Visa-Free Transit (TWOV)"}</span>
@@ -208,7 +207,7 @@ export function SettingsModal({
                   onClose();
                   onOpenInfoModal?.('split');
                 }}
-                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+                className="flex items-center gap-3 p-2.5 rounded-xl liquid-row text-slate-700 font-medium text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 <HelpCircle size={18} className="text-indigo-500 shrink-0" />
                 <span className="leading-snug">{activeLang === "ru" ? "О технологии Split-Ticketing" : "About Split-Ticketing Tech"}</span>

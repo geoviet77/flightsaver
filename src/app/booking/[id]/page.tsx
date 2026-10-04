@@ -16,14 +16,12 @@ import {
   Users,
   CreditCard,
   Lock,
-  Download,
   User,
   Sparkles,
   Plus,
   Trash2,
   QrCode,
   Check,
-  HelpCircle,
   Headphones,
   Crown
 } from 'lucide-react';
@@ -98,6 +96,8 @@ function BookingPageContent() {
       loadFlight();
     }
   }, [id]);
+
+  const isStpcAvailable = Boolean(flight?.transit?.stpcHotelIncluded || flight?.isStpcEligible);
 
   const handleAddPassenger = () => {
     setPassengers((prev) => [
@@ -188,7 +188,7 @@ function BookingPageContent() {
         originalPrice: marketPrice,
         savingsAmount,
         currency,
-        stpcIncluded: wantStpcHotel && Boolean(flight.transit?.stpcHotelIncluded),
+        stpcIncluded: wantStpcHotel && isStpcAvailable,
         stpcHotelName: flight.transit?.stpcInfo?.hotelName || 'Партнерский 4★ / 5★ отель авиакомпании',
         passengers,
         contactEmail,
@@ -225,7 +225,7 @@ function BookingPageContent() {
           totalPriceRub: totalPrice,
           originalPriceRub: marketPrice,
           savedAmountRub: savingsAmount,
-          stpcHotelIncluded: wantStpcHotel && Boolean(flight.transit?.stpcHotelIncluded),
+          stpcHotelIncluded: wantStpcHotel && isStpcAvailable,
           stpcHotelName: flight.transit?.stpcInfo?.hotelName,
           status: 'pending',
         };
@@ -250,29 +250,27 @@ function BookingPageContent() {
         throw new Error(data.error || 'Ошибка оформления заказа');
       }
 
-      const order = data.order || data;
-
-      // Save into client localStorage fallback for instant dashboard rendering
+      // Сохранение подтвержденного заказа в локальное хранилище
       const storedOrder: StoredOrder = {
-        id: order.id || `ord-${Date.now()}`,
-        pnr: order.pnr || order.orderId || `FS-${Date.now().toString().slice(-6)}`,
-        route: order.route || `${flight.originCity} → ${flight.destinationCity}`,
-        airline: order.airline || 'Turkish Airlines',
-        departureDate: order.departureDate || '2026-09-15',
+        id: data.orderId || `ord-${Date.now()}`,
+        pnr: data.pnr || `FS-${Date.now().toString().slice(-6)}`,
+        route: `${flight.originCity} → ${flight.destinationCity}`,
+        airline: flight.segments?.[0]?.airline || 'Turkish Airlines',
+        departureDate: flight.departureDate || '2026-09-15',
         totalPriceRub: totalPrice,
         originalPriceRub: marketPrice,
         savedAmountRub: savingsAmount,
-        stpcHotelIncluded: order.stpcHotelIncluded,
-        stpcHotelName: order.stpcHotelName,
-        status: 'pending',
+        stpcHotelIncluded: wantStpcHotel && isStpcAvailable,
+        stpcHotelName: flight.transit?.stpcInfo?.hotelName,
+        status: 'confirmed',
       };
       addStoredOrder(storedOrder);
 
-      // Redirect to /dashboard/orders?success=true
-      router.push('/dashboard/orders?success=true');
+      // Переход на страницу успешного оформления заказа
+      router.push(`/dashboard/orders?success=true&pnr=${storedOrder.pnr}`);
     } catch (err: any) {
-      console.error('Booking submission error:', err);
-      setValidationErrors([err?.message || 'Ошибка оформления билета. Попробуйте снова.']);
+      console.error('Submit booking error:', err);
+      setValidationErrors([err?.message || 'Произошла непредвиденная ошибка при бронировании. Попробуйте снова.']);
     } finally {
       setIsSubmitting(false);
     }
@@ -280,25 +278,35 @@ function BookingPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      <div className="min-h-screen text-slate-900 flex flex-col font-sans relative overflow-x-hidden select-none">
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute -top-24 left-1/3 w-[600px] h-[350px] bg-sky-300/35 rounded-full blur-[80px]" />
+          <div className="absolute bottom-10 right-10 w-[500px] h-[400px] bg-blue-300/25 rounded-full blur-[90px]" />
+        </div>
         <Header
           currentCurrency={currency}
           onCurrencyChange={setCurrency}
           currentLanguage={language}
           onLanguageChange={setLanguage}
         />
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-4">
-          <Plane className="w-10 h-10 text-blue-600 animate-bounce mx-auto" />
-          <p className="text-slate-500 font-semibold">Подготовка формы бронирования...</p>
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-12 flex-1 relative z-10 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Plane className="w-8 h-8 text-sky-600 animate-bounce" />
+            <p className="text-sm font-bold text-slate-600">Загрузка данных для бронирования...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  const isStpcAvailable = Boolean(flight?.transit?.stpcHotelIncluded);
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen text-slate-900 flex flex-col font-sans relative overflow-x-hidden select-none">
+      {/* Ambient Lighting Volumetric Orbs (Stitch Spec) */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-24 left-1/3 w-[600px] h-[350px] bg-sky-300/35 rounded-full blur-[80px]" />
+        <div className="absolute bottom-10 right-10 w-[500px] h-[400px] bg-blue-300/25 rounded-full blur-[90px]" />
+      </div>
+
       <Header
         currentCurrency={currency}
         onCurrencyChange={setCurrency}
@@ -307,27 +315,29 @@ function BookingPageContent() {
       />
 
       {/* Top Breadcrumbs */}
-      <div className="bg-white border-b border-slate-200 py-3.5 px-4 sm:px-6 sticky top-0 z-30 shadow-sm">
+      <div className="liquid-glass border-b border-white/80 py-3.5 px-4 sm:px-6 sticky top-0 z-30 shadow-glass-inner backdrop-blur-2xl">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <button
             onClick={() => router.back()}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-blue-600 transition"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-700 hover:text-sky-700 transition px-3 py-1.5 rounded-full subtle-glass hover:bg-white shadow-xs cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 text-sky-600" />
             <span>Назад к рейсу</span>
           </button>
-          <span className="text-xs font-bold text-slate-400">Шаг 2 из 2 • Оформление</span>
+          <span className="text-xs font-bold text-slate-400 subtle-glass px-3 py-1 rounded-full border border-white/80">
+            Шаг 2 из 2 • Оформление
+          </span>
         </div>
       </div>
 
-      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 flex-1">
+      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 flex-1 relative z-10">
         {validationErrors.length > 0 && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm space-y-1">
+          <div className="mb-6 p-4 rounded-3xl bg-rose-50/90 border border-rose-200 text-rose-800 text-sm space-y-1 shadow-sm">
             <div className="font-bold flex items-center gap-2 text-rose-900">
-              <AlertCircle className="w-5 h-5 text-rose-600" />
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
               <span>Пожалуйста, исправьте следующие ошибки:</span>
             </div>
-            <ul className="list-disc list-inside space-y-0.5 pl-2 text-xs">
+            <ul className="list-disc list-inside space-y-0.5 pl-2 text-xs font-medium text-rose-700">
               {validationErrors.map((err, i) => (
                 <li key={i}>{err}</li>
               ))}
@@ -339,37 +349,37 @@ function BookingPageContent() {
           {/* Main Form Fields (2 Cols) */}
           <div className="lg:col-span-2 space-y-6">
             {/* Passengers Section */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5">
+            <div className="liquid-glass-card rounded-3xl p-6 border border-white/90 shadow-glass-elevated space-y-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
                     <Users className="w-4 h-4" />
                   </div>
-                  <h2 className="text-lg font-black text-slate-900">Данные пассажиров</h2>
+                  <h2 className="text-lg font-black text-slate-900 font-heading">Данные пассажиров</h2>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleAddPassenger}
-                  className="px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition flex items-center gap-1"
+                  className="px-3.5 py-1.5 rounded-full subtle-glass hover:bg-white text-sky-700 text-xs font-bold transition flex items-center gap-1.5 shadow-xs border border-sky-200 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Добавить пассажира</span>
                 </button>
               </div>
 
-              <div className="space-y-6 divide-y divide-slate-100">
+              <div className="space-y-6 divide-y divide-white/80">
                 {passengers.map((p, idx) => (
                   <div key={idx} className={`space-y-4 ${idx > 0 ? 'pt-6' : ''}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                      <span className="text-xs font-black uppercase tracking-wider text-sky-700 subtle-glass px-2.5 py-0.5 rounded-full border border-sky-200">
                         Пассажир #{idx + 1}
                       </span>
                       {passengers.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemovePassenger(idx)}
-                          className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold"
+                          className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" /> Удалить
                         </button>
@@ -378,7 +388,7 @@ function BookingPageContent() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
                           Фамилия (латиницей, как в паспорте) *
                         </label>
                         <input
@@ -387,12 +397,12 @@ function BookingPageContent() {
                           value={p.lastName}
                           onChange={(e) => handlePassengerChange(idx, 'lastName', e.target.value.toUpperCase())}
                           placeholder="IVANOV"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
+                          className="w-full px-3.5 py-2.5 rounded-xl subtle-glass bg-white/80 focus:bg-white border border-white/90 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-sm"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
                           Имя (латиницей, как в паспорте) *
                         </label>
                         <input
@@ -401,12 +411,12 @@ function BookingPageContent() {
                           value={p.firstName}
                           onChange={(e) => handlePassengerChange(idx, 'firstName', e.target.value.toUpperCase())}
                           placeholder="IVAN"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
+                          className="w-full px-3.5 py-2.5 rounded-xl subtle-glass bg-white/80 focus:bg-white border border-white/90 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-sm"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
                           Серия и номер загранпаспорта *
                         </label>
                         <input
@@ -415,12 +425,12 @@ function BookingPageContent() {
                           value={p.passportNumber}
                           onChange={(e) => handlePassengerChange(idx, 'passportNumber', e.target.value)}
                           placeholder="75 1234567"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
+                          className="w-full px-3.5 py-2.5 rounded-xl subtle-glass bg-white/80 focus:bg-white border border-white/90 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-sm"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
                           Дата рождения *
                         </label>
                         <input
@@ -428,7 +438,7 @@ function BookingPageContent() {
                           required
                           value={p.birthDate}
                           onChange={(e) => handlePassengerChange(idx, 'birthDate', e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
+                          className="w-full px-3.5 py-2.5 rounded-xl subtle-glass bg-white/80 focus:bg-white border border-white/90 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-sm"
                         />
                       </div>
                     </div>
@@ -438,11 +448,11 @@ function BookingPageContent() {
             </div>
 
             {/* Contact Details */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h2 className="text-lg font-black text-slate-900">Контактные данные</h2>
+            <div className="liquid-glass-card rounded-3xl p-6 border border-white/90 shadow-glass-elevated space-y-4">
+              <h2 className="text-lg font-black text-slate-900 font-heading">Контактные данные</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Электронная почта (для билетов) *
                   </label>
                   <input
@@ -451,12 +461,12 @@ function BookingPageContent() {
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     placeholder="user@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-xl subtle-glass bg-white/80 focus:bg-white border border-white/90 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Телефон для SMS-оповещений *
                   </label>
                   <input
@@ -465,16 +475,16 @@ function BookingPageContent() {
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
                     placeholder="+7 (999) 000-00-00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-xl subtle-glass bg-white/80 focus:bg-white border border-white/90 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-sm"
                   />
                 </div>
               </div>
             </div>
 
             {/* Service Type Switch: Assistant (1500 RUB) vs Club (0 RUB) */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-blue-600" />
+            <div className="liquid-glass-card rounded-3xl p-6 border border-white/90 shadow-glass-elevated space-y-4">
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2 font-heading">
+                <Sparkles className="w-5 h-5 text-sky-600" />
                 <span>Тип оформления заказа</span>
               </h2>
 
@@ -484,25 +494,25 @@ function BookingPageContent() {
                   onClick={() => setServiceType('assistant')}
                   className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between space-y-3 ${
                     serviceType === 'assistant'
-                      ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20'
-                      : 'border-slate-200 hover:border-slate-300'
+                      ? 'border-sky-500 bg-sky-50/70 shadow-sm ring-2 ring-sky-500/20'
+                      : 'border-white/80 subtle-glass hover:bg-white/90'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center shadow-xs">
                         <Headphones className="w-4 h-4" />
                       </div>
                       <div>
                         <h3 className="font-extrabold text-slate-900 text-sm">С ассистентом FlightSaver</h3>
-                        <span className="text-xs text-blue-700 font-bold">1 500 ₽ за заказ</span>
+                        <span className="text-xs text-sky-700 font-black">1 500 ₽ за заказ</span>
                       </div>
                     </div>
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${serviceType === 'assistant' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300'}`}>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${serviceType === 'assistant' ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-300'}`}>
                       {serviceType === 'assistant' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
                     Персональный тревел-консьерж 24/7, проверка паспортов, подтверждение ваучера STPC и онлайн-регистрация на рейс.
                   </p>
                 </div>
@@ -512,25 +522,25 @@ function BookingPageContent() {
                   onClick={() => setServiceType('club')}
                   className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between space-y-3 ${
                     serviceType === 'club'
-                      ? 'border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/20'
-                      : 'border-slate-200 hover:border-slate-300'
+                      ? 'border-emerald-500 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-500/20'
+                      : 'border-white/80 subtle-glass hover:bg-white/90'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-xs">
                         <Crown className="w-4 h-4" />
                       </div>
                       <div>
                         <h3 className="font-extrabold text-slate-900 text-sm">FlightSaver Club</h3>
-                        <span className="text-xs text-emerald-700 font-bold">0 ₽ сбор (Бесплатно)</span>
+                        <span className="text-xs text-emerald-700 font-black">0 ₽ сбор (Бесплатно)</span>
                       </div>
                     </div>
                     <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${serviceType === 'club' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'}`}>
                       {serviceType === 'club' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
                     Самостоятельное автоматическое оформление билетов напрямую через GDS без дополнительных сервисных сборов.
                   </p>
                 </div>
@@ -539,20 +549,20 @@ function BookingPageContent() {
 
             {/* STPC Hotel Option */}
             {isStpcAvailable && (
-              <div className="bg-emerald-50/80 rounded-3xl p-6 border border-emerald-200 space-y-3">
+              <div className="liquid-glass-card rounded-3xl p-6 border-2 border-emerald-300/80 shadow-glass-elevated space-y-3 bg-emerald-50/40">
                 <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
                     id="stpcCheck"
                     checked={wantStpcHotel}
                     onChange={(e) => setWantStpcHotel(e.target.checked)}
-                    className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                    className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 mt-0.5 cursor-pointer"
                   />
                   <div>
                     <label htmlFor="stpcCheck" className="text-sm font-bold text-emerald-950 cursor-pointer">
                       Включить бесплатный транзитный отель 4★ STPC от авиакомпании
                     </label>
-                    <p className="text-xs text-emerald-800 mt-0.5">
+                    <p className="text-xs text-emerald-800 mt-0.5 font-medium">
                       Бесплатный номер в отеле, питание и трансфер от аэропорта при пересадке от 8 часов. Стоимость: 0 ₽.
                     </p>
                   </div>
@@ -561,9 +571,9 @@ function BookingPageContent() {
             )}
 
             {/* Payment Method Selector */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-blue-600" />
+            <div className="liquid-glass-card rounded-3xl p-6 border border-white/90 shadow-glass-elevated space-y-4">
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2 font-heading">
+                <CreditCard className="w-5 h-5 text-sky-600" />
                 <span>Способ оплаты</span>
               </h2>
 
@@ -571,49 +581,49 @@ function BookingPageContent() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('sbp')}
-                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between space-y-2 ${
+                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between space-y-2 cursor-pointer ${
                     paymentMethod === 'sbp'
-                      ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500'
-                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                      ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-500/20 shadow-xs'
+                      : 'border-white/80 subtle-glass hover:bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold text-sm text-slate-900">СБП (QR-код)</span>
-                    <QrCode className="w-5 h-5 text-blue-600" />
+                    <QrCode className="w-5 h-5 text-sky-600" />
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-700">0% комиссия • Моментально</span>
+                  <span className="text-[11px] font-bold text-emerald-700">0% комиссия • Моментально</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('card')}
-                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between space-y-2 ${
+                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between space-y-2 cursor-pointer ${
                     paymentMethod === 'card'
-                      ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500'
-                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                      ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-500/20 shadow-xs'
+                      : 'border-white/80 subtle-glass hover:bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold text-sm text-slate-900">Банковская карта</span>
                     <CreditCard className="w-5 h-5 text-slate-600" />
                   </div>
-                  <span className="text-[11px] text-slate-500 font-medium">Мир, Visa, Mastercard</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Мир, Visa, Mastercard</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('tpay')}
-                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between space-y-2 ${
+                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between space-y-2 cursor-pointer ${
                     paymentMethod === 'tpay'
-                      ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500'
-                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                      ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-500/20 shadow-xs'
+                      : 'border-white/80 subtle-glass hover:bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold text-sm text-slate-900">T-Pay / SberPay</span>
-                    <Sparkles className="w-5 h-5 text-amber-600" />
+                    <Sparkles className="w-5 h-5 text-amber-500" />
                   </div>
-                  <span className="text-[11px] text-slate-500 font-medium">В 1 клик через приложение</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">В 1 клик через приложение</span>
                 </button>
               </div>
             </div>
@@ -621,14 +631,14 @@ function BookingPageContent() {
 
           {/* Sidebar Summary (1 Col) */}
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5 sticky top-20">
-              <h3 className="font-black text-slate-900 text-lg">Сводка стоимости</h3>
+            <div className="liquid-glass-card rounded-3xl p-6 border border-white/90 shadow-glass-elevated space-y-5 sticky top-20">
+              <h3 className="font-black text-slate-900 text-lg font-heading">Сводка стоимости</h3>
 
               {/* Route Summary */}
-              <div className="space-y-2 pb-4 border-b border-slate-100 text-sm">
+              <div className="space-y-2 pb-4 border-b border-white/80 text-sm">
                 <div className="flex items-center gap-2 font-black text-slate-900">
                   <span>{flight?.originCity || 'Москва'}</span>
-                  <ArrowRight className="w-4 h-4 text-blue-600" />
+                  <ArrowRight className="w-4 h-4 text-sky-600" />
                   <span>{flight?.destinationCity || 'Бангкок'}</span>
                 </div>
                 <div className="text-xs text-slate-500 font-medium">
@@ -658,33 +668,33 @@ function BookingPageContent() {
               </div>
 
               {/* Price Calculation: Net Fare + 1.5% FX Buffer + Service Fee */}
-              <div className="pt-4 border-t border-slate-100 space-y-2.5 text-xs">
+              <div className="pt-4 border-t border-white/80 space-y-2.5 text-xs">
                 <div className="flex justify-between text-slate-600">
                   <span>Net Fare (Тариф поставщика):</span>
-                  <span className="font-semibold text-slate-900">{formatCurrency(netFare, currency)}</span>
+                  <span className="font-bold text-slate-900">{formatCurrency(netFare, currency)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span className="flex items-center gap-1">
                     <span>FX буфер конвертации (1.5%):</span>
                   </span>
-                  <span className="font-semibold text-slate-900">+{formatCurrency(fxBuffer, currency)}</span>
+                  <span className="font-bold text-slate-900">+{formatCurrency(fxBuffer, currency)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Сервисный сбор ({serviceType === 'assistant' ? 'Ассистент' : 'Club'}):</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-bold text-slate-900">
                     {serviceFee > 0 ? `+${formatCurrency(serviceFee, currency)}` : '0 ₽ (Бесплатно)'}
                   </span>
                 </div>
-                <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-slate-900">
+                <div className="flex justify-between items-baseline pt-2 border-t border-white/80 text-slate-900">
                   <span className="font-black text-sm">Итого к оплате:</span>
-                  <span className="text-2xl font-black text-blue-700">
+                  <span className="text-2xl font-black text-sky-600 font-heading">
                     {formatCurrency(totalPrice, currency)}
                   </span>
                 </div>
               </div>
 
               {savingsAmount > 0 && (
-                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold">
+                <div className="p-3.5 rounded-2xl subtle-glass border border-emerald-200/80 text-emerald-900 text-xs font-bold">
                   🎉 Ваша чистая выгода: {formatCurrency(savingsAmount, currency)}
                 </div>
               )}
@@ -693,13 +703,13 @@ function BookingPageContent() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl shadow-lg shadow-blue-600/25 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                className="w-full py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-extrabold rounded-2xl shadow-btn-shine transition flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
               >
                 <Lock className="w-4 h-4" />
                 <span>{isSubmitting ? 'Оформление...' : 'Подтвердить и забронировать'}</span>
               </button>
 
-              <p className="text-[11px] text-slate-400 text-center leading-relaxed">
+              <p className="text-[11px] text-slate-400 text-center leading-relaxed font-medium">
                 Нажимая кнопку, вы подтверждаете согласие с правилами тарифа и политикой конфиденциальности.
               </p>
             </div>

@@ -21,17 +21,14 @@ function formatFlightDates(depDate?: string, retDate?: string): string {
 
   const parseToParts = (str?: string): { day: number; month: number; year: number } | null => {
     if (!str) return null;
-    // YYYY-MM-DD
     const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (isoMatch) {
       return { year: parseInt(isoMatch[1], 10), month: parseInt(isoMatch[2], 10), day: parseInt(isoMatch[3], 10) };
     }
-    // DD.MM or DD.MM.YYYY
     const dotMatch = str.match(/^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{4}))?/);
     if (dotMatch) {
       return { day: parseInt(dotMatch[1], 10), month: parseInt(dotMatch[2], 10), year: dotMatch[3] ? parseInt(dotMatch[3], 10) : 2026 };
     }
-    // "14 сен 2026" or "14 сентября"
     const textMatch = str.match(/(\d{1,2})\s+([а-яё]+)(?:\s+(\d{4}))?/i);
     if (textMatch) {
       const d = parseInt(textMatch[1], 10);
@@ -101,9 +98,6 @@ export function FlightCard({
   const isBusiness = cabinLower.includes('business') || cabinLower.includes('бизнес');
   const isPremium = cabinLower.includes('premium') || cabinLower.includes('комфорт') || cabinLower.includes('премиум');
 
-  // Generate clear route description:
-  // Direct: "Владивосток ➔ Ханой (Прямой рейс)"
-  // Layover: "Владивосток ➔ Бангкок ➔ Ханой"
   const segments = flight.segments || [];
   const layoverCities = segments
     .slice(0, -1)
@@ -117,128 +111,152 @@ export function FlightCard({
     fullRoutePath = [flight.originCity, ...layoverCities, flight.destinationCity].filter(Boolean).join(' ➔ ');
   }
 
+  const isStpcEligible = Boolean(flight.stpcInfo?.eligible || flight.isStpcEligible || flight.transit?.stpcHotelIncluded);
+  const departureTime = segments[0]?.departureTime || '08:00';
+  const arrivalTime = segments[segments.length - 1]?.arrivalTime || '16:30';
+
   return (
     <>
-      <div className="w-full liquid-glass-card rounded-3xl p-4 sm:p-6 border border-white/90 shadow-[0_10px_35px_rgba(37,99,235,0.06)] hover:shadow-[0_16px_45px_rgba(37,99,235,0.12)] transition-all duration-300 animate-fadeIn">
+      <article className="w-full liquid-glass-card rounded-3xl p-4 sm:p-5 shadow-glass-elevated border-2 border-white/90 relative overflow-hidden transition hover:shadow-liquid-glow animate-fadeIn">
         
-        {/* Top Header: Route in Large Font (20-22px) & Key Badges (Dates, Cabin, Baggage) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3.5 border-b border-slate-100/80">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {/* Exact Flight Dates Badge */}
-              {formattedDates && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100/90 text-slate-800 font-bold text-[11px] border border-slate-200/80 shrink-0">
-                  <Calendar className="w-3 h-3 text-slate-500" />
-                  <span>{formattedDates}</span>
-                </span>
-              )}
+        {/* Top Banner: Badge & Highlights (Stitch Spec) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/80">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* Hit / Recommended Badge */}
+            <span className="bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+              <span>★</span> Рекомендованный хит
+            </span>
 
-              {/* Cabin Class Badge */}
-              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[11px] border shrink-0 ${
-                isFirst
-                  ? 'bg-amber-50 text-amber-900 border-amber-300'
-                  : isBusiness
-                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                  : isPremium
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                  : 'bg-sky-50 text-sky-700 border-sky-200'
-              }`}>
-                <span>{isFirst ? '👑 Первый класс' : isBusiness ? '💎 Бизнес' : isPremium ? '✨ Комфорт' : '🎫 Эконом'}</span>
+            {/* Savings Pill */}
+            {flight.pricing?.savedAmount > 0 && (
+              <span className="subtle-glass text-emerald-700 font-bold text-[11px] px-2.5 py-0.5 rounded-full">
+                {t.savedText} {formattedSaved} • -{flight.pricing?.savedPercentage ?? 0}%
               </span>
+            )}
 
-              {/* Baggage Badge */}
-              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[11px] border shrink-0 ${
-                flight.baggageIncluded
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
-              }`}>
-                <span>{flight.baggageIncluded ? '🧳 Багаж 23 кг' : '🎒 Только ручная кладь'}</span>
+            {/* Dates Badge */}
+            {formattedDates && (
+              <span className="subtle-glass text-slate-700 font-semibold text-[11px] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-slate-500" />
+                <span>{formattedDates}</span>
               </span>
+            )}
 
-              {/* STPC Hotel / Stopover Badge */}
-              {Boolean(flight.stpcInfo?.eligible || flight.isStpcEligible || flight.transit?.stpcHotelIncluded) && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-bold text-[11px] border border-emerald-300/80 shrink-0">
-                  <Hotel className="w-3 h-3 text-emerald-600" />
-                  <span>
-                    {flight.stpcInfo?.programName
-                      ? `Бесплатный отель ${flight.stpcInfo.hotelStars} (STPC)`
-                      : 'Бесплатный отель 4★ (STPC)'}
-                  </span>
-                  <span className="text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded-md text-[10px] ml-0.5">
-                    +{flight.stpcInfo?.estimatedSavingsRub ? flight.stpcInfo.estimatedSavingsRub.toLocaleString('ru-RU') : '8 500'} ₽ за отель
-                  </span>
-                </span>
-              )}
+            {/* Cabin Badge */}
+            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+              isFirst
+                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                : isBusiness
+                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                : isPremium
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                : 'subtle-glass text-sky-700 border-sky-200'
+            }`}>
+              {isFirst ? '👑 Первый класс' : isBusiness ? '💎 Бизнес' : isPremium ? '✨ Комфорт' : '🎫 Эконом'}
+            </span>
 
-              {/* Passengers Count Badge */}
-              {Boolean(flight.passengersCount && flight.passengersCount > 0) && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100/90 text-slate-700 font-bold text-[11px] border border-slate-200/80 shrink-0">
-                  <Users className="w-3 h-3 text-slate-500" />
-                  <span>👤 {flight.passengersCount} {flight.passengersCount === 1 ? 'пасс.' : 'пассажира'}</span>
-                </span>
-              )}
-
-              {/* Corporate Tariff Badge if applicable */}
-              {flight.isCorporate && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-bold text-[11px] border border-amber-200 shrink-0">
-                  <Briefcase className="w-3 h-3 text-amber-600" />
-                  <span>🏢 Корпоративный тариф</span>
-                </span>
-              )}
-
-              <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 shrink-0">
-                <Clock className="w-3.5 h-3.5" /> {flight.totalDuration}
+            {/* Passengers Badge */}
+            {Boolean(flight.passengersCount && flight.passengersCount > 0) && (
+              <span className="subtle-glass text-slate-700 font-semibold text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Users className="w-3 h-3 text-slate-500" />
+                <span>{flight.passengersCount} пасс.</span>
               </span>
-            </div>
-            <h2 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 mt-1 break-words leading-tight">
-              {fullRoutePath}
-            </h2>
+            )}
           </div>
 
-          {/* Airlines Logos / Badges */}
-          <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-center shrink-0">
-            {(flight.segments || []).map((seg, idx) => (
-              <span
-                key={idx}
-                className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100/90 text-slate-700 border border-slate-200/60"
-              >
-                {seg.airline}
-              </span>
-            ))}
+          <div className="text-[10px] text-slate-500 font-medium">
+            Тариф: <span className="text-slate-800 font-bold">Оптовый NDC GDS</span>
           </div>
         </div>
 
-        {/* Middle Section: Key Bonus & Highlight (STPC Hotel / Visa-Free TWOV) */}
-        <div className="py-3.5 space-y-2">
-          {Boolean(flight.transit?.stpcHotelIncluded || flight.isStpcEligible || flight.stpcInfo?.eligible) ? (
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-blue-50/80 border border-emerald-200 text-emerald-950 shadow-xs">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30">
-                <Hotel className="w-4 h-4 sm:w-5 sm:h-5" />
+        {/* Route Title */}
+        <h2 className="text-base sm:text-xl font-black tracking-tight text-slate-900 mt-2 mb-2 break-words leading-tight">
+          {fullRoutePath}
+        </h2>
+
+        {/* Airline & Route Timeline Grid (Stitch Specular Visualizer) */}
+        <div className="grid grid-cols-12 gap-2 items-center bg-white/45 p-3 rounded-2xl border border-white/70">
+          {/* Origin */}
+          <div className="col-span-4 sm:col-span-3 text-left">
+            <div className="text-base sm:text-xl font-black text-slate-900 leading-none">{departureTime}</div>
+            <div className="text-xs font-bold text-sky-700 mt-1 truncate">
+              {flight.originIata} • {flight.originCity}
+            </div>
+            <div className="text-[10px] text-slate-400 font-medium">Вылет</div>
+          </div>
+
+          {/* Flight Path Visualization */}
+          <div className="col-span-4 sm:col-span-6 flex flex-col items-center px-1">
+            <span className="text-[10px] font-semibold text-slate-500 mb-1 flex items-center gap-1">
+              <Clock className="w-3 h-3 text-slate-400" />
+              {flight.totalDuration}
+            </span>
+            <div className="w-full flex items-center relative">
+              <div className="w-2 h-2 rounded-full bg-sky-500 ring-2 ring-white shrink-0"></div>
+              <div className="flex-1 h-[2px] bg-gradient-to-r from-sky-400 via-sky-300 to-sky-500 mx-1 relative">
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-sky-600 flex items-center justify-center">
+                  <div className="w-1 h-1 rounded-full bg-sky-600"></div>
+                </div>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-sky-500 ring-2 ring-white shrink-0"></div>
+            </div>
+            {/* Airlines & Stopovers */}
+            <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-600 font-medium truncate max-w-full">
+              <span className="text-sky-700 font-bold truncate">
+                {(flight.segments || []).map((s) => s.airline).join(' + ')}
+              </span>
+              {layoverCities.length > 0 && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-emerald-700 bg-emerald-50/90 px-1 rounded truncate">
+                    {layoverCities.length} пересадка ({layoverCities.join(', ')})
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Destination */}
+          <div className="col-span-4 sm:col-span-3 text-right">
+            <div className="text-base sm:text-xl font-black text-slate-900 leading-none">{arrivalTime}</div>
+            <div className="text-xs font-bold text-sky-700 mt-1 truncate">
+              {flight.destinationIata} • {flight.destinationCity}
+            </div>
+            <div className="text-[10px] text-slate-400 font-medium">Прилёт</div>
+          </div>
+        </div>
+
+        {/* Highlight Perks Section (STPC Hotel or Direct Issuance) */}
+        <div className="mt-3">
+          {isStpcEligible ? (
+            <div className="flex items-start gap-3 p-2.5 rounded-2xl bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-sky-50/80 border border-emerald-200 text-emerald-950 shadow-xs">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Hotel className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-xs sm:text-sm font-bold text-emerald-950 leading-snug break-words">
                     ✨ {flight.stpcInfo?.programName ? `${flight.stpcInfo.programName}: Бесплатный отель ${flight.stpcInfo.hotelStars}` : (flight.transit?.stpcDetails || 'Бесплатный отель 4★ STPC при стыковке')} ({t.hotelIncludedBadge})
                   </p>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-200/80 text-emerald-900 font-extrabold text-[10px]">
+                  <span className="px-2 py-0.2 rounded-md bg-emerald-200/80 text-emerald-900 font-extrabold text-[10px]">
                     +{flight.stpcInfo?.estimatedSavingsRub ? flight.stpcInfo.estimatedSavingsRub.toLocaleString('ru-RU') : '8 500'} ₽ за отель
                   </span>
                 </div>
-                <p className="text-[11px] sm:text-xs text-emerald-800 font-medium mt-0.5 break-words">
+                <p className="text-[10px] sm:text-xs text-emerald-800 font-medium mt-0.5 break-words">
                   Включен бесплатный трансфер и питание • {t.layoverText(flight.stpcInfo?.hubCity || flight.transit?.transitCity || '', flight.transit?.transitDuration || 'от 8 часов')}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50/80 border border-slate-100 text-slate-800">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="flex items-start gap-2.5 p-2 rounded-2xl bg-white/40 border border-white/70 text-slate-800">
+              <div className="w-7 h-7 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <ShieldCheck className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug break-words">
+                <p className="text-xs font-bold text-slate-900 leading-snug">
                   ⚡ {t.directIssuance}
                 </p>
-                <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5 break-words">
+                <p className="text-[10px] text-slate-500 font-medium">
                   Оптовые агентские сегменты GDS/NDC без наценок и скрытых комиссий
                 </p>
               </div>
@@ -246,45 +264,55 @@ export function FlightCard({
           )}
         </div>
 
-        {/* Bottom Section: Price Block + Single Major Button (min-h-[50px] height) */}
-        <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          
-          {/* Price & Savings Block */}
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                {formattedPrice}
+        {/* Amenities & Price Bar */}
+        <div className="mt-3 pt-2.5 border-t border-white/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Amenities Badges */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-700">
+            <span className={`subtle-glass px-2.5 py-1 rounded-lg flex items-center gap-1 font-semibold ${
+              flight.baggageIncluded ? 'text-emerald-700 bg-emerald-50/70' : 'text-amber-700 bg-amber-50/70'
+            }`}>
+              {flight.baggageIncluded ? '✓ 🧳 Багаж 23 кг' : '🎒 Ручная кладь'}
+            </span>
+            {isStpcEligible && (
+              <span className="subtle-glass px-2.5 py-1 rounded-lg text-sky-800 bg-sky-50/70 font-semibold flex items-center gap-1">
+                🏨 Отель STPC
               </span>
-              <span className="text-xs sm:text-sm text-slate-400 line-through font-semibold">
-                {formattedCompetitor}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 shrink-0">
-                {t.savedText} {formattedSaved} • -{flight.pricing?.savedPercentage ?? 0}%
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsDetailsOpen(true)}
-                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 transition-colors shrink-0"
-              >
-                <Info className="w-3.5 h-3.5" />
-                <span>{t.fareDetailsBtn}</span>
-              </button>
-            </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsDetailsOpen(true)}
+              className="text-[11px] font-bold text-sky-700 hover:text-sky-900 flex items-center gap-1 ml-1 hover:underline cursor-pointer"
+            >
+              <Info className="w-3.5 h-3.5" />
+              <span>{t.fareDetailsBtn}</span>
+            </button>
           </div>
 
-          {/* Single Major Action Button (Elastic min-h-[50px]) */}
-          <button
-            type="button"
-            onClick={() => onSelect(flight)}
-            className="w-full sm:w-auto min-h-[50px] h-auto py-2.5 px-7 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
-          >
-            <span>{t.selectFlightBtn}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {/* Price & CTA Button */}
+          <div className="flex items-center justify-between sm:justify-end gap-3 ml-0 sm:ml-auto">
+            <div className="text-left sm:text-right">
+              {flight.pricing?.marketPrice > flight.pricing?.totalPrice && (
+                <span className="text-[11px] text-slate-400 line-through font-medium block">
+                  {formattedCompetitor}
+                </span>
+              )}
+              <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">
+                {formattedPrice}
+              </div>
+            </div>
+
+            {/* Select Button */}
+            <button
+              type="button"
+              onClick={() => onSelect(flight)}
+              className="min-h-[44px] px-5 py-2 rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white font-bold text-xs sm:text-sm shadow-btn-shine hover:brightness-105 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <span>{t.selectFlightBtn}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      </article>
 
       {/* Price Transparency Breakdown Modal */}
       <PriceBreakdownModal
