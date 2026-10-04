@@ -74,6 +74,7 @@ const AIRPORT_NAMES: Record<string, { city: string; name: string; country: strin
   TAS: { city: 'Ташкент', name: 'Ислам Каримов', country: 'Узбекистан' },
   ALA: { city: 'Алматы', name: 'Алматы International', country: 'Казахстан' },
   NQZ: { city: 'Астана', name: 'Нурсултан Назарбаев', country: 'Казахстан' },
+  CIT: { city: 'Шымкент', name: 'Шымкент', country: 'Казахстан' },
   TYO: { city: 'Токио', name: 'Нарита / Ханеда', country: 'Япония' },
   NRT: { city: 'Токио', name: 'Нарита', country: 'Япония' },
   HND: { city: 'Токио', name: 'Ханеда', country: 'Япония' },
@@ -81,6 +82,21 @@ const AIRPORT_NAMES: Record<string, { city: string; name: string; country: strin
   DPS: { city: 'Бали', name: 'Нгурах-Рай', country: 'Индонезия' },
   SIN: { city: 'Сингапур', name: 'Чанги', country: 'Сингапур' },
   KUL: { city: 'Куала-Лумпур', name: 'KLIA', country: 'Малайзия' },
+  PQC: { city: 'Фукуок', name: 'Фукуок International', country: 'Вьетнам' },
+  USM: { city: 'Самуи', name: 'Самуи', country: 'Таиланд' },
+  MLE: { city: 'Мале', name: 'Велана', country: 'Мальдивы' },
+  GOI: { city: 'Гоа', name: 'Даболим', country: 'Индия' },
+  GOX: { city: 'Гоа', name: 'Манохар', country: 'Индия' },
+  CMB: { city: 'Коломбо', name: 'Бандаранаике', country: 'Шри-Ланка' },
+  KWI: { city: 'Эль-Кувейт', name: 'Кувейт', country: 'Кувейт' },
+  BAH: { city: 'Манама', name: 'Бахрейн', country: 'Бахрейн' },
+  MCT: { city: 'Маскат', name: 'Маскат', country: 'Оман' },
+  SHJ: { city: 'Шарджа', name: 'Шарджа', country: 'ОАЭ' },
+  CAI: { city: 'Каир', name: 'Каир', country: 'Египет' },
+  ADD: { city: 'Аддис-Абеба', name: 'Боле', country: 'Эфиопия' },
+  IKA: { city: 'Тегеран', name: 'Имам Хомейни', country: 'Иран' },
+  JED: { city: 'Джидда', name: 'Король Абдулазиз', country: 'Саудовская Аравия' },
+  RUH: { city: 'Эр-Рияд', name: 'Король Халид', country: 'Саудовская Аравия' },
 };
 
 function getCityMeta(iata: string, defaultName?: string) {
@@ -100,7 +116,7 @@ const COUNTRY_DISAMBIGUATION: Record<string, { countryRu: string; question: stri
   вьетнам: {
     countryRu: 'Вьетнам',
     question: 'В какой город Вьетнама вы направляетесь?',
-    options: ['📍 Ханой (HAN)', '📍 Хошимин (SGN)', '📍 Дананг (DAD)', '📍 Нячанг (CXR)'],
+    options: ['📍 Фукуок (PQC)', '📍 Ханой (HAN)', '📍 Хошимин (SGN)', '📍 Дананг (DAD)', '📍 Нячанг (CXR)'],
   },
   таиланд: {
     countryRu: 'Таиланд',
@@ -634,7 +650,9 @@ async function fetchOrBridgeFlights(state: any, pricingOptions: PricingOptions):
     destination,
     state.departure_date,
     passengers,
-    pricingOptions.targetCurrency
+    pricingOptions.targetCurrency,
+    state.origin_name,
+    state.destination_name
   );
 
   // Эталонный рыночный бенчмарк Авиасейлс
@@ -670,21 +688,22 @@ async function fetchOrBridgeFlights(state: any, pricingOptions: PricingOptions):
     } else {
       bestLive.isBestValue = true;
       curatedResults.push(bestLive);
-      if (liveAviasalesOffers.length > 1) {
-        curatedResults.push(liveAviasalesOffers[1]);
-      } else if (bestSplit) {
+      if (bestSplit) {
         curatedResults.push(bestSplit);
       }
     }
 
-    // 3. Дополнительный вариант: STPC Стоповер с 5★ отелем или следующий живой рейс
+    // 2. STPC Стоповер с 5★ отелем (если есть)
     const stpcOffer = splitOffers.find((f) => f.isStpcEligible || f.transit?.stpcHotelIncluded);
     if (stpcOffer && !curatedResults.some((f) => f.id === stpcOffer.id)) {
       curatedResults.push(stpcOffer);
-    } else if (liveAviasalesOffers.length > 2 && !curatedResults.some((f) => f.id === liveAviasalesOffers[2].id)) {
-      curatedResults.push(liveAviasalesOffers[2]);
-    } else if (bestSplit && !curatedResults.some((f) => f.id === bestSplit.id)) {
-      curatedResults.push(bestSplit);
+    }
+
+    // 3. Выводим ВСЕ остальные найденные реальные рейсы на эту дату (без искусственного ограничения в 3 билета)
+    for (const liveFlight of liveAviasalesOffers) {
+      if (!curatedResults.some((f) => f.id === liveFlight.id)) {
+        curatedResults.push(liveFlight);
+      }
     }
   } else {
     // Резервная витрина при отсутствии живого ответа Aviasales API
@@ -2121,18 +2140,24 @@ function extractDeterministicState(text: string, context: any) {
     { iata: 'UUS', name: 'Южно-Сахалинск', patterns: ['южно-сахалинск', 'сахалин', 'хомутов', 'uus'] },
     { iata: 'MSQ', name: 'Минск', patterns: ['минск', 'msq'] },
 
-    // Вьетнам & ЮВА (включая Дананг DAD)
+    // Вьетнам & ЮВА (включая Дананг DAD и Фукуок PQC)
+    { iata: 'PQC', name: 'Фукуок', patterns: ['фукуок', 'phu quoc', 'pqc'] },
     { iata: 'DAD', name: 'Дананг', patterns: ['дананг', 'да нанг', 'da nang', 'danang', 'dad'] },
     { iata: 'HAN', name: 'Ханой', patterns: ['ханой', 'нойбай', 'hanoi', 'han'] },
     { iata: 'SGN', name: 'Хошимин', patterns: ['хошимин', 'сайгон', 'таншоннят', 'ho chi minh', 'saigon', 'sgn'] },
     { iata: 'CXR', name: 'Нячанг', patterns: ['нячанг', 'камрань', 'nha trang', 'cxr'] },
     { iata: 'BKK', name: 'Бангкок', patterns: ['бангкок', 'суварнабхум', 'bangkok', 'bkk'] },
     { iata: 'HKT', name: 'Пхукет', patterns: ['пхукет', 'phuket', 'hkt'] },
+    { iata: 'USM', name: 'Самуи', patterns: ['самуи', 'самуй', 'koh samui', 'samui', 'usm'] },
     { iata: 'DPS', name: 'Бали', patterns: ['бали', 'денпасар', 'нгурах', 'bali', 'dps'] },
     { iata: 'SIN', name: 'Сингапур', patterns: ['сингапур', 'чанги', 'singapore', 'sin'] },
     { iata: 'KUL', name: 'Куала-Лумпур', patterns: ['куала-лумпур', 'kuala lumpur', 'kul'] },
+    { iata: 'MLE', name: 'Мале', patterns: ['мале', 'мальдив', 'male', 'maldives', 'mle'] },
+    { iata: 'GOI', name: 'Гоа', patterns: ['гоа', 'даболим', 'goa', 'goi', 'gox'] },
+    { iata: 'CMB', name: 'Коломбо', patterns: ['коломбо', 'шри-ланк', 'шри ланк', 'colombo', 'cmb'] },
 
     // Ближний Восток и транзитные хабы STPC
+    { iata: 'KWI', name: 'Эль-Кувейт', patterns: ['кувейт', 'эль-кувейт', 'kuwait', 'kwi'] },
     { iata: 'IST', name: 'Стамбул', patterns: ['стамбул', 'сабих', 'новый стамбул', 'istanbul', 'ist', 'saw'] },
     { iata: 'AYT', name: 'Анталья', patterns: ['анталь', 'antalya', 'ayt'] },
     { iata: 'DXB', name: 'Дубай', patterns: ['дубай', 'dubai', 'dxb'] },

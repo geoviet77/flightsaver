@@ -71,6 +71,52 @@ function formatFlightDates(depDate?: string, retDate?: string): string {
   return `${p1.day} ${mName1} – ${p2.day} ${mName2} ${p2.year} (${diffDays} дн.)`;
 }
 
+const FALLBACK_CITIES: Record<string, string> = {
+  PQC: 'Фукуок',
+  USM: 'Самуи',
+  DPS: 'Бали',
+  HKT: 'Пхукет',
+  BKK: 'Бангкок',
+  DAD: 'Дананг',
+  CXR: 'Нячанг',
+  HAN: 'Ханой',
+  SGN: 'Хошимин',
+  MOW: 'Москва',
+  SVO: 'Москва',
+  DME: 'Москва',
+  VKO: 'Москва',
+  LED: 'Санкт-Петербург',
+  IST: 'Стамбул',
+  SAW: 'Стамбул',
+  AYT: 'Анталья',
+  DXB: 'Дубай',
+  DOH: 'Доха',
+  CAN: 'Гуанчжоу',
+  PEK: 'Пекин',
+  PVG: 'Шанхай',
+  MLE: 'Мале',
+  GOI: 'Гоа',
+  GOX: 'Гоа',
+  CMB: 'Коломбо',
+  KWI: 'Эль-Кувейт',
+  BAH: 'Манама',
+  MCT: 'Маскат',
+  SHJ: 'Шарджа',
+  TAS: 'Ташкент',
+  ALA: 'Алматы',
+  NQZ: 'Астана',
+};
+
+function formatCityName(city?: string, iata?: string): string {
+  const code = (iata || '').toUpperCase();
+  if (!city || city.toUpperCase() === code) {
+    if (code && FALLBACK_CITIES[code]) {
+      return FALLBACK_CITIES[code];
+    }
+  }
+  return city || code;
+}
+
 interface FlightCardProps {
   flight: Flight;
   onSelect: (flight: Flight) => void;
@@ -98,17 +144,20 @@ export function FlightCard({
   const isBusiness = cabinLower.includes('business') || cabinLower.includes('бизнес');
   const isPremium = cabinLower.includes('premium') || cabinLower.includes('комфорт') || cabinLower.includes('премиум');
 
+  const originDisplayCity = formatCityName(flight.originCity, flight.originIata);
+  const destDisplayCity = formatCityName(flight.destinationCity, flight.destinationIata);
+
   const segments = flight.segments || [];
   const layoverCities = segments
     .slice(0, -1)
-    .map((seg) => seg.toCity)
-    .filter((city) => city !== flight.originCity && city !== flight.destinationCity);
+    .map((seg) => formatCityName(seg.toCity, seg.toIata))
+    .filter((city) => Boolean(city) && city !== originDisplayCity && city !== destDisplayCity && !city.includes('Хаб') && !city.includes('Стыковка'));
 
   let fullRoutePath = '';
   if (segments.length <= 1 || layoverCities.length === 0) {
-    fullRoutePath = `${flight.originCity || ''} ➔ ${flight.destinationCity || ''} (Прямой рейс)`;
+    fullRoutePath = `${originDisplayCity} ➔ ${destDisplayCity} (Прямой рейс)`;
   } else {
-    fullRoutePath = [flight.originCity, ...layoverCities, flight.destinationCity].filter(Boolean).join(' ➔ ');
+    fullRoutePath = [originDisplayCity, ...layoverCities, destDisplayCity].filter(Boolean).join(' ➔ ');
   }
 
   const isStpcEligible = Boolean(flight.stpcInfo?.eligible || flight.isStpcEligible || flight.transit?.stpcHotelIncluded);
@@ -165,7 +214,7 @@ export function FlightCard({
           </div>
 
           <div className="text-[10px] text-slate-500 font-medium">
-            Тариф: <span className="text-slate-800 font-bold">Оптовый NDC GDS</span>
+            Тариф: <span className="text-slate-800 font-bold">{(t as any).tariffOfficial || 'Официальный'}</span>
           </div>
         </div>
 
@@ -180,7 +229,7 @@ export function FlightCard({
           <div className="col-span-4 sm:col-span-3 text-left">
             <div className="text-base sm:text-xl font-black text-slate-900 leading-none">{departureTime}</div>
             <div className="text-xs font-bold text-sky-700 mt-1 truncate">
-              {flight.originIata} • {flight.originCity}
+              {flight.originIata} • {originDisplayCity}
             </div>
             <div className="text-[10px] text-slate-400 font-medium">Вылет</div>
           </div>
@@ -220,7 +269,7 @@ export function FlightCard({
           <div className="col-span-4 sm:col-span-3 text-right">
             <div className="text-base sm:text-xl font-black text-slate-900 leading-none">{arrivalTime}</div>
             <div className="text-xs font-bold text-sky-700 mt-1 truncate">
-              {flight.destinationIata} • {flight.destinationCity}
+              {flight.destinationIata} • {destDisplayCity}
             </div>
             <div className="text-[10px] text-slate-400 font-medium">Прилёт</div>
           </div>
@@ -254,10 +303,10 @@ export function FlightCard({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-900 leading-snug">
-                  ⚡ {t.directIssuance}
+                  🛡️ {t.directIssuance}
                 </p>
                 <p className="text-[10px] text-slate-500 font-medium">
-                  Оптовые агентские сегменты GDS/NDC без наценок и скрытых комиссий
+                  {(t as any).directIssuanceDesc || 'Прямой поиск по тарифам авиакомпаний без наценок и скрытых комиссий'}
                 </p>
               </div>
             </div>

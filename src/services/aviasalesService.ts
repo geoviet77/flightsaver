@@ -119,6 +119,28 @@ export class AviasalesService {
     PKX: { city: 'Пекин', name: 'Дасин (PKX)' },
     CAN: { city: 'Гуанчжоу', name: 'Байюнь (CAN)' },
     PVG: { city: 'Шанхай', name: 'Пудун (PVG)' },
+    PQC: { city: 'Фукуок', name: 'Фукуок International (PQC)' },
+    USM: { city: 'Самуи', name: 'Самуи (USM)' },
+    MLE: { city: 'Мале', name: 'Мале Велана (MLE)' },
+    GOI: { city: 'Гоа', name: 'Даболим (GOI)' },
+    GOX: { city: 'Гоа', name: 'Манохар (GOX)' },
+    CMB: { city: 'Коломбо', name: 'Бандаранаике (CMB)' },
+    KWI: { city: 'Эль-Кувейт', name: 'Кувейт (KWI)' },
+    BAH: { city: 'Манама', name: 'Бахрейн (BAH)' },
+    MCT: { city: 'Маскат', name: 'Маскат (MCT)' },
+    SHJ: { city: 'Шарджа', name: 'Шарджа (SHJ)' },
+    AUH: { city: 'Абу-Даби', name: 'Зайед (AUH)' },
+    TAS: { city: 'Ташкент', name: 'Ташкент (TAS)' },
+    ALA: { city: 'Алматы', name: 'Алматы (ALA)' },
+    NQZ: { city: 'Астана', name: 'Нурсултан (NQZ)' },
+    CIT: { city: 'Шымкент', name: 'Шымкент (CIT)' },
+    CAI: { city: 'Каир', name: 'Каир (CAI)' },
+    ADD: { city: 'Аддис-Абеба', name: 'Боле (ADD)' },
+    IKA: { city: 'Тегеран', name: 'Имам Хомейни (IKA)' },
+    JED: { city: 'Джидда', name: 'Король Абдулазиз (JED)' },
+    RUH: { city: 'Эр-Рияд', name: 'Король Халид (RUH)' },
+    AYT: { city: 'Анталья', name: 'Анталья (AYT)' },
+    MRV: { city: 'Минеральные Воды', name: 'Минводы (MRV)' },
     MUC: { city: 'Мюнхен', name: 'Франц Йозеф Штраус (MUC)' },
     BER: { city: 'Берлин', name: 'Бранденбург (BER)' },
     FRA: { city: 'Франкфурт', name: 'Рейн-Майн (FRA)' },
@@ -267,6 +289,15 @@ export class AviasalesService {
       G9: { city: 'Шарджа', iata: 'SHJ', name: 'Шарджа (SHJ)' },
       GF: { city: 'Бахрейн', iata: 'BAH', name: 'Бахрейн (BAH)' },
       WY: { city: 'Маскат', iata: 'MCT', name: 'Маскат (MCT)' },
+      J9: { city: 'Эль-Кувейт', iata: 'KWI', name: 'Кувейт (KWI)' },
+      W5: { city: 'Тегеран', iata: 'IKA', name: 'Имам Хомейни (IKA)' },
+      EY: { city: 'Абу-Даби', iata: 'AUH', name: 'Зайед (AUH)' },
+      SV: { city: 'Джидда', iata: 'JED', name: 'Король Абдулазиз (JED)' },
+      HY: { city: 'Ташкент', iata: 'TAS', name: 'Ташкент (TAS)' },
+      KC: { city: 'Алматы', iata: 'ALA', name: 'Алматы (ALA)' },
+      DV: { city: 'Шымкент', iata: 'CIT', name: 'Шымкент (CIT)' },
+      MS: { city: 'Каир', iata: 'CAI', name: 'Каир (CAI)' },
+      ET: { city: 'Аддис-Абеба', iata: 'ADD', name: 'Боле (ADD)' },
       SU: { city: 'Красноярск', iata: 'KJA', name: 'Емельяново (KJA)' },
       S7: { city: 'Новосибирск', iata: 'OVB', name: 'Толмачево (OVB)' },
       A4: { city: 'Минеральные Воды', iata: 'MRV', name: 'Минводы (MRV)' },
@@ -274,11 +305,11 @@ export class AviasalesService {
       VJ: { city: 'Ханой', iata: 'HAN', name: 'Нойбай (HAN)' },
       VN: { city: 'Ханой', iata: 'HAN', name: 'Нойбай (HAN)' },
     };
-    const defaultHub = hubs[airlineCode] || { city: 'Хаб стыковки', iata: 'HUB', name: 'Транзитный аэропорт (HUB)' };
+    const defaultHub = hubs[airlineCode] || { city: 'Стыковка', iata: 'TRANSIT', name: 'Транзитный аэропорт' };
     if (defaultHub.iata === destIata) {
       if (airlineCode === 'VJ' || airlineCode === 'VN') return { city: 'Хошимин', iata: 'SGN', name: 'Таншоннят (SGN)' };
       if (airlineCode === 'TK' || airlineCode === 'PC') return { city: 'Анталья', iata: 'AYT', name: 'Анталья (AYT)' };
-      return { city: 'Транзитный хаб', iata: 'HUB', name: 'Транзитный аэропорт' };
+      return { city: 'Стыковка', iata: 'TRANSIT', name: 'Транзитный аэропорт' };
     }
     return defaultHub;
   }
@@ -291,7 +322,9 @@ export class AviasalesService {
     destinationIata: string,
     departureDate?: string,
     passengers = 1,
-    targetCurrency: PricingCurrency = 'RUB'
+    targetCurrency: PricingCurrency = 'RUB',
+    originCityName?: string,
+    destinationCityName?: string
   ): Promise<Flight[]> {
     const orig = (originIata || 'MOW').toUpperCase();
     const dest = (destinationIata || 'LED').toUpperCase();
@@ -311,8 +344,15 @@ export class AviasalesService {
         const airlineName = this.AIRLINE_NAMES[airlineCode] || airlineCode;
         const flightNumber = offer.flightNumber ? `${airlineCode} ${offer.flightNumber}` : `${airlineCode} ${100 + i}`;
         
-        const origCityMeta = this.CITY_NAMES[offer.originAirport || orig] || this.CITY_NAMES[orig] || { city: orig, name: orig };
-        const destCityMeta = this.CITY_NAMES[offer.destinationAirport || dest] || this.CITY_NAMES[dest] || { city: dest, name: dest };
+        const origCityMeta = this.CITY_NAMES[offer.originAirport || orig] || 
+          (originCityName ? { city: originCityName, name: `${originCityName} (${orig})` } : null) || 
+          this.CITY_NAMES[orig] || 
+          { city: orig, name: orig };
+
+        const destCityMeta = this.CITY_NAMES[offer.destinationAirport || dest] || 
+          (destinationCityName ? { city: destinationCityName, name: `${destinationCityName} (${dest})` } : null) || 
+          this.CITY_NAMES[dest] || 
+          { city: dest, name: dest };
 
         let depTime = '10:00';
         let arrTime = '12:00';
@@ -545,21 +585,9 @@ export class AviasalesService {
       }
     };
 
-    let offers = await fetchOffers(departureDate);
-
-    // Если по точной дате вернулось мало предложений (< 3), дополняем лучшими тарифами по маршруту
-    if (departureDate && offers.length < 3) {
-      const generalOffers = await fetchOffers(undefined);
-      const existingKeys = new Set(offers.map((o) => `${o.airline}-${o.price}-${o.departureAt}`));
-      for (const go of generalOffers) {
-        const key = `${go.airline}-${go.price}-${go.departureAt}`;
-        if (!existingKeys.has(key)) {
-          existingKeys.add(key);
-          offers.push(go);
-        }
-      }
-    }
-
+    // Возвращаем строго предложения на запрошенную дату.
+    // Категорически запрещено подмешивать рейсы с других дат (например, с 7 декабря на запрос 30 декабря).
+    const offers = await fetchOffers(departureDate);
     return offers;
   }
 }
