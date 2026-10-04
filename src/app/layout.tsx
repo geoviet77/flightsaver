@@ -22,10 +22,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className="scroll-smooth">
-      <head>
+      <body
+        className="antialiased min-h-screen text-slate-900"
+        style={{
+          background: 'linear-gradient(180deg, #f0f7ff 0%, #e1effe 35%, #ebf4ff 70%, #f8fafc 100%)',
+          minHeight: '100vh',
+          fontFamily: "var(--font-main)",
+        }}
+      >
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
+        />
+        <Script
+          src="https://tpembars.com/NTgxMzg1.js?t=581385"
+          strategy="afterInteractive"
         />
         <script
           dangerouslySetInnerHTML={{
@@ -40,17 +51,6 @@ export default function RootLayout({
             `,
           }}
         />
-        <script async src="https://tpembars.com/NTgxMzg1.js?t=581385" data-cmp-ab="2" />
-      </head>
-      <body
-
-        className="antialiased min-h-screen text-slate-900"
-        style={{
-          background: 'linear-gradient(180deg, #f0f7ff 0%, #e1effe 35%, #ebf4ff 70%, #f8fafc 100%)',
-          minHeight: '100vh',
-          fontFamily: "var(--font-main)",
-        }}
-      >
         {children}
       </body>
     </html>
