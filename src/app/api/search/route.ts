@@ -653,124 +653,144 @@ async function fetchOrBridgeFlights(state: any, pricingOptions: PricingOptions):
     splitOffers = await buildInternationalSplitFlight(state, pricingOptions);
   }
 
-  // Формируем витрину из 3 предложений:
-  // - Вариант 1: ⚡ Умный Split-Билет (Самый дешевый, лоукостер VietJet/AirAsia/Pegasus)
-  // - Вариант 2: 🚀 Проверенный единый билет из живой выдачи Авиасейлс (или GDS)
-  // - Вариант 3: 🎁 STPC Стоповер (с бесплатным 4★/5★ отелем при стыковке)
+  // Формируем витрину предложений:
+  // При наличии живых тарифов Aviasales Data API — выводим реальные билеты в топ!
   const curatedResults: Flight[] = [];
 
-  // 1. Лучший сплит-билет (рекордная цена)
-  if (splitOffers.length > 0) {
-    curatedResults.push(splitOffers[0]);
-  }
-
-  // 2. Сквозной проверенный тариф из живого Aviasales API или GDS
   if (liveAviasalesOffers.length > 0) {
-    const liveThrough = liveAviasalesOffers[0];
-    liveThrough.isBestValue = false;
-    liveThrough.isFastest = true;
-    curatedResults.push(liveThrough);
-  } else if (validDuffelOffers.length > 0) {
-    const directGds = validDuffelOffers[0];
-    directGds.isBestValue = false;
-    directGds.isFastest = true;
-    curatedResults.push(directGds);
-  } else {
-    // Калиброванный сквозной тариф Авиасейлс
-    const originMeta = getCityMeta(origin, state.origin_name);
-    const destMeta = getCityMeta(destination, state.destination_name);
-    const throughOffer: Flight = {
-      id: `aviasales-${origin}-${destination}-through`,
-      originCity: originMeta.city,
-      destinationCity: destMeta.city,
-      originIata: origin,
-      destinationIata: destination,
-      departureDate: state.departure_date || '2026-12-30',
-      returnDate: state.return_date || undefined,
-      totalDuration: aviasalesBenchmark.formattedDuration || '1д 10ч',
-      totalDurationMinutes: aviasalesBenchmark.durationMinutes || 2040,
-      segments: [
-        {
-          airline: aviasalesBenchmark.airline,
-          airlineCode: 'VJ',
-          flightNumber: aviasalesBenchmark.flightNumber || 'VJ 062',
-          fromAirport: originMeta.name,
-          fromCity: originMeta.city,
-          fromIata: origin,
-          toAirport: destination === 'DAD' ? 'Нячанг (Камрань)' : destMeta.name,
-          toCity: destination === 'DAD' ? 'Нячанг' : destMeta.city,
-          toIata: destination === 'DAD' ? 'CXR' : destination,
-          departureTime: '23:35',
-          arrivalTime: '11:15',
-          duration: '7ч 40м',
-          bookingProvider: 'Aviasales Partner',
-          cabinClass: 'Economy',
-          aircraft: 'Airbus A330-300',
-          baggage: 'Багаж 20 кг + ручная кладь 7 кг',
-        },
-        ...(destination === 'DAD' ? [{
-          airline: 'VietJet Air',
-          airlineCode: 'VJ',
-          flightNumber: 'VJ 582',
-          fromAirport: 'Нячанг (Камрань)',
-          fromCity: 'Нячанг',
-          fromIata: 'CXR',
-          toAirport: destMeta.name,
-          toCity: destMeta.city,
-          toIata: 'DAD',
-          departureTime: '12:35',
-          arrivalTime: '13:35',
-          duration: '1ч 00м',
-          bookingProvider: 'VietJet Direct',
-          cabinClass: 'Economy' as any,
-          aircraft: 'Airbus A321',
-          baggage: 'Багаж 20 кг + ручная кладь 7 кг',
-        }] : [])
-      ],
-      transit: {
-        hasTransit: aviasalesBenchmark.transfers > 0,
-        transitCity: destination === 'DAD' ? 'Нячанг' : undefined,
-        transitAirport: destination === 'DAD' ? 'CXR' : undefined,
-        transitDuration: destination === 'DAD' ? '1ч 20м' : undefined,
-        stpcHotelIncluded: false,
-        visaFreeTransit: true,
-        baggageRecheckRequired: false,
-      },
-      pricing: {
-        currency: pricingOptions.targetCurrency,
-        totalPrice: aviasalesBenchmark.marketPrice,
-        marketPrice: aviasalesBenchmark.marketPrice,
-        savedAmount: 0,
-        savedPercentage: 0,
-        netSupplierFare: aviasalesBenchmark.marketPrice,
-        serviceFee: 0,
-        fxBufferAmount: 0,
-        serviceFeePerSegment: 0,
-        stpcHotelValue: 0,
-        totalEconomicSavings: 0,
-        fareBreakdown: {} as any,
-        segmentBreakdowns: [],
-        splitSavingsReason: `Сквозной тариф без самостоятельной пересадки (${aviasalesBenchmark.source})`,
-      },
-      isBestValue: false,
-      isFastest: true,
-      isStpcEligible: false,
-      baggageIncluded: true,
-      baggageDescription: 'Багаж 20 кг + ручная кладь 7 кг',
-      cabinClass: 'Economy',
-      tags: ['🚀 Сквозной тариф', 'Aviasales Verified', 'Единый билет'],
-      stopsCount: aviasalesBenchmark.transfers,
-    };
-    curatedResults.push(throughOffer);
-  }
+    const bestLive = liveAviasalesOffers[0];
+    const bestSplit = splitOffers.length > 0 ? splitOffers[0] : null;
 
-  // 3. Дополнительный альтернативный вариант: STPC стоповер с отелем или альтернативный хаб
-  if (splitOffers.length > 1) {
-    curatedResults.push(splitOffers[1]);
-  } else if (liveAviasalesOffers.length > 1) {
-    curatedResults.push(liveAviasalesOffers[1]);
-  } else if (validDuffelOffers.length > 1) {
-    curatedResults.push(validDuffelOffers[1]);
+    // Если сплит-маршрут дает лучшую цену — ставим его первым, иначе живой рейс в топе
+    if (bestSplit && bestSplit.pricing.totalPrice < bestLive.pricing.totalPrice) {
+      bestSplit.isBestValue = true;
+      bestLive.isBestValue = false;
+      curatedResults.push(bestSplit);
+      curatedResults.push(bestLive);
+    } else {
+      bestLive.isBestValue = true;
+      curatedResults.push(bestLive);
+      if (liveAviasalesOffers.length > 1) {
+        curatedResults.push(liveAviasalesOffers[1]);
+      } else if (bestSplit) {
+        curatedResults.push(bestSplit);
+      }
+    }
+
+    // 3. Дополнительный вариант: STPC Стоповер с 5★ отелем или следующий живой рейс
+    const stpcOffer = splitOffers.find((f) => f.isStpcEligible || f.transit?.stpcHotelIncluded);
+    if (stpcOffer && !curatedResults.some((f) => f.id === stpcOffer.id)) {
+      curatedResults.push(stpcOffer);
+    } else if (liveAviasalesOffers.length > 2 && !curatedResults.some((f) => f.id === liveAviasalesOffers[2].id)) {
+      curatedResults.push(liveAviasalesOffers[2]);
+    } else if (bestSplit && !curatedResults.some((f) => f.id === bestSplit.id)) {
+      curatedResults.push(bestSplit);
+    }
+  } else {
+    // Резервная витрина при отсутствии живого ответа Aviasales API
+    if (splitOffers.length > 0) {
+      curatedResults.push(splitOffers[0]);
+    }
+
+    if (validDuffelOffers.length > 0) {
+      const directGds = validDuffelOffers[0];
+      directGds.isBestValue = false;
+      directGds.isFastest = true;
+      curatedResults.push(directGds);
+    } else {
+      // Калиброванный сквозной тариф Авиасейлс
+      const originMeta = getCityMeta(origin, state.origin_name);
+      const destMeta = getCityMeta(destination, state.destination_name);
+      const throughOffer: Flight = {
+        id: `aviasales-${origin}-${destination}-through`,
+        originCity: originMeta.city,
+        destinationCity: destMeta.city,
+        originIata: origin,
+        destinationIata: destination,
+        departureDate: state.departure_date || '2026-12-30',
+        returnDate: state.return_date || undefined,
+        totalDuration: aviasalesBenchmark.formattedDuration || '1д 10ч',
+        totalDurationMinutes: aviasalesBenchmark.durationMinutes || 2040,
+        segments: [
+          {
+            airline: aviasalesBenchmark.airline,
+            airlineCode: 'VJ',
+            flightNumber: aviasalesBenchmark.flightNumber || 'VJ 062',
+            fromAirport: originMeta.name,
+            fromCity: originMeta.city,
+            fromIata: origin,
+            toAirport: destination === 'DAD' ? 'Нячанг (Камрань)' : destMeta.name,
+            toCity: destination === 'DAD' ? 'Нячанг' : destMeta.city,
+            toIata: destination === 'DAD' ? 'CXR' : destination,
+            departureTime: '23:35',
+            arrivalTime: '11:15',
+            duration: '7ч 40м',
+            bookingProvider: 'Aviasales Partner',
+            cabinClass: 'Economy',
+            aircraft: 'Airbus A330-300',
+            baggage: 'Багаж 20 кг + ручная кладь 7 кг',
+          },
+          ...(destination === 'DAD' ? [{
+            airline: 'VietJet Air',
+            airlineCode: 'VJ',
+            flightNumber: 'VJ 582',
+            fromAirport: 'Нячанг (Камрань)',
+            fromCity: 'Нячанг',
+            fromIata: 'CXR',
+            toAirport: destMeta.name,
+            toCity: destMeta.city,
+            toIata: 'DAD',
+            departureTime: '12:35',
+            arrivalTime: '13:35',
+            duration: '1ч 00м',
+            bookingProvider: 'VietJet Direct',
+            cabinClass: 'Economy' as any,
+            aircraft: 'Airbus A321',
+            baggage: 'Багаж 20 кг + ручная кладь 7 кг',
+          }] : [])
+        ],
+        transit: {
+          hasTransit: aviasalesBenchmark.transfers > 0,
+          transitCity: destination === 'DAD' ? 'Нячанг' : undefined,
+          transitAirport: destination === 'DAD' ? 'CXR' : undefined,
+          transitDuration: destination === 'DAD' ? '1ч 20м' : undefined,
+          stpcHotelIncluded: false,
+          visaFreeTransit: true,
+          baggageRecheckRequired: false,
+        },
+        pricing: {
+          currency: pricingOptions.targetCurrency,
+          totalPrice: aviasalesBenchmark.marketPrice,
+          marketPrice: aviasalesBenchmark.marketPrice,
+          savedAmount: 0,
+          savedPercentage: 0,
+          netSupplierFare: aviasalesBenchmark.marketPrice,
+          serviceFee: 0,
+          fxBufferAmount: 0,
+          serviceFeePerSegment: 0,
+          stpcHotelValue: 0,
+          totalEconomicSavings: 0,
+          fareBreakdown: {} as any,
+          segmentBreakdowns: [],
+          splitSavingsReason: `Сквозной тариф без самостоятельной пересадки (${aviasalesBenchmark.source})`,
+        },
+        isBestValue: false,
+        isFastest: true,
+        isStpcEligible: false,
+        baggageIncluded: true,
+        baggageDescription: 'Багаж 20 кг + ручная кладь 7 кг',
+        cabinClass: 'Economy',
+        tags: ['🚀 Сквозной тариф', 'Aviasales Verified', 'Единый билет'],
+        stopsCount: aviasalesBenchmark.transfers,
+      };
+      curatedResults.push(throughOffer);
+    }
+
+    if (splitOffers.length > 1) {
+      curatedResults.push(splitOffers[1]);
+    } else if (validDuffelOffers.length > 1) {
+      curatedResults.push(validDuffelOffers[1]);
+    }
   }
 
   if (curatedResults.length > 0) {
@@ -1222,6 +1242,7 @@ async function buildInternationalSplitFlight(
   if (isVietnam) {
     const hubIata = 'HAN';
     const hubMeta = getCityMeta(hubIata, 'Ханой');
+    const isDirectToHub = destIata === hubIata;
 
     const leg1Net = 36500 * passengers;
     const leg2Net = 4200 * passengers;
@@ -1264,41 +1285,60 @@ async function buildInternationalSplitFlight(
       baggage: 'Багаж 20 кг + 7 кг ручная кладь',
     };
 
-    const splitLegs: SplitTicketLegInput[] = [
-      {
-        legId: `leg-1-${originIata}-${hubIata}`,
-        netFare: leg1Net,
-        currency: 'RUB',
-        segments: [
+    const splitLegs: SplitTicketLegInput[] = isDirectToHub
+      ? [
           {
-            airlineCode: 'VJ',
-            airlineName: 'VietJet Air',
-            flightNumber: 'VJ 062',
-            departureAirport: originIata,
-            arrivalAirport: hubIata,
-            departureTime: '20:40',
-            arrivalTime: '09:15',
-            layoverDurationMinutes: 265, // 4ч 25м комфортная стыковка (MCT Safe)
+            legId: `leg-1-${originIata}-${hubIata}`,
+            netFare: leg1Net,
+            currency: 'RUB',
+            segments: [
+              {
+                airlineCode: 'VJ',
+                airlineName: 'VietJet Air',
+                flightNumber: 'VJ 062',
+                departureAirport: originIata,
+                arrivalAirport: hubIata,
+                departureTime: '20:40',
+                arrivalTime: '09:15',
+              },
+            ],
           },
-        ],
-      },
-      {
-        legId: `leg-2-${hubIata}-${destIata}`,
-        netFare: leg2Net,
-        currency: 'RUB',
-        segments: [
+        ]
+      : [
           {
-            airlineCode: 'VJ',
-            airlineName: 'VietJet Air',
-            flightNumber: 'VJ 511',
-            departureAirport: hubIata,
-            arrivalAirport: destIata,
-            departureTime: '13:40',
-            arrivalTime: '15:00',
+            legId: `leg-1-${originIata}-${hubIata}`,
+            netFare: leg1Net,
+            currency: 'RUB',
+            segments: [
+              {
+                airlineCode: 'VJ',
+                airlineName: 'VietJet Air',
+                flightNumber: 'VJ 062',
+                departureAirport: originIata,
+                arrivalAirport: hubIata,
+                departureTime: '20:40',
+                arrivalTime: '09:15',
+                layoverDurationMinutes: 265, // 4ч 25м комфортная стыковка (MCT Safe)
+              },
+            ],
           },
-        ],
-      },
-    ];
+          {
+            legId: `leg-2-${hubIata}-${destIata}`,
+            netFare: leg2Net,
+            currency: 'RUB',
+            segments: [
+              {
+                airlineCode: 'VJ',
+                airlineName: 'VietJet Air',
+                flightNumber: 'VJ 511',
+                departureAirport: hubIata,
+                arrivalAirport: destIata,
+                departureTime: '13:40',
+                arrivalTime: '15:00',
+              },
+            ],
+          },
+        ];
 
     const directBenchmarkRub = calculateRealisticBenchmark(originIata, destIata, passengers);
     const splitEconomy = await PricingService.calculateSplitEconomy(
@@ -1313,29 +1353,36 @@ async function buildInternationalSplitFlight(
     );
 
     const leg1Breakdown = splitEconomy.legs[0].fareBreakdown;
-    const leg2Breakdown = splitEconomy.legs[1].fareBreakdown;
+    const leg2Breakdown = isDirectToHub ? null : splitEconomy.legs[1]?.fareBreakdown;
 
-    // Вариант 1: ⚡ Ультра-выгодный Split-Билет (Самый дешевый)
+    // Вариант 1: Прямой рейс в Ханой ИЛИ Ультра-выгодный Split-Билет в Дананг/Нячанг
     results.push({
-      id: `split-${originIata}-HAN-${destIata}-1`,
+      id: isDirectToHub ? `direct-${originIata}-HAN-1` : `split-${originIata}-HAN-${destIata}-1`,
       originCity: originMeta.city,
       destinationCity: destMeta.city,
       originIata,
       destinationIata: destIata,
       departureDate: depDate,
       returnDate: state.return_date || undefined,
-      totalDuration: '14ч 20м',
-      totalDurationMinutes: 860,
-      segments: [seg1, seg2],
-      transit: {
-        hasTransit: true,
-        transitCity: 'Ханой',
-        transitAirport: 'HAN',
-        transitDuration: '4ч 25м',
-        stpcHotelIncluded: false,
-        visaFreeTransit: true,
-        baggageRecheckRequired: true,
-      },
+      totalDuration: isDirectToHub ? '8ч 35м' : '14ч 20м',
+      totalDurationMinutes: isDirectToHub ? 515 : 860,
+      segments: isDirectToHub ? [seg1] : [seg1, seg2],
+      transit: isDirectToHub
+        ? {
+            hasTransit: false,
+            stpcHotelIncluded: false,
+            visaFreeTransit: true,
+            baggageRecheckRequired: false,
+          }
+        : {
+            hasTransit: true,
+            transitCity: 'Ханой',
+            transitAirport: 'HAN',
+            transitDuration: '4ч 25м',
+            stpcHotelIncluded: false,
+            visaFreeTransit: true,
+            baggageRecheckRequired: true,
+          },
       pricing: {
         currency: options.targetCurrency,
         totalPrice: splitEconomy.splitRouteTotalPrice,
@@ -1347,15 +1394,15 @@ async function buildInternationalSplitFlight(
         userTargetPrice: splitEconomy.userTargetPrice,
         userTargetSource: splitEconomy.userTargetSource,
         netSupplierFare: CurrencyService.roundMoney(
-          leg1Breakdown.netFareConverted + leg2Breakdown.netFareConverted,
+          leg1Breakdown.netFareConverted + (leg2Breakdown?.netFareConverted || 0),
           options.targetCurrency
         ),
         serviceFee: CurrencyService.roundMoney(
-          leg1Breakdown.totalServiceFee + leg2Breakdown.totalServiceFee,
+          leg1Breakdown.totalServiceFee + (leg2Breakdown?.totalServiceFee || 0),
           options.targetCurrency
         ),
         fxBufferAmount: CurrencyService.roundMoney(
-          leg1Breakdown.fxBufferAmount + leg2Breakdown.fxBufferAmount,
+          leg1Breakdown.fxBufferAmount + (leg2Breakdown?.fxBufferAmount || 0),
           options.targetCurrency
         ),
         serviceFeePerSegment: leg1Breakdown.serviceFeePerSegment,
@@ -1366,32 +1413,45 @@ async function buildInternationalSplitFlight(
           leg2: leg2Breakdown,
           splitEconomy,
         },
-        segmentBreakdowns: [
-          {
-            segmentTitle: `Сегмент 1: ${originIata} → HAN (Магистральный)`,
-            providerName: 'VietJet Air',
-            price: leg1Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-          {
-            segmentTitle: `Сегмент 2: HAN → ${destIata} (Лоукостер)`,
-            providerName: 'VietJet Domestic',
-            price: leg2Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-        ],
+        segmentBreakdowns: isDirectToHub
+          ? [
+              {
+                segmentTitle: `Прямой рейс: ${originIata} → HAN (Магистральный)`,
+                providerName: 'VietJet Air / Аэрофлот',
+                price: leg1Breakdown.finalPrice,
+                currency: options.targetCurrency,
+              },
+            ]
+          : [
+              {
+                segmentTitle: `Сегмент 1: ${originIata} → HAN (Магистральный)`,
+                providerName: 'VietJet Air',
+                price: leg1Breakdown.finalPrice,
+                currency: options.targetCurrency,
+              },
+              {
+                segmentTitle: `Сегмент 2: HAN → ${destIata} (Лоукостер)`,
+                providerName: 'VietJet Domestic',
+                price: leg2Breakdown?.finalPrice || 0,
+                currency: options.targetCurrency,
+              },
+            ],
         splitSavingsReason: state.user_target_price
           ? `Выгода относительно вашей цены на ${state.user_target_source || 'Авиасейлс'} (${splitEconomy.directBenchmarkPrice.toLocaleString('ru-RU')} ₽)`
+          : isDirectToHub
+          ? `Прямой беспосадочный рейс: ${originMeta.city} → ${destMeta.city} (VietJet Air / Аэрофлот)`
           : `Раздельная выписка: ${originMeta.city} → Ханой + Ханой → ${destMeta.city} (VietJet Air). Экономия ${splitEconomy.monetarySavings.toLocaleString('ru-RU')} ₽ от сквозного тарифа!`,
       },
       isBestValue: true,
-      isFastest: false,
+      isFastest: isDirectToHub,
       isStpcEligible: false,
       baggageIncluded: true,
-      baggageDescription: 'Багаж 20 кг + ручная кладь 7 кг',
+      baggageDescription: 'Багаж 20 кг + 7 кг ручная кладь',
       cabinClass: 'Economy',
-      tags: ['⚡ Split-Ticket', '🔥 Самый дешевый', '💰 Экономия 46%'],
-      stopsCount: 1,
+      tags: isDirectToHub
+        ? ['✈️ Прямой рейс', '🔥 Выгодный тариф', 'VietJet / Аэрофлот']
+        : ['⚡ Split-Ticket', '🔥 Самый дешевый', '💰 Экономия 46%'],
+      stopsCount: isDirectToHub ? 0 : 1,
       departureTimeOfDay: 'evening',
     });
 
@@ -1748,6 +1808,7 @@ async function buildInternationalSplitFlight(
   // СЦЕНАРИЙ 3: СТАНДАРТНЫЙ СТОПОВЕР ЧЕРЕЗ СТАМБУЛ (TK с отелем STPC 4★)
   // =========================================================================
   const hubMeta = getCityMeta('IST', 'Стамбул');
+  const isDirectToHub = destIata === 'IST';
   const seg1NetFareRub = 16500 * passengers;
   const seg2NetFareRub = 17500 * passengers;
 
@@ -1789,41 +1850,60 @@ async function buildInternationalSplitFlight(
     baggage: '1 × 23 кг + ручная кладь',
   };
 
-  const splitLegs: SplitTicketLegInput[] = [
-    {
-      legId: `leg-1-${originIata}-IST`,
-      netFare: seg1NetFareRub,
-      currency: 'RUB',
-      segments: [
+  const splitLegs: SplitTicketLegInput[] = isDirectToHub
+    ? [
         {
-          airlineCode: 'TK',
-          airlineName: 'Turkish Airlines',
-          flightNumber: 'TK 414',
-          departureAirport: originIata,
-          arrivalAirport: 'IST',
-          departureTime: '08:40',
-          arrivalTime: '13:50',
-          layoverDurationMinutes: 565, // 9ч 25м стыковка в хабе Стамбул (TK)
+          legId: `leg-1-${originIata}-IST`,
+          netFare: seg1NetFareRub,
+          currency: 'RUB',
+          segments: [
+            {
+              airlineCode: 'TK',
+              airlineName: 'Turkish Airlines',
+              flightNumber: 'TK 414',
+              departureAirport: originIata,
+              arrivalAirport: 'IST',
+              departureTime: '08:40',
+              arrivalTime: '13:50',
+            },
+          ],
         },
-      ],
-    },
-    {
-      legId: `leg-2-IST-${destIata}`,
-      netFare: seg2NetFareRub,
-      currency: 'RUB',
-      segments: [
+      ]
+    : [
         {
-          airlineCode: 'TK',
-          airlineName: 'Turkish Airlines',
-          flightNumber: 'TK 782',
-          departureAirport: 'IST',
-          arrivalAirport: destIata,
-          departureTime: '23:15',
-          arrivalTime: '07:30',
+          legId: `leg-1-${originIata}-IST`,
+          netFare: seg1NetFareRub,
+          currency: 'RUB',
+          segments: [
+            {
+              airlineCode: 'TK',
+              airlineName: 'Turkish Airlines',
+              flightNumber: 'TK 414',
+              departureAirport: originIata,
+              arrivalAirport: 'IST',
+              departureTime: '08:40',
+              arrivalTime: '13:50',
+              layoverDurationMinutes: 565, // 9ч 25м стыковка в хабе Стамбул (TK)
+            },
+          ],
         },
-      ],
-    },
-  ];
+        {
+          legId: `leg-2-IST-${destIata}`,
+          netFare: seg2NetFareRub,
+          currency: 'RUB',
+          segments: [
+            {
+              airlineCode: 'TK',
+              airlineName: 'Turkish Airlines',
+              flightNumber: 'TK 782',
+              departureAirport: 'IST',
+              arrivalAirport: destIata,
+              departureTime: '23:15',
+              arrivalTime: '07:30',
+            },
+          ],
+        },
+      ];
 
   const directBenchmarkRub = calculateRealisticBenchmark(originIata, destIata, passengers) || (48000 * passengers);
 
@@ -1839,32 +1919,39 @@ async function buildInternationalSplitFlight(
   );
 
   const leg1Breakdown = splitEconomy.legs[0].fareBreakdown;
-  const leg2Breakdown = splitEconomy.legs[1].fareBreakdown;
-  const isStpcEligible = Boolean(splitEconomy.stpcInfo?.eligible);
+  const leg2Breakdown = isDirectToHub ? null : splitEconomy.legs[1]?.fareBreakdown;
+  const isStpcEligible = isDirectToHub ? false : Boolean(splitEconomy.stpcInfo?.eligible);
 
   results.push({
-    id: `split-${originIata}-IST-${destIata}-1`,
+    id: isDirectToHub ? `direct-${originIata}-IST-1` : `split-${originIata}-IST-${destIata}-1`,
     originCity: originMeta.city,
     destinationCity: destMeta.city,
     originIata,
     destinationIata: destIata,
     departureDate: depDate,
     returnDate: state.return_date || undefined,
-    totalDuration: '20ч 50м',
-    totalDurationMinutes: 1250,
-    segments: [seg1, seg2],
-    transit: {
-      hasTransit: true,
-      transitCity: 'Стамбул',
-      transitAirport: 'IST',
-      transitDuration: '9ч 25м',
-      stpcHotelIncluded: isStpcEligible,
-      stpcDetails: isStpcEligible
-        ? (splitEconomy.stpcInfo?.details || 'Бесплатный отель 4★ STPC от Turkish Airlines при стыковке')
-        : undefined,
-      visaFreeTransit: true,
-      baggageRecheckRequired: false,
-    },
+    totalDuration: isDirectToHub ? '5ч 10м' : '20ч 50м',
+    totalDurationMinutes: isDirectToHub ? 310 : 1250,
+    segments: isDirectToHub ? [seg1] : [seg1, seg2],
+    transit: isDirectToHub
+      ? {
+          hasTransit: false,
+          stpcHotelIncluded: false,
+          visaFreeTransit: true,
+          baggageRecheckRequired: false,
+        }
+      : {
+          hasTransit: true,
+          transitCity: 'Стамбул',
+          transitAirport: 'IST',
+          transitDuration: '9ч 25м',
+          stpcHotelIncluded: isStpcEligible,
+          stpcDetails: isStpcEligible
+            ? (splitEconomy.stpcInfo?.details || 'Бесплатный отель 4★ STPC от Turkish Airlines при стыковке')
+            : undefined,
+          visaFreeTransit: true,
+          baggageRecheckRequired: false,
+        },
     pricing: {
       currency: options.targetCurrency,
       totalPrice: splitEconomy.splitRouteTotalPrice,
@@ -1876,54 +1963,68 @@ async function buildInternationalSplitFlight(
       userTargetPrice: splitEconomy.userTargetPrice,
       userTargetSource: splitEconomy.userTargetSource,
       netSupplierFare: CurrencyService.roundMoney(
-        leg1Breakdown.netFareConverted + leg2Breakdown.netFareConverted,
+        leg1Breakdown.netFareConverted + (leg2Breakdown?.netFareConverted || 0),
         options.targetCurrency
       ),
       serviceFee: CurrencyService.roundMoney(
-        leg1Breakdown.totalServiceFee + leg2Breakdown.totalServiceFee,
+        leg1Breakdown.totalServiceFee + (leg2Breakdown?.totalServiceFee || 0),
         options.targetCurrency
       ),
       fxBufferAmount: CurrencyService.roundMoney(
-        leg1Breakdown.fxBufferAmount + leg2Breakdown.fxBufferAmount,
+        leg1Breakdown.fxBufferAmount + (leg2Breakdown?.fxBufferAmount || 0),
         options.targetCurrency
       ),
       serviceFeePerSegment: leg1Breakdown.serviceFeePerSegment,
-      stpcHotelValue: splitEconomy.stpcInfo?.hotelValueEstimate || 0,
+      stpcHotelValue: isDirectToHub ? 0 : (splitEconomy.stpcInfo?.hotelValueEstimate || 0),
       totalEconomicSavings: splitEconomy.totalEconomicSavings,
       fareBreakdown: {
         leg1: leg1Breakdown,
         leg2: leg2Breakdown,
         splitEconomy,
       },
-      segmentBreakdowns: [
-        {
-          segmentTitle: `${originIata} → IST`,
-          providerName: 'Turkish Airlines',
-          price: leg1Breakdown.finalPrice,
-          currency: options.targetCurrency,
-        },
-        {
-          segmentTitle: `IST → ${destIata}`,
-          providerName: 'Turkish Airlines',
-          price: leg2Breakdown.finalPrice,
-          currency: options.targetCurrency,
-        },
-      ],
+      segmentBreakdowns: isDirectToHub
+        ? [
+            {
+              segmentTitle: `Прямой рейс: ${originIata} → IST`,
+              providerName: 'Turkish Airlines',
+              price: leg1Breakdown.finalPrice,
+              currency: options.targetCurrency,
+            },
+          ]
+        : [
+            {
+              segmentTitle: `${originIata} → IST`,
+              providerName: 'Turkish Airlines',
+              price: leg1Breakdown.finalPrice,
+              currency: options.targetCurrency,
+            },
+            {
+              segmentTitle: `IST → ${destIata}`,
+              providerName: 'Turkish Airlines',
+              price: leg2Breakdown?.finalPrice || 0,
+              currency: options.targetCurrency,
+            },
+          ],
       splitSavingsReason: state.user_target_price
         ? `Выгода относительно вашей цены на ${state.user_target_source || 'стороннем сайте'} (${splitEconomy.directBenchmarkPrice.toLocaleString('ru-RU')} ₽)`
+        : isDirectToHub
+        ? 'Прямой регулярный рейс Turkish Airlines в Стамбул'
         : (isStpcEligible
             ? 'Сплит-тариф со стыковкой в Стамбуле и бесплатным отелем 4★ STPC'
             : 'Сплит-тариф со стыковкой в Стамбуле'),
     },
     isBestValue: true,
-    isFastest: false,
+    isFastest: isDirectToHub,
     isStpcEligible,
     baggageIncluded: true,
     baggageDescription: 'Багаж 23 кг + ручная кладь 8 кг',
     cabinClass: 'Economy',
-    tags: isStpcEligible
+    tags: isDirectToHub
+      ? ['✈️ Прямой рейс', 'Turkish Airlines', 'Без пересадок']
+      : isStpcEligible
       ? ['🎁 Отель STPC 4★', 'Duffel Verified', '💰 Раздельная выписка']
       : ['Duffel Verified', '💰 Раздельная выписка'],
+    stopsCount: isDirectToHub ? 0 : 1,
   });
 
   return results;

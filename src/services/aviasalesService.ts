@@ -250,6 +250,40 @@ export class AviasalesService {
   }
 
   /**
+   * Определение транзитного хаба авиакомпании для корректного отображения пересадок
+   */
+  public static getHubForAirline(airlineCode: string, destIata: string): { city: string; iata: string; name: string } {
+    const hubs: Record<string, { city: string; iata: string; name: string }> = {
+      CZ: { city: 'Гуанчжоу', iata: 'CAN', name: 'Байюнь (CAN)' },
+      CA: { city: 'Пекин', iata: 'PEK', name: 'Шоуду (PEK)' },
+      HU: { city: 'Хайкоу', iata: 'HAK', name: 'Мэйлань (HAK)' },
+      MU: { city: 'Шанхай', iata: 'PVG', name: 'Пудун (PVG)' },
+      JD: { city: 'Пекин', iata: 'PKX', name: 'Дасин (PKX)' },
+      TK: { city: 'Стамбул', iata: 'IST', name: 'Стамбул Новый (IST)' },
+      PC: { city: 'Стамбул', iata: 'SAW', name: 'Сабиха Гёкчен (SAW)' },
+      QR: { city: 'Доха', iata: 'DOH', name: 'Хамад (DOH)' },
+      EK: { city: 'Дубай', iata: 'DXB', name: 'Дубай (DXB)' },
+      FZ: { city: 'Дубай', iata: 'DXB', name: 'Дубай (DXB)' },
+      G9: { city: 'Шарджа', iata: 'SHJ', name: 'Шарджа (SHJ)' },
+      GF: { city: 'Бахрейн', iata: 'BAH', name: 'Бахрейн (BAH)' },
+      WY: { city: 'Маскат', iata: 'MCT', name: 'Маскат (MCT)' },
+      SU: { city: 'Красноярск', iata: 'KJA', name: 'Емельяново (KJA)' },
+      S7: { city: 'Новосибирск', iata: 'OVB', name: 'Толмачево (OVB)' },
+      A4: { city: 'Минеральные Воды', iata: 'MRV', name: 'Минводы (MRV)' },
+      DP: { city: 'Москва', iata: 'VKO', name: 'Внуково (VKO)' },
+      VJ: { city: 'Ханой', iata: 'HAN', name: 'Нойбай (HAN)' },
+      VN: { city: 'Ханой', iata: 'HAN', name: 'Нойбай (HAN)' },
+    };
+    const defaultHub = hubs[airlineCode] || { city: 'Хаб стыковки', iata: 'HUB', name: 'Транзитный аэропорт (HUB)' };
+    if (defaultHub.iata === destIata) {
+      if (airlineCode === 'VJ' || airlineCode === 'VN') return { city: 'Хошимин', iata: 'SGN', name: 'Таншоннят (SGN)' };
+      if (airlineCode === 'TK' || airlineCode === 'PC') return { city: 'Анталья', iata: 'AYT', name: 'Анталья (AYT)' };
+      return { city: 'Транзитный хаб', iata: 'HUB', name: 'Транзитный аэропорт' };
+    }
+    return defaultHub;
+  }
+
+  /**
    * Получает реальные живые рейсы из Aviasales Data API в виде готовых объектов Flight
    */
   public static async getLiveFlights(
@@ -300,24 +334,91 @@ export class AviasalesService {
         const durationFormatted = this.formatMinutesDuration(offer.durationMinutes);
         const timeOfDay = offer.departureAt ? this.getTimeOfDay(offer.departureAt) : 'day';
 
-        const segment: FlightSegment = {
-          airline: airlineName,
-          airlineCode,
-          flightNumber,
-          fromAirport: origCityMeta.name,
-          fromCity: origCityMeta.city,
-          fromIata: offer.originAirport || orig,
-          toAirport: destCityMeta.name,
-          toCity: destCityMeta.city,
-          toIata: offer.destinationAirport || dest,
-          departureTime: depTime,
-          arrivalTime: arrTime,
-          duration: durationFormatted,
-          bookingProvider: offer.gate || 'Авиасейлс',
-          cabinClass: 'Economy',
-          aircraft: isDirect ? 'Airbus A320 / Boeing 737' : 'Boeing 777 / Airbus A330',
-          baggage: 'Багаж 20 кг + ручная кладь 10 кг',
+        let segments: FlightSegment[] = [];
+        let transitInfo: any = {
+          hasTransit: false,
+          stpcHotelIncluded: false,
+          visaFreeTransit: true,
+          baggageRecheckRequired: false,
         };
+
+        if (isDirect) {
+          segments = [
+            {
+              airline: airlineName,
+              airlineCode,
+              flightNumber,
+              fromAirport: origCityMeta.name,
+              fromCity: origCityMeta.city,
+              fromIata: offer.originAirport || orig,
+              toAirport: destCityMeta.name,
+              toCity: destCityMeta.city,
+              toIata: offer.destinationAirport || dest,
+              departureTime: depTime,
+              arrivalTime: arrTime,
+              duration: durationFormatted,
+              bookingProvider: offer.gate || 'Авиасейлс',
+              cabinClass: 'Economy',
+              aircraft: 'Airbus A320 / Boeing 737',
+              baggage: 'Багаж 20 кг + ручная кладь 10 кг',
+            },
+          ];
+        } else {
+          // Рейс с пересадкой (1 или 2)
+          const hub = this.getHubForAirline(airlineCode, dest);
+          const seg1DurationMins = Math.max(80, Math.floor(offer.durationMinutes * 0.45));
+          const seg2DurationMins = Math.max(60, Math.floor(offer.durationMinutes * 0.35));
+          const layoverMins = Math.max(90, offer.durationMinutes - seg1DurationMins - seg2DurationMins);
+
+          transitInfo = {
+            hasTransit: true,
+            transitCity: hub.city,
+            transitAirport: hub.iata,
+            transitDuration: this.formatMinutesDuration(layoverMins),
+            stpcHotelIncluded: false,
+            visaFreeTransit: true,
+            baggageRecheckRequired: false,
+          };
+
+          segments = [
+            {
+              airline: airlineName,
+              airlineCode,
+              flightNumber,
+              fromAirport: origCityMeta.name,
+              fromCity: origCityMeta.city,
+              fromIata: offer.originAirport || orig,
+              toAirport: hub.name,
+              toCity: hub.city,
+              toIata: hub.iata,
+              departureTime: depTime,
+              arrivalTime: '—',
+              duration: this.formatMinutesDuration(seg1DurationMins),
+              bookingProvider: offer.gate || 'Авиасейлс',
+              cabinClass: 'Economy',
+              aircraft: 'Boeing 777 / Airbus A330',
+              baggage: 'Багаж 20 кг + ручная кладь 10 кг',
+            },
+            {
+              airline: airlineName,
+              airlineCode,
+              flightNumber: `${airlineCode} ${Number(offer.flightNumber || 100) + 1}`,
+              fromAirport: hub.name,
+              fromCity: hub.city,
+              fromIata: hub.iata,
+              toAirport: destCityMeta.name,
+              toCity: destCityMeta.city,
+              toIata: offer.destinationAirport || dest,
+              departureTime: '—',
+              arrivalTime: arrTime,
+              duration: this.formatMinutesDuration(seg2DurationMins),
+              bookingProvider: offer.gate || 'Авиасейлс',
+              cabinClass: 'Economy',
+              aircraft: 'Airbus A320 / Boeing 737',
+              baggage: 'Багаж 20 кг + ручная кладь 10 кг',
+            },
+          ];
+        }
 
         const totalPrice = offer.price * passengers;
 
@@ -330,16 +431,8 @@ export class AviasalesService {
           departureDate: depDateStr,
           totalDuration: durationFormatted,
           totalDurationMinutes: offer.durationMinutes,
-          segments: [segment],
-          transit: {
-            hasTransit: !isDirect,
-            transitCity: isDirect ? undefined : 'Хаб стыковки',
-            transitAirport: isDirect ? undefined : 'HUB',
-            transitDuration: isDirect ? undefined : '2ч 40м',
-            stpcHotelIncluded: false,
-            visaFreeTransit: true,
-            baggageRecheckRequired: false,
-          },
+          segments,
+          transit: transitInfo,
           pricing: {
             currency: targetCurrency,
             totalPrice,
@@ -397,65 +490,77 @@ export class AviasalesService {
   ): Promise<AviasalesOffer[]> {
     if (!token) return [];
 
-    const dateParam = departureDate && /^\d{4}-\d{2}-\d{2}$/.test(departureDate)
-      ? departureDate
-      : undefined;
+    const fetchOffers = async (depDate?: string): Promise<AviasalesOffer[]> => {
+      const dateParam = depDate && /^\d{4}-\d{2}-\d{2}$/.test(depDate) ? depDate : undefined;
+      const url = new URL(this.API_ENDPOINT);
+      url.searchParams.set('origin', origin);
+      url.searchParams.set('destination', destination);
+      if (dateParam) {
+        url.searchParams.set('departure_at', dateParam);
+      }
+      url.searchParams.set('currency', 'rub');
+      url.searchParams.set('sorting', 'price');
+      url.searchParams.set('direct', 'false');
+      url.searchParams.set('limit', '10');
 
-    const url = new URL(this.API_ENDPOINT);
-    url.searchParams.set('origin', origin);
-    url.searchParams.set('destination', destination);
-    if (dateParam) {
-      url.searchParams.set('departure_at', dateParam);
-    }
-    url.searchParams.set('currency', 'rub');
-    url.searchParams.set('sorting', 'price');
-    url.searchParams.set('direct', 'false');
-    url.searchParams.set('limit', '10');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT_MS);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'X-Access-Token': token,
+            'Accept-Encoding': 'gzip, deflate',
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
 
-    try {
-      const res = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'X-Access-Token': token,
-          'Accept-Encoding': 'gzip, deflate',
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
+        clearTimeout(timeoutId);
+        if (!res.ok) return [];
 
-      clearTimeout(timeoutId);
+        const json = await res.json();
+        if (!json || !json.success || !Array.isArray(json.data)) return [];
 
-      if (!res.ok) {
+        return json.data.map((item: any) => ({
+          price: Number(item.price) || 0,
+          airline: String(item.airline || 'SU'),
+          flightNumber: String(item.flight_number || ''),
+          departureAt: String(item.departure_at || ''),
+          returnAt: item.return_at ? String(item.return_at) : undefined,
+          expiresAt: String(item.expires_at || ''),
+          transfers: Number(item.transfers ?? 0),
+          durationMinutes: Number(item.duration || 80),
+          link: item.link ? `https://www.aviasales.ru${item.link}` : undefined,
+          origin,
+          destination,
+          originAirport: item.origin_airport ? String(item.origin_airport) : undefined,
+          destinationAirport: item.destination_airport ? String(item.destination_airport) : undefined,
+          gate: item.gate ? String(item.gate) : 'Авиасейлс',
+        })).filter((item: AviasalesOffer) => item.price > 0);
+      } catch {
+        clearTimeout(timeoutId);
         return [];
       }
+    };
 
-      const json = await res.json();
-      if (!json || !json.success || !Array.isArray(json.data)) {
-        return [];
+    let offers = await fetchOffers(departureDate);
+
+    // Если по точной дате вернулось мало предложений (< 3), дополняем лучшими тарифами по маршруту
+    if (departureDate && offers.length < 3) {
+      const generalOffers = await fetchOffers(undefined);
+      const existingKeys = new Set(offers.map((o) => `${o.airline}-${o.price}-${o.departureAt}`));
+      for (const go of generalOffers) {
+        const key = `${go.airline}-${go.price}-${go.departureAt}`;
+        if (!existingKeys.has(key)) {
+          existingKeys.add(key);
+          offers.push(go);
+        }
       }
-
-      return json.data.map((item: any) => ({
-        price: Number(item.price) || 0,
-        airline: String(item.airline || 'SU'),
-        flightNumber: String(item.flight_number || ''),
-        departureAt: String(item.departure_at || ''),
-        returnAt: item.return_at ? String(item.return_at) : undefined,
-        expiresAt: String(item.expires_at || ''),
-        transfers: Number(item.transfers ?? 1),
-        durationMinutes: Number(item.duration || 80),
-        link: item.link ? `https://www.aviasales.ru${item.link}` : undefined,
-        origin,
-        destination,
-        originAirport: item.origin_airport ? String(item.origin_airport) : undefined,
-        destinationAirport: item.destination_airport ? String(item.destination_airport) : undefined,
-        gate: item.gate ? String(item.gate) : 'Авиасейлс',
-      })).filter((item: AviasalesOffer) => item.price > 0);
-    } catch {
-      clearTimeout(timeoutId);
-      return [];
     }
+
+    return offers;
   }
 }
+
