@@ -43,6 +43,12 @@ export function FlightResultsList({
     setVisibleCount(10);
   }, [flights, sortBy, stopsFilter, timeFilter]);
 
+  // Auto-reset stops and time filters when new search results arrive
+  useEffect(() => {
+    setStopsFilter('all');
+    setTimeFilter('all');
+  }, [flights]);
+
   // Auto-scroll ONLY the internal container of the conversation stream (without scrolling the entire webpage)
   useEffect(() => {
     if (chatContainerRef.current) {
