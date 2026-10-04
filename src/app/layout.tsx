@@ -27,6 +27,20 @@ export default function RootLayout({
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                  var script = document.createElement("script");
+                  script.async = 1;
+                  script.setAttribute("data-cmp-ab","2");
+                  script.src = 'https://tpembars.com/NTgxMzg1.js?t=581385';
+                  document.head.appendChild(script);
+              })();
+            `,
+          }}
+        />
+        <script async src="https://tpembars.com/NTgxMzg1.js?t=581385" data-cmp-ab="2" />
       </head>
       <body
 
