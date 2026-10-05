@@ -141,7 +141,7 @@ export const TRANSLATIONS = {
 
     footerCopyright: '© 2026 FlightSaver AI Travel. Умный поиск авиабилетов.',
     footerSupport: 'Поддержка 24/7',
-    footerFares: 'Оптовые тарифы NDC/GDS',
+    footerFares: 'Тарифы без скрытых комиссий',
     modalClose: 'Закрыть',
     modalSearchBtn: 'Подобрать такие рейсы',
 
@@ -203,7 +203,7 @@ export const TRANSLATIONS = {
     // Chat Dialogue System
     aiChatBadge: 'FlightSaver AI Concierge',
     aiChatMessage: '“Hello! I find direct wholesale airfares without markups, discover free 4★ STPC hotels for 8h+ layovers, and combine split-ticket segments saving you up to 50%. Pick an example or enter your route:”',
-    aiSearchingStatus: 'Searching wholesale NDC/GDS airline fares with zero middleman fees...',
+    aiSearchingStatus: 'Searching direct airline fares with zero middleman fees...',
     aiResultsFound: (count: number) => `Found ${count} optimal itineraries with maximum savings and comfortable layovers:`,
     
     chatPrompt1User: 'Traveler',
@@ -230,7 +230,7 @@ export const TRANSLATIONS = {
 
     footerCopyright: '© 2026 FlightSaver AI Travel. Smart flight aggregator.',
     footerSupport: '24/7 Support',
-    footerFares: 'Wholesale NDC/GDS fares',
+    footerFares: 'Direct airline fares',
     modalClose: 'Close',
     modalSearchBtn: 'Find these flights',
 

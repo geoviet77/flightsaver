@@ -88,16 +88,16 @@ export function InfoModal({
     split: {
       icon: Info,
       title: isRu ? 'Технология Split-Ticketing' : 'Split-Ticketing Tech',
-      subtitle: isRu ? 'Умная раздельная выписка' : 'Wholesale Segment Fares',
+      subtitle: isRu ? 'Умная раздельная выписка' : 'Smart Segment Combinations',
       headerBg: 'from-indigo-600 to-sky-600',
       bullets: isRu
         ? [
-            'Прямые агентские тарифы NDC/GDS без наценок и переплат агрегаторов.',
+            'Прямые проверенные тарифы авиакомпаний без наценок и переплат агрегаторов.',
             'Комбинация рейсов разных авиакомпаний для экономии до 30–50%.',
-            'Единый и безопасный заказ в FlightSaver с официальными билетами.',
+            'Единый и безопасный заказ в FlightSaver с официальными маршрутными квитанциями.',
           ]
         : [
-            'Direct wholesale NDC/GDS airline fares with zero middleman fees.',
+            'Direct verified airline fares with zero hidden middleman fees.',
             'Cross-airline route combinations saving you 30–50% on tickets.',
             'Unified official booking issued directly inside FlightSaver.',
           ],

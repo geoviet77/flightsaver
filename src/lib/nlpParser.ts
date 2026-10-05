@@ -321,6 +321,42 @@ const CITY_DATABASE: CityEntity[] = [
     variations: ['дананг', 'дананга', 'дананге', 'данангу', 'да нанг', 'да-нанг', 'dad', 'danang', 'da nang']
   },
   {
+    nameRu: 'Фукуок',
+    nameEn: 'Phu Quoc',
+    iata: 'PQC',
+    variations: ['фукуок', 'фукуока', 'фукуоке', 'фукуоку', 'pqc', 'phu quoc']
+  },
+  {
+    nameRu: 'Самуи',
+    nameEn: 'Koh Samui',
+    iata: 'USM',
+    variations: ['самуи', 'самуй', 'самуя', 'usm', 'samui', 'koh samui']
+  },
+  {
+    nameRu: 'Мале (Мальдивы)',
+    nameEn: 'Male',
+    iata: 'MLE',
+    variations: ['мале', 'мальдивы', 'мальдив', 'мальдивах', 'mle', 'male', 'maldives']
+  },
+  {
+    nameRu: 'Гоа',
+    nameEn: 'Goa',
+    iata: 'GOI',
+    variations: ['гоа', 'даболим', 'манохар', 'goi', 'gox', 'goa']
+  },
+  {
+    nameRu: 'Коломбо (Шри-Ланка)',
+    nameEn: 'Colombo',
+    iata: 'CMB',
+    variations: ['коломбо', 'шри-ланка', 'шри ланка', 'шри-ланки', 'cmb', 'colombo', 'sri lanka']
+  },
+  {
+    nameRu: 'Эль-Кувейт',
+    nameEn: 'Kuwait City',
+    iata: 'KWI',
+    variations: ['кувейт', 'эль-кувейт', 'кувейта', 'kwi', 'kuwait']
+  },
+  {
     nameRu: 'Дубай',
     nameEn: 'Dubai',
     iata: 'DXB',
