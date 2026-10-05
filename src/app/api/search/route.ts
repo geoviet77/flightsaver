@@ -148,6 +148,7 @@ export async function POST(req: NextRequest) {
       currentParams,
       query,
       message,
+      text,
       accumulatedSearchParams,
       userTier,
       isClubMember,
@@ -183,7 +184,7 @@ export async function POST(req: NextRequest) {
 
     const rawList = Array.isArray(messages) ? messages : [];
     let lastUserMessage = rawList.filter((m: any) => m.sender === 'user' || m.role === 'user').pop();
-    const userText = (typeof lastUserMessage === 'string' ? lastUserMessage : lastUserMessage?.text) || message || query || '';
+    const userText = (typeof lastUserMessage === 'string' ? lastUserMessage : lastUserMessage?.text) || message || query || text || body.text || '';
     const lastTextLower = userText.toLowerCase().trim();
 
     const stateContext = accumulatedSearchParams || currentParams || {};
@@ -257,9 +258,9 @@ export async function POST(req: NextRequest) {
 - Если пользователь называет цену, которую он видел или нашел на сторонних сайтах (например: "видел на Авиасейлс за 68 000 руб", "нашел за 45к", "у меня есть предложение за 60000", "на Авиасейлс 55 тыс", "билет за 33000 рублей"):
   - Установи user_target_price (число в рублях, например 68000, 45000, 33000).
   - Установи user_target_source (строка: "Авиасейлс", "Яндекс.Путешествия", "Trip.com", "Купибилет" или "Сторонний сайт").
-  - В assistant_message подтверди персональное сравнение: "🎯 Принято! Сравниваем сплит-маршруты с вашей найденной ценой на [источник] ([цена] ₽). Вот варианты с максимальной выгодой:".
+  - В assistant_message подтверди персональное сравнение: "🎯 Принято! Сравниваем проверенные маршруты с вашей найденной ценой на [источник] ([цена] ₽). Вот актуальные варианты:".
 - Если пользователь НЕ назвал свою цену:
-  - В assistant_message выведи: "Подобрал оптимальные варианты сплит-перелета. Сравнение рассчитано относительно сквозного тарифа GDS. Если вы уже нашли рейс на другом сайте — назовите вашу цену, и я найду еще выгоднее!".
+  - В assistant_message выведи: "Подобрал актуальные варианты перелета. Если вы уже нашли рейс на другом сайте — назовите вашу цену, и я найду еще выгоднее!".
   - В quick_options ОБЯЗАТЕЛЬНО добавь: "💬 Назвать свою цену".
 
 ПРАВИЛА ДЛЯ STPC И СТОПОВЕРОВ (STOP-OVER & TRANSIT HOTEL):
@@ -278,7 +279,7 @@ export async function POST(req: NextRequest) {
 ОБЯЗАТЕЛЬНЫЕ IATA КОДЫ:
 - Иркутск -> IKT, Красноярск -> KJA, Самара -> KUF, Чебоксары -> CSY, Екатеринбург -> SVX, Новосибирск -> OVB
 - Москва -> MOW (SVO/DME/VKO), Санкт-Петербург -> LED, Владивосток -> VVO, Сочи -> AER, Казань -> KZN
-- Дананг -> DAD, Ханой -> HAN, Хошимин -> SGN, Нячанг -> CXR, Бангкок -> BKK, Пхукет -> HKT, Бали -> DPS
+- Фукуок -> PQC, Нячанг -> CXR, Дананг -> DAD, Ханой -> HAN, Хошимин -> SGN, Бангкок -> BKK, Пхукет -> HKT, Самуи -> USM, Бали -> DPS, Мале -> MLE, Гоа -> GOI, Коломбо -> CMB
 - Пекин -> PEK, Гуанчжоу -> CAN, Шанхай -> PVG, Токио -> TYO, Сеул -> ICN, Дакка -> DAC
 - Дюссельдорф -> DUS, Мюнхен -> MUC, Берлин -> BER, Франкфурт -> FRA, Люксембург -> LUX, Париж -> PAR, Рим -> ROM
 - Стамбул -> IST, Дубай -> DXB, Доха -> DOH, Абу-Даби -> AUH
@@ -301,7 +302,7 @@ export async function POST(req: NextRequest) {
   "prefer_stpc_hotel": false,
   "preferred_stopover_hub": null,
   "is_complete": true,
-  "assistant_message": "Подобрал отличные сплит-маршруты Москва → Дананг. Сравнение рассчитано относительно сквозного тарифа GDS. Если вы уже нашли рейс на другом сайте — назовите цену, и я найду еще выгоднее!",
+  "assistant_message": "Подобрал актуальные варианты перелета Москва → Дананг. Если вы уже нашли рейс на другом сайте — назовите цену, и я найду еще выгоднее!",
   "quick_options": ["💬 Назвать свою цену", "🔄 Добавить обратный билет", "👥 2 пассажира", "💎 Бизнес-класс"]
 }
 `;
@@ -312,7 +313,7 @@ export async function POST(req: NextRequest) {
     // 2. Живое онлайн-распознавание через Gemini API (высокоскоростной каскад современных моделей)
     const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
     if (effectiveApiKey && userText) {
-      const liveModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+      const liveModels = ['gemini-3.5-flash', 'gemini-3.8-flash'];
       for (const model of liveModels) {
         try {
           const geminiRes = await fetch(
@@ -335,7 +336,7 @@ export async function POST(req: NextRequest) {
                   temperature: 0.2,
                 },
               }),
-              signal: AbortSignal.timeout(9000),
+              signal: AbortSignal.timeout(3500),
             }
           );
 
@@ -413,8 +414,28 @@ export async function POST(req: NextRequest) {
       is_complete: isComplete,
     };
 
-    const replyMessage = parsed.assistant_message || `Нашел билеты ${parsed.origin_name || parsed.origin_iata} → ${parsed.destination_name || parsed.destination_iata}:`;
-    const quickOpts = Array.isArray(parsed.quick_options) && parsed.quick_options.length > 0
+    let replyMessage = parsed.assistant_message;
+    if (isComplete && parsed.origin_iata && parsed.destination_iata) {
+      const origTitle = parsed.origin_name || parsed.origin_iata;
+      const destTitle = parsed.destination_name || parsed.destination_iata;
+      const dateTitle = parsed.departure_date ? ` на ${parsed.departure_date}` : '';
+
+      if (flightOffers.length === 0) {
+        replyMessage = `По направлению ${origTitle} → ${destTitle}${dateTitle} билетов в продаже не найдено. Мы работаем только с реальными данными авиакомпаний и не показываем выдуманные рейсы. Попробуйте выбрать соседние даты или другой аэропорт.`;
+      } else {
+        const minPrice = Math.min(...flightOffers.map((f) => f.pricing?.totalPrice || Infinity));
+        const priceStr = Number.isFinite(minPrice) ? ` от ${minPrice.toLocaleString('ru-RU')} ₽` : '';
+        replyMessage = `Найдено проверенных рейсов: ${flightOffers.length} по маршруту ${origTitle} → ${destTitle}${dateTitle}. Минимальный тариф${priceStr}. Все рейсы проверены через официальные системы бронирования.`;
+      }
+      parsed.assistant_message = replyMessage;
+      parsed.aiSummary = replyMessage;
+    } else if (!replyMessage) {
+      replyMessage = `Укажите, пожалуйста, детали перелета для точного подбора рейсов:`;
+    }
+
+    const quickOpts = (isComplete && flightOffers.length === 0)
+      ? ['📅 Другие даты', '🔄 В обе стороны', '✈️ Ближайшие аэропорты']
+      : Array.isArray(parsed.quick_options) && parsed.quick_options.length > 0
       ? parsed.quick_options
       : ['🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс'];
 
@@ -544,84 +565,11 @@ async function fetchOrBridgeFlights(state: any, pricingOptions: PricingOptions):
         direct.isFastest = true;
       }
 
-      return liveDomestic.slice(0, 4);
+      return liveDomestic;
     }
 
-    // Резервный прямой рейс РФ при отсутствии сети/токена
-    const originMeta = getCityMeta(origin, state.origin_name);
-    const destMeta = getCityMeta(destination, state.destination_name);
-    const defaultPrice = origin === 'MOW' && destination === 'LED' ? 3490 * passengers : 6200 * passengers;
-
-    const fallbackFlight: Flight = {
-      id: `domestic-${origin}-${destination}-1`,
-      originCity: originMeta.city,
-      destinationCity: destMeta.city,
-      originIata: origin,
-      destinationIata: destination,
-      departureDate: state.departure_date || '2026-10-25',
-      totalDuration: origin === 'MOW' && destination === 'LED' ? '1ч 20м' : '3ч 50м',
-      totalDurationMinutes: origin === 'MOW' && destination === 'LED' ? 80 : 230,
-      segments: [
-        {
-          airline: 'Победа',
-          airlineCode: 'DP',
-          flightNumber: 'DP 213',
-          fromAirport: originMeta.name,
-          fromCity: originMeta.city,
-          fromIata: origin,
-          toAirport: destMeta.name,
-          toCity: destMeta.city,
-          toIata: destination,
-          departureTime: '10:30',
-          arrivalTime: '11:50',
-          duration: '1ч 20м',
-          bookingProvider: 'Победа Direct',
-          cabinClass: 'Economy',
-          aircraft: 'Boeing 737-800',
-          baggage: 'Ручная кладь (багаж по выбору)',
-        },
-      ],
-      transit: {
-        hasTransit: false,
-        stpcHotelIncluded: false,
-        visaFreeTransit: true,
-        baggageRecheckRequired: false,
-      },
-      pricing: {
-        currency: pricingOptions.targetCurrency,
-        totalPrice: defaultPrice,
-        marketPrice: defaultPrice,
-        savedAmount: 0,
-        savedPercentage: 0,
-        netSupplierFare: defaultPrice,
-        serviceFee: 0,
-        fxBufferAmount: 0,
-        serviceFeePerSegment: 0,
-        stpcHotelValue: 0,
-        totalEconomicSavings: 0,
-        fareBreakdown: {} as any,
-        segmentBreakdowns: [
-          {
-            segmentTitle: `${origin} → ${destination} (Победа)`,
-            providerName: 'Победа',
-            price: defaultPrice,
-            currency: pricingOptions.targetCurrency,
-          },
-        ],
-        splitSavingsReason: 'Прямой регулярный рейс по России без пересадок',
-      },
-      isBestValue: true,
-      isFastest: true,
-      isStpcEligible: false,
-      baggageIncluded: false,
-      baggageDescription: 'Ручная кладь (багаж 10/20 кг дополнительно)',
-      cabinClass: 'Economy',
-      tags: ['✈️ Прямой рейс', 'Победа', 'Без пересадок'],
-      stopsCount: 0,
-      departureTimeOfDay: 'morning',
-    };
-
-    return [fallbackFlight];
+    // При отсутствии билетов возвращаем пустой список — никаких вымышленных рейсов!
+    return [];
   }
 
   // =========================================================================
@@ -663,160 +611,40 @@ async function fetchOrBridgeFlights(state: any, pricingOptions: PricingOptions):
     passengers
   );
 
-  // Всегда генерируем умный сплит-маршрут (LCC + Хаб), так как он дает рекордную экономию
-  let splitOffers: Flight[] = [];
-  if (hubConnection) {
-    splitOffers = await buildRealisticSplitBridge(state, hubConnection, pricingOptions);
-  } else {
-    splitOffers = await buildInternationalSplitFlight(state, pricingOptions);
-  }
-
-  // Формируем витрину предложений:
-  // При наличии живых тарифов Aviasales Data API — выводим реальные билеты в топ!
+  // Формируем витрину предложений: ИСКЛЮЧИТЕЛЬНО РЕАЛЬНЫЕ ДАННЫЕ (Aviasales Data API + Duffel API)
+  // Категорически запрещено выдумывать рейсы, шаблоны и фейковые цены при отсутствии билетов!
   const curatedResults: Flight[] = [];
 
+  // 1. Добавляем все реальные рейсы из Aviasales Data API
   if (liveAviasalesOffers.length > 0) {
-    const bestLive = liveAviasalesOffers[0];
-    const bestSplit = splitOffers.length > 0 ? splitOffers[0] : null;
-
-    // Если сплит-маршрут дает лучшую цену — ставим его первым, иначе живой рейс в топе
-    if (bestSplit && bestSplit.pricing.totalPrice < bestLive.pricing.totalPrice) {
-      bestSplit.isBestValue = true;
-      bestLive.isBestValue = false;
-      curatedResults.push(bestSplit);
-      curatedResults.push(bestLive);
-    } else {
-      bestLive.isBestValue = true;
-      curatedResults.push(bestLive);
-      if (bestSplit) {
-        curatedResults.push(bestSplit);
-      }
-    }
-
-    // 2. STPC Стоповер с 5★ отелем (если есть)
-    const stpcOffer = splitOffers.find((f) => f.isStpcEligible || f.transit?.stpcHotelIncluded);
-    if (stpcOffer && !curatedResults.some((f) => f.id === stpcOffer.id)) {
-      curatedResults.push(stpcOffer);
-    }
-
-    // 3. Выводим ВСЕ остальные найденные реальные рейсы на эту дату (без искусственного ограничения в 3 билета)
-    for (const liveFlight of liveAviasalesOffers) {
-      if (!curatedResults.some((f) => f.id === liveFlight.id)) {
-        curatedResults.push(liveFlight);
-      }
-    }
-  } else {
-    // Резервная витрина при отсутствии живого ответа Aviasales API
-    if (splitOffers.length > 0) {
-      curatedResults.push(splitOffers[0]);
-    }
-
-    if (validDuffelOffers.length > 0) {
-      const directGds = validDuffelOffers[0];
-      directGds.isBestValue = false;
-      directGds.isFastest = true;
-      curatedResults.push(directGds);
-    } else {
-      // Калиброванный сквозной тариф Авиасейлс
-      const originMeta = getCityMeta(origin, state.origin_name);
-      const destMeta = getCityMeta(destination, state.destination_name);
-      const throughOffer: Flight = {
-        id: `aviasales-${origin}-${destination}-through`,
-        originCity: originMeta.city,
-        destinationCity: destMeta.city,
-        originIata: origin,
-        destinationIata: destination,
-        departureDate: state.departure_date || '2026-12-30',
-        returnDate: state.return_date || undefined,
-        totalDuration: aviasalesBenchmark.formattedDuration || '1д 10ч',
-        totalDurationMinutes: aviasalesBenchmark.durationMinutes || 2040,
-        segments: [
-          {
-            airline: aviasalesBenchmark.airline,
-            airlineCode: 'VJ',
-            flightNumber: aviasalesBenchmark.flightNumber || 'VJ 062',
-            fromAirport: originMeta.name,
-            fromCity: originMeta.city,
-            fromIata: origin,
-            toAirport: destination === 'DAD' ? 'Нячанг (Камрань)' : destMeta.name,
-            toCity: destination === 'DAD' ? 'Нячанг' : destMeta.city,
-            toIata: destination === 'DAD' ? 'CXR' : destination,
-            departureTime: '23:35',
-            arrivalTime: '11:15',
-            duration: '7ч 40м',
-            bookingProvider: 'Aviasales Partner',
-            cabinClass: 'Economy',
-            aircraft: 'Airbus A330-300',
-            baggage: 'Багаж 20 кг + ручная кладь 7 кг',
-          },
-          ...(destination === 'DAD' ? [{
-            airline: 'VietJet Air',
-            airlineCode: 'VJ',
-            flightNumber: 'VJ 582',
-            fromAirport: 'Нячанг (Камрань)',
-            fromCity: 'Нячанг',
-            fromIata: 'CXR',
-            toAirport: destMeta.name,
-            toCity: destMeta.city,
-            toIata: 'DAD',
-            departureTime: '12:35',
-            arrivalTime: '13:35',
-            duration: '1ч 00м',
-            bookingProvider: 'VietJet Direct',
-            cabinClass: 'Economy' as any,
-            aircraft: 'Airbus A321',
-            baggage: 'Багаж 20 кг + ручная кладь 7 кг',
-          }] : [])
-        ],
-        transit: {
-          hasTransit: aviasalesBenchmark.transfers > 0,
-          transitCity: destination === 'DAD' ? 'Нячанг' : undefined,
-          transitAirport: destination === 'DAD' ? 'CXR' : undefined,
-          transitDuration: destination === 'DAD' ? '1ч 20м' : undefined,
-          stpcHotelIncluded: false,
-          visaFreeTransit: true,
-          baggageRecheckRequired: false,
-        },
-        pricing: {
-          currency: pricingOptions.targetCurrency,
-          totalPrice: aviasalesBenchmark.marketPrice,
-          marketPrice: aviasalesBenchmark.marketPrice,
-          savedAmount: 0,
-          savedPercentage: 0,
-          netSupplierFare: aviasalesBenchmark.marketPrice,
-          serviceFee: 0,
-          fxBufferAmount: 0,
-          serviceFeePerSegment: 0,
-          stpcHotelValue: 0,
-          totalEconomicSavings: 0,
-          fareBreakdown: {} as any,
-          segmentBreakdowns: [],
-          splitSavingsReason: `Сквозной тариф без самостоятельной пересадки (${aviasalesBenchmark.source})`,
-        },
-        isBestValue: false,
-        isFastest: true,
-        isStpcEligible: false,
-        baggageIncluded: true,
-        baggageDescription: 'Багаж 20 кг + ручная кладь 7 кг',
-        cabinClass: 'Economy',
-        tags: ['🚀 Сквозной тариф', 'Aviasales Verified', 'Единый билет'],
-        stopsCount: aviasalesBenchmark.transfers,
-      };
-      curatedResults.push(throughOffer);
-    }
-
-    if (splitOffers.length > 1) {
-      curatedResults.push(splitOffers[1]);
-    } else if (validDuffelOffers.length > 1) {
-      curatedResults.push(validDuffelOffers[1]);
+    for (const flight of liveAviasalesOffers) {
+      curatedResults.push(flight);
     }
   }
 
+  // 2. Добавляем реальные рейсы из Duffel API (если есть)
+  if (validDuffelOffers.length > 0) {
+    for (const dOffer of validDuffelOffers) {
+      if (!curatedResults.some((f) => f.id === dOffer.id)) {
+        curatedResults.push(dOffer);
+      }
+    }
+  }
+
+  // 3. Обработка реальных результатов: сортировка и определение лучшего рейса
   if (curatedResults.length > 0) {
-    return curatedResults;
+    // Сортируем по реальной цене
+    curatedResults.sort((a, b) => (a.pricing?.totalPrice ?? 0) - (b.pricing?.totalPrice ?? 0));
+    curatedResults[0].isBestValue = true;
+
+    // Прямой рейс помечаем как самый быстрый
+    const directFlight = curatedResults.find((f) => f.stopsCount === 0 || !f.transit?.hasTransit);
+    if (directFlight) {
+      directFlight.isFastest = true;
+    }
   }
 
-  return splitOffers;
+  return curatedResults;
 }
 
 async function queryDuffelDirect(
@@ -1002,7 +830,7 @@ async function queryDuffelDirect(
           price: CurrencyService.roundMoney(fareBreakdown.finalPrice / (segments.length || 1), pricingOptions.targetCurrency),
           currency: pricingOptions.targetCurrency,
         })),
-        splitSavingsReason: 'Сквозной тариф GDS с прямой выпиской',
+        splitSavingsReason: 'Прямой официальный тариф авиакомпании',
       },
       isBestValue: false,
       isFastest: true,
@@ -1012,1039 +840,9 @@ async function queryDuffelDirect(
       cabinClass: state.cabin_class === 'business' ? 'Business' : 'Economy',
       tags: (isStpcEligible || stpcInfo?.eligible)
         ? ['🎁 Отель STPC 5★', 'Duffel Verified']
-        : ['🛡️ Единый билет GDS', 'Duffel Verified'],
+        : ['🛡️ Официальный билет', 'Duffel Verified'],
     });
   }
-
-  return results;
-}
-
-/**
- * Честный двухзвенный Split-Ticketing Bridge (РФ плечо + Международное плечо NDC)
- */
-async function buildRealisticSplitBridge(
-  state: any,
-  hub: HubConnection,
-  options: PricingOptions
-): Promise<Flight[]> {
-  const originIata = state.origin_iata;
-  const destIata = state.destination_iata;
-  const depDate = state.departure_date || '2026-11-16';
-  const passengers = state.passengers_count || 1;
-
-  const originMeta = getCityMeta(originIata, state.origin_name);
-  const destMeta = getCityMeta(destIata, state.destination_name);
-  const hubMeta = getCityMeta(hub.hubIata, hub.hubCity);
-
-  // Сегмент 1: Реальный рейс РФ до хаба
-  const dLeg = hub.domesticLeg;
-  const seg1: FlightSegment = {
-    airline: dLeg.airline,
-    airlineCode: dLeg.airlineCode,
-    flightNumber: dLeg.flightNumber,
-    fromAirport: originMeta.name,
-    fromCity: originMeta.city,
-    fromIata: originIata,
-    toAirport: hubMeta.name,
-    toCity: hubMeta.city,
-    toIata: hub.hubIata,
-    departureTime: dLeg.departureTime,
-    arrivalTime: dLeg.arrivalTime,
-    duration: dLeg.duration,
-    bookingProvider: `${dLeg.airline} Direct`,
-    cabinClass: 'Economy',
-    aircraft: dLeg.aircraft,
-    baggage: '1 × 23 кг + ручная кладь',
-  };
-
-  // Сегмент 2: Международный рейс из хаба
-  let intlAirline = 'Turkish Airlines';
-  let intlCode = 'TK';
-  let intlFlightNum = 'TK 1527';
-  let intlAircraft = 'Airbus A321neo';
-  let intlDuration = '3ч 45м';
-  let intlPriceRub = 21500;
-
-  if (hub.hubIata === 'PEK') {
-    intlAirline = 'Air China';
-    intlCode = 'CA';
-    intlFlightNum = 'CA 979';
-    intlAircraft = 'Boeing 777-300ER';
-    intlDuration = '5ч 30м';
-    intlPriceRub = 18900;
-  } else if (hub.hubIata === 'SVO' || hub.hubIata === 'VKO') {
-    intlAirline = 'Turkish Airlines / Pegasus';
-    intlCode = 'TK';
-    intlFlightNum = 'TK 418';
-    intlAircraft = 'Airbus A330-300';
-    intlDuration = '4ч 10м';
-    intlPriceRub = 22400;
-  }
-
-  const seg2: FlightSegment = {
-    airline: intlAirline,
-    airlineCode: intlCode,
-    flightNumber: intlFlightNum,
-    fromAirport: hubMeta.name,
-    fromCity: hubMeta.city,
-    fromIata: hub.hubIata,
-    toAirport: destMeta.name,
-    toCity: destMeta.city,
-    toIata: destIata,
-    departureTime: '14:20',
-    arrivalTime: '17:05',
-    duration: intlDuration,
-    bookingProvider: `${intlAirline} NDC`,
-    cabinClass: 'Economy',
-    aircraft: intlAircraft,
-    baggage: '1 × 23 кг + ручная кладь',
-  };
-
-  // 1. Формируем плечи составного маршрута для PricingService
-  const splitLegs: SplitTicketLegInput[] = [
-    {
-      legId: `leg-dom-${originIata}-${hub.hubIata}`,
-      netFare: dLeg.priceRub * passengers,
-      currency: 'RUB',
-      segments: [
-        {
-          airlineCode: dLeg.airlineCode,
-          airlineName: dLeg.airline,
-          flightNumber: dLeg.flightNumber,
-          departureAirport: originIata,
-          arrivalAirport: hub.hubIata,
-          departureTime: dLeg.departureTime,
-          arrivalTime: dLeg.arrivalTime,
-        },
-      ],
-    },
-    {
-      legId: `leg-intl-${hub.hubIata}-${destIata}`,
-      netFare: intlPriceRub * passengers,
-      currency: 'RUB',
-      segments: [
-        {
-          airlineCode: intlCode,
-          airlineName: intlAirline,
-          flightNumber: intlFlightNum,
-          departureAirport: hub.hubIata,
-          arrivalAirport: destIata,
-          departureTime: '14:20',
-          arrivalTime: '17:05',
-        },
-      ],
-    },
-  ];
-
-  // 2. Бенчмарк прямого сквозного тарифа конкурентов
-  const directBenchmarkRub = calculateRealisticBenchmark(originIata, destIata, passengers);
-
-  // 3. Вызов PricingService.calculateSplitEconomy с опциональной ценой пользователя:
-  // Total Savings = (Direct/Target Benchmark Price - Split Route Total Price) + STPC Hotel Value
-  const splitEconomy = await PricingService.calculateSplitEconomy(
-    directBenchmarkRub,
-    'RUB',
-    splitLegs,
-    options,
-    {
-      userTargetPrice: state.user_target_price,
-      userTargetSource: state.user_target_source,
-    }
-  );
-
-  const transitInfo: TransitInfo = {
-    hasTransit: true,
-    transitCity: hubMeta.city,
-    transitAirport: hub.hubIata,
-    transitDuration: '4ч 20м',
-    stpcHotelIncluded: Boolean(splitEconomy.stpcInfo?.eligible),
-    stpcDetails: splitEconomy.stpcInfo?.details,
-    visaFreeTransit: true,
-    baggageRecheckRequired: true,
-  };
-
-  const leg1Breakdown = splitEconomy.legs[0].fareBreakdown;
-  const leg2Breakdown = splitEconomy.legs[1].fareBreakdown;
-
-  return [
-    {
-      id: `bridge-${originIata}-${hub.hubIata}-${destIata}-1`,
-      originCity: originMeta.city,
-      destinationCity: destMeta.city,
-      originIata,
-      destinationIata: destIata,
-      departureDate: depDate,
-      returnDate: state.return_date || undefined,
-      totalDuration: '9ч 35м',
-      totalDurationMinutes: 575,
-      segments: [seg1, seg2],
-      transit: transitInfo,
-      pricing: {
-        currency: options.targetCurrency,
-        totalPrice: splitEconomy.splitRouteTotalPrice,
-        marketPrice: splitEconomy.directBenchmarkPrice,
-        savedAmount: splitEconomy.monetarySavings,
-        savedPercentage: splitEconomy.savingsPercentage,
-        benchmarkType: splitEconomy.benchmarkType,
-        benchmarkLabel: splitEconomy.benchmarkLabel,
-        userTargetPrice: splitEconomy.userTargetPrice,
-        userTargetSource: splitEconomy.userTargetSource,
-        netSupplierFare: CurrencyService.roundMoney(
-          leg1Breakdown.netFareConverted + leg2Breakdown.netFareConverted,
-          options.targetCurrency
-        ),
-        serviceFee: CurrencyService.roundMoney(
-          leg1Breakdown.totalServiceFee + leg2Breakdown.totalServiceFee,
-          options.targetCurrency
-        ),
-        fxBufferAmount: CurrencyService.roundMoney(
-          leg1Breakdown.fxBufferAmount + leg2Breakdown.fxBufferAmount,
-          options.targetCurrency
-        ),
-        serviceFeePerSegment: leg1Breakdown.serviceFeePerSegment,
-        stpcHotelValue: splitEconomy.stpcInfo?.hotelValueEstimate || 0,
-        totalEconomicSavings: splitEconomy.totalEconomicSavings,
-        fareBreakdown: {
-          leg1: leg1Breakdown,
-          leg2: leg2Breakdown,
-          splitEconomy,
-        },
-        segmentBreakdowns: [
-          {
-            segmentTitle: `Сегмент 1: ${originIata} → ${hub.hubIata}`,
-            providerName: dLeg.airline,
-            price: leg1Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-          {
-            segmentTitle: `Сегмент 2: ${hub.hubIata} → ${destIata}`,
-            providerName: `${intlAirline} NDC`,
-            price: leg2Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-        ],
-        splitSavingsReason: state.user_target_price
-          ? `Выгода относительно вашей цены на ${state.user_target_source || 'стороннем сайте'} (${splitEconomy.directBenchmarkPrice.toLocaleString('ru-RU')} ₽)`
-          : `Комбинированный сплит: Сегмент 1 (${dLeg.airline}) + Сегмент 2 (${intlAirline} NDC) через ${hubMeta.city}`,
-      },
-      isBestValue: true,
-      isFastest: true,
-      isStpcEligible: Boolean(splitEconomy.stpcInfo?.eligible),
-      baggageIncluded: true,
-      baggageDescription: 'Багаж 23 кг + ручная кладь 8 кг',
-      cabinClass: 'Economy',
-      tags: ['⚡ Split-Bridge Verified', '💰 Раздельная выписка'],
-    },
-  ];
-}
-
-async function buildInternationalSplitFlight(
-  state: any,
-  options: PricingOptions
-): Promise<Flight[]> {
-  const originIata = state.origin_iata || 'MOW';
-  const destIata = state.destination_iata || 'BKK';
-  const depDate = state.departure_date || '2026-12-30';
-  const passengers = state.passengers_count || 1;
-
-  const originMeta = getCityMeta(originIata, state.origin_name);
-  const destMeta = getCityMeta(destIata, state.destination_name);
-
-  const results: Flight[] = [];
-  const isVietnam = ['DAD', 'HAN', 'SGN', 'CXR'].includes(destIata);
-  const isEurope = ['DUS', 'MUC', 'FRA', 'BER', 'PAR', 'CDG', 'ROM', 'FCO', 'LUX', 'VIE', 'AMS', 'PRG', 'BCN', 'MAD'].includes(destIata);
-
-  // =========================================================================
-  // СЦЕНАРИЙ 1: ВЬЕТНАМ (Дананг DAD, Ханой HAN, Нячанг CXR, Хошимин SGN)
-  // Сплит: Москва -> Ханой (магистральный) + Ханой -> Дананг (лоукостер VietJet)
-  // =========================================================================
-  if (isVietnam) {
-    const hubIata = 'HAN';
-    const hubMeta = getCityMeta(hubIata, 'Ханой');
-    const isDirectToHub = destIata === hubIata;
-
-    const leg1Net = 36500 * passengers;
-    const leg2Net = 4200 * passengers;
-
-    const seg1: FlightSegment = {
-      airline: 'VietJet Air / Аэрофлот',
-      airlineCode: 'VJ',
-      flightNumber: 'VJ 062',
-      fromAirport: originMeta.name,
-      fromCity: originMeta.city,
-      fromIata: originIata,
-      toAirport: hubMeta.name,
-      toCity: hubMeta.city,
-      toIata: hubIata,
-      departureTime: '20:40',
-      arrivalTime: '09:15',
-      duration: '8ч 35м',
-      bookingProvider: 'VietJet Direct',
-      cabinClass: 'Economy',
-      aircraft: 'Airbus A330-300',
-      baggage: 'Багаж 20 кг + 7 кг ручная кладь',
-    };
-
-    const seg2: FlightSegment = {
-      airline: 'VietJet Air',
-      airlineCode: 'VJ',
-      flightNumber: 'VJ 511',
-      fromAirport: hubMeta.name,
-      fromCity: hubMeta.city,
-      fromIata: hubIata,
-      toAirport: destMeta.name,
-      toCity: destMeta.city,
-      toIata: destIata,
-      departureTime: '13:40',
-      arrivalTime: '15:00',
-      duration: '1ч 20м',
-      bookingProvider: 'VietJet Domestic',
-      cabinClass: 'Economy',
-      aircraft: 'Airbus A321',
-      baggage: 'Багаж 20 кг + 7 кг ручная кладь',
-    };
-
-    const splitLegs: SplitTicketLegInput[] = isDirectToHub
-      ? [
-          {
-            legId: `leg-1-${originIata}-${hubIata}`,
-            netFare: leg1Net,
-            currency: 'RUB',
-            segments: [
-              {
-                airlineCode: 'VJ',
-                airlineName: 'VietJet Air',
-                flightNumber: 'VJ 062',
-                departureAirport: originIata,
-                arrivalAirport: hubIata,
-                departureTime: '20:40',
-                arrivalTime: '09:15',
-              },
-            ],
-          },
-        ]
-      : [
-          {
-            legId: `leg-1-${originIata}-${hubIata}`,
-            netFare: leg1Net,
-            currency: 'RUB',
-            segments: [
-              {
-                airlineCode: 'VJ',
-                airlineName: 'VietJet Air',
-                flightNumber: 'VJ 062',
-                departureAirport: originIata,
-                arrivalAirport: hubIata,
-                departureTime: '20:40',
-                arrivalTime: '09:15',
-                layoverDurationMinutes: 265, // 4ч 25м комфортная стыковка (MCT Safe)
-              },
-            ],
-          },
-          {
-            legId: `leg-2-${hubIata}-${destIata}`,
-            netFare: leg2Net,
-            currency: 'RUB',
-            segments: [
-              {
-                airlineCode: 'VJ',
-                airlineName: 'VietJet Air',
-                flightNumber: 'VJ 511',
-                departureAirport: hubIata,
-                arrivalAirport: destIata,
-                departureTime: '13:40',
-                arrivalTime: '15:00',
-              },
-            ],
-          },
-        ];
-
-    const directBenchmarkRub = calculateRealisticBenchmark(originIata, destIata, passengers);
-    const splitEconomy = await PricingService.calculateSplitEconomy(
-      directBenchmarkRub,
-      'RUB',
-      splitLegs,
-      options,
-      {
-        userTargetPrice: state.user_target_price,
-        userTargetSource: state.user_target_source,
-      }
-    );
-
-    const leg1Breakdown = splitEconomy.legs[0].fareBreakdown;
-    const leg2Breakdown = isDirectToHub ? null : splitEconomy.legs[1]?.fareBreakdown;
-
-    // Вариант 1: Прямой рейс в Ханой ИЛИ Ультра-выгодный Split-Билет в Дананг/Нячанг
-    results.push({
-      id: isDirectToHub ? `direct-${originIata}-HAN-1` : `split-${originIata}-HAN-${destIata}-1`,
-      originCity: originMeta.city,
-      destinationCity: destMeta.city,
-      originIata,
-      destinationIata: destIata,
-      departureDate: depDate,
-      returnDate: state.return_date || undefined,
-      totalDuration: isDirectToHub ? '8ч 35м' : '14ч 20м',
-      totalDurationMinutes: isDirectToHub ? 515 : 860,
-      segments: isDirectToHub ? [seg1] : [seg1, seg2],
-      transit: isDirectToHub
-        ? {
-            hasTransit: false,
-            stpcHotelIncluded: false,
-            visaFreeTransit: true,
-            baggageRecheckRequired: false,
-          }
-        : {
-            hasTransit: true,
-            transitCity: 'Ханой',
-            transitAirport: 'HAN',
-            transitDuration: '4ч 25м',
-            stpcHotelIncluded: false,
-            visaFreeTransit: true,
-            baggageRecheckRequired: true,
-          },
-      pricing: {
-        currency: options.targetCurrency,
-        totalPrice: splitEconomy.splitRouteTotalPrice,
-        marketPrice: splitEconomy.directBenchmarkPrice,
-        savedAmount: splitEconomy.monetarySavings,
-        savedPercentage: splitEconomy.savingsPercentage,
-        benchmarkType: splitEconomy.benchmarkType,
-        benchmarkLabel: splitEconomy.benchmarkLabel,
-        userTargetPrice: splitEconomy.userTargetPrice,
-        userTargetSource: splitEconomy.userTargetSource,
-        netSupplierFare: CurrencyService.roundMoney(
-          leg1Breakdown.netFareConverted + (leg2Breakdown?.netFareConverted || 0),
-          options.targetCurrency
-        ),
-        serviceFee: CurrencyService.roundMoney(
-          leg1Breakdown.totalServiceFee + (leg2Breakdown?.totalServiceFee || 0),
-          options.targetCurrency
-        ),
-        fxBufferAmount: CurrencyService.roundMoney(
-          leg1Breakdown.fxBufferAmount + (leg2Breakdown?.fxBufferAmount || 0),
-          options.targetCurrency
-        ),
-        serviceFeePerSegment: leg1Breakdown.serviceFeePerSegment,
-        stpcHotelValue: 0,
-        totalEconomicSavings: splitEconomy.totalEconomicSavings,
-        fareBreakdown: {
-          leg1: leg1Breakdown,
-          leg2: leg2Breakdown,
-          splitEconomy,
-        },
-        segmentBreakdowns: isDirectToHub
-          ? [
-              {
-                segmentTitle: `Прямой рейс: ${originIata} → HAN (Магистральный)`,
-                providerName: 'VietJet Air / Аэрофлот',
-                price: leg1Breakdown.finalPrice,
-                currency: options.targetCurrency,
-              },
-            ]
-          : [
-              {
-                segmentTitle: `Сегмент 1: ${originIata} → HAN (Магистральный)`,
-                providerName: 'VietJet Air',
-                price: leg1Breakdown.finalPrice,
-                currency: options.targetCurrency,
-              },
-              {
-                segmentTitle: `Сегмент 2: HAN → ${destIata} (Лоукостер)`,
-                providerName: 'VietJet Domestic',
-                price: leg2Breakdown?.finalPrice || 0,
-                currency: options.targetCurrency,
-              },
-            ],
-        splitSavingsReason: state.user_target_price
-          ? `Выгода относительно вашей цены на ${state.user_target_source || 'Авиасейлс'} (${splitEconomy.directBenchmarkPrice.toLocaleString('ru-RU')} ₽)`
-          : isDirectToHub
-          ? `Прямой беспосадочный рейс: ${originMeta.city} → ${destMeta.city} (VietJet Air / Аэрофлот)`
-          : `Раздельная выписка: ${originMeta.city} → Ханой + Ханой → ${destMeta.city} (VietJet Air). Экономия ${splitEconomy.monetarySavings.toLocaleString('ru-RU')} ₽ от сквозного тарифа!`,
-      },
-      isBestValue: true,
-      isFastest: isDirectToHub,
-      isStpcEligible: false,
-      baggageIncluded: true,
-      baggageDescription: 'Багаж 20 кг + 7 кг ручная кладь',
-      cabinClass: 'Economy',
-      tags: isDirectToHub
-        ? ['✈️ Прямой рейс', '🔥 Выгодный тариф', 'VietJet / Аэрофлот']
-        : ['⚡ Split-Ticket', '🔥 Самый дешевый', '💰 Экономия 46%'],
-      stopsCount: isDirectToHub ? 0 : 1,
-      departureTimeOfDay: 'evening',
-    });
-
-    // Вариант 2: 🎁 Премиальный Стоповер STPC Qatar Airways (Доха с 5★ отелем)
-    const qatarSeg1: FlightSegment = {
-      airline: 'Qatar Airways',
-      airlineCode: 'QR',
-      flightNumber: 'QR 338',
-      fromAirport: originMeta.name,
-      fromCity: originMeta.city,
-      fromIata: originIata,
-      toAirport: 'Доха (Хамад)',
-      toCity: 'Доха',
-      toIata: 'DOH',
-      departureTime: '16:15',
-      arrivalTime: '21:10',
-      duration: '4ч 55м',
-      bookingProvider: 'Qatar Airways NDC',
-      cabinClass: 'Economy',
-      aircraft: 'Boeing 787-9 Dreamliner',
-      baggage: 'Багаж 23 кг + ручная кладь 8 кг',
-    };
-
-    const qatarSeg2: FlightSegment = {
-      airline: 'Qatar Airways',
-      airlineCode: 'QR',
-      flightNumber: 'QR 970',
-      fromAirport: 'Доха (Хамад)',
-      fromCity: 'Доха',
-      fromIata: 'DOH',
-      toAirport: destMeta.name,
-      toCity: destMeta.city,
-      toIata: destIata,
-      departureTime: '05:50',
-      arrivalTime: '17:15',
-      duration: '7ч 25м',
-      bookingProvider: 'Qatar Airways NDC',
-      cabinClass: 'Economy',
-      aircraft: 'Airbus A350-900',
-      baggage: 'Багаж 23 кг + ручная кладь 8 кг',
-    };
-
-    const qatarSplitLegs: SplitTicketLegInput[] = [
-      {
-        legId: `leg-1-${originIata}-DOH`,
-        netFare: 42000 * passengers,
-        currency: 'RUB',
-        segments: [
-          {
-            airlineCode: 'QR',
-            airlineName: 'Qatar Airways',
-            flightNumber: 'QR 338',
-            departureAirport: originIata,
-            arrivalAirport: 'DOH',
-            departureTime: '16:15',
-            arrivalTime: '21:10',
-            layoverDurationMinutes: 520, // 8ч 40м стыковка в Дохе -> STPC 5★ Отель!
-          },
-        ],
-      },
-      {
-        legId: `leg-2-DOH-${destIata}`,
-        netFare: 43000 * passengers,
-        currency: 'RUB',
-        segments: [
-          {
-            airlineCode: 'QR',
-            airlineName: 'Qatar Airways',
-            flightNumber: 'QR 970',
-            departureAirport: 'DOH',
-            arrivalAirport: destIata,
-            departureTime: '05:50',
-            arrivalTime: '17:15',
-          },
-        ],
-      },
-    ];
-
-    const qatarEconomy = await PricingService.calculateSplitEconomy(
-      directBenchmarkRub > 90000 ? directBenchmarkRub : 105000,
-      'RUB',
-      qatarSplitLegs,
-      options,
-      {
-        userTargetPrice: state.user_target_price,
-        userTargetSource: state.user_target_source,
-      }
-    );
-
-    const qatarLeg1Breakdown = qatarEconomy.legs[0].fareBreakdown;
-    const qatarLeg2Breakdown = qatarEconomy.legs[1].fareBreakdown;
-    const qatarStpcValue = qatarEconomy.stpcInfo?.hotelValueEstimate || 12350;
-
-    results.push({
-      id: `stpc-${originIata}-DOH-${destIata}-2`,
-      originCity: originMeta.city,
-      destinationCity: destMeta.city,
-      originIata,
-      destinationIata: destIata,
-      departureDate: depDate,
-      returnDate: state.return_date || undefined,
-      totalDuration: '20ч 60м',
-      totalDurationMinutes: 1260,
-      segments: [qatarSeg1, qatarSeg2],
-      transit: {
-        hasTransit: true,
-        transitCity: 'Доха',
-        transitAirport: 'DOH',
-        transitDuration: '8ч 40м',
-        stpcHotelIncluded: true,
-        stpcDetails: 'Бесплатный отель 5★ (Qatar Airways Transit Accommodation) + бесплатный трансфер и питание',
-        visaFreeTransit: true,
-        baggageRecheckRequired: false,
-      },
-      pricing: {
-        currency: options.targetCurrency,
-        totalPrice: qatarEconomy.splitRouteTotalPrice,
-        marketPrice: qatarEconomy.directBenchmarkPrice,
-        savedAmount: qatarEconomy.monetarySavings,
-        savedPercentage: qatarEconomy.savingsPercentage,
-        benchmarkType: qatarEconomy.benchmarkType,
-        benchmarkLabel: qatarEconomy.benchmarkLabel,
-        userTargetPrice: qatarEconomy.userTargetPrice,
-        userTargetSource: qatarEconomy.userTargetSource,
-        netSupplierFare: CurrencyService.roundMoney(
-          qatarLeg1Breakdown.netFareConverted + qatarLeg2Breakdown.netFareConverted,
-          options.targetCurrency
-        ),
-        serviceFee: CurrencyService.roundMoney(
-          qatarLeg1Breakdown.totalServiceFee + qatarLeg2Breakdown.totalServiceFee,
-          options.targetCurrency
-        ),
-        fxBufferAmount: CurrencyService.roundMoney(
-          qatarLeg1Breakdown.fxBufferAmount + qatarLeg2Breakdown.fxBufferAmount,
-          options.targetCurrency
-        ),
-        serviceFeePerSegment: qatarLeg1Breakdown.serviceFeePerSegment,
-        stpcHotelValue: qatarStpcValue,
-        totalEconomicSavings: qatarEconomy.totalEconomicSavings,
-        fareBreakdown: {
-          leg1: qatarLeg1Breakdown,
-          leg2: qatarLeg2Breakdown,
-          splitEconomy: qatarEconomy,
-        },
-        segmentBreakdowns: [
-          {
-            segmentTitle: `${originIata} → DOH (Qatar Airways)`,
-            providerName: 'Qatar Airways',
-            price: qatarLeg1Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-          {
-            segmentTitle: `DOH → ${destIata} (Qatar Airways)`,
-            providerName: 'Qatar Airways',
-            price: qatarLeg2Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-        ],
-        splitSavingsReason: 'Стыковка в Дохе с бесплатным отелем 5★ STPC от авиакомпании (экономия 12 350 ₽ на отеле)',
-      },
-      isBestValue: false,
-      isFastest: false,
-      isStpcEligible: true,
-      baggageIncluded: true,
-      baggageDescription: 'Багаж 23 кг + ручная кладь 8 кг',
-      cabinClass: 'Economy',
-      tags: ['🎁 Отель STPC 5★', '✨ Стоповер в Катаре', 'Duffel Verified'],
-      stopsCount: 1,
-      departureTimeOfDay: 'day',
-    });
-
-    return results;
-  }
-
-  // =========================================================================
-  // СЦЕНАРИЙ 2: ЕВРОПА (Мюнхен, Берлин, Рим, Париж, Дюссельдорф и др.)
-  // Сплит через Стамбул (SAW лоукостер Pegasus / Wizz Air)
-  // =========================================================================
-  if (isEurope) {
-    const hubIata = 'SAW';
-    const hubMeta = getCityMeta('SAW', 'Стамбул (Сабиха)');
-
-    const seg1Net = 11500 * passengers;
-    const seg2Net = 8900 * passengers;
-
-    const seg1: FlightSegment = {
-      airline: 'Pegasus Airlines',
-      airlineCode: 'PC',
-      flightNumber: 'PC 389',
-      fromAirport: originMeta.name,
-      fromCity: originMeta.city,
-      fromIata: originIata,
-      toAirport: hubMeta.name,
-      toCity: hubMeta.city,
-      toIata: hubIata,
-      departureTime: '06:15',
-      arrivalTime: '10:40',
-      duration: '4ч 25м',
-      bookingProvider: 'Pegasus Direct',
-      cabinClass: 'Economy',
-      aircraft: 'Airbus A321neo',
-      baggage: 'Багаж 20 кг + ручная кладь',
-    };
-
-    const seg2: FlightSegment = {
-      airline: 'Pegasus / Wizz Air',
-      airlineCode: 'PC',
-      flightNumber: 'PC 1017',
-      fromAirport: hubMeta.name,
-      fromCity: hubMeta.city,
-      fromIata: hubIata,
-      toAirport: destMeta.name,
-      toCity: destMeta.city,
-      toIata: destIata,
-      departureTime: '14:20',
-      arrivalTime: '16:35',
-      duration: '3ч 15м',
-      bookingProvider: 'Pegasus Direct',
-      cabinClass: 'Economy',
-      aircraft: 'Airbus A320neo',
-      baggage: 'Багаж 20 кг + ручная кладь',
-    };
-
-    const splitLegs: SplitTicketLegInput[] = [
-      {
-        legId: `leg-1-${originIata}-SAW`,
-        netFare: seg1Net,
-        currency: 'RUB',
-        segments: [
-          {
-            airlineCode: 'PC',
-            airlineName: 'Pegasus Airlines',
-            flightNumber: 'PC 389',
-            departureAirport: originIata,
-            arrivalAirport: hubIata,
-            departureTime: '06:15',
-            arrivalTime: '10:40',
-            layoverDurationMinutes: 220,
-          },
-        ],
-      },
-      {
-        legId: `leg-2-SAW-${destIata}`,
-        netFare: seg2Net,
-        currency: 'RUB',
-        segments: [
-          {
-            airlineCode: 'PC',
-            airlineName: 'Pegasus Airlines',
-            flightNumber: 'PC 1017',
-            departureAirport: hubIata,
-            arrivalAirport: destIata,
-            departureTime: '14:20',
-            arrivalTime: '16:35',
-          },
-        ],
-      },
-    ];
-
-    const directBenchmarkRub = calculateRealisticBenchmark(originIata, destIata, passengers);
-    const splitEconomy = await PricingService.calculateSplitEconomy(
-      directBenchmarkRub,
-      'RUB',
-      splitLegs,
-      options,
-      {
-        userTargetPrice: state.user_target_price,
-        userTargetSource: state.user_target_source,
-      }
-    );
-
-    const leg1Breakdown = splitEconomy.legs[0].fareBreakdown;
-    const leg2Breakdown = splitEconomy.legs[1].fareBreakdown;
-
-    results.push({
-      id: `split-${originIata}-SAW-${destIata}-1`,
-      originCity: originMeta.city,
-      destinationCity: destMeta.city,
-      originIata,
-      destinationIata: destIata,
-      departureDate: depDate,
-      returnDate: state.return_date || undefined,
-      totalDuration: '11ч 20м',
-      totalDurationMinutes: 680,
-      segments: [seg1, seg2],
-      transit: {
-        hasTransit: true,
-        transitCity: 'Стамбул',
-        transitAirport: 'SAW',
-        transitDuration: '3ч 40м',
-        stpcHotelIncluded: false,
-        visaFreeTransit: true,
-        baggageRecheckRequired: true,
-      },
-      pricing: {
-        currency: options.targetCurrency,
-        totalPrice: splitEconomy.splitRouteTotalPrice,
-        marketPrice: splitEconomy.directBenchmarkPrice,
-        savedAmount: splitEconomy.monetarySavings,
-        savedPercentage: splitEconomy.savingsPercentage,
-        benchmarkType: splitEconomy.benchmarkType,
-        benchmarkLabel: splitEconomy.benchmarkLabel,
-        userTargetPrice: splitEconomy.userTargetPrice,
-        userTargetSource: splitEconomy.userTargetSource,
-        netSupplierFare: CurrencyService.roundMoney(
-          leg1Breakdown.netFareConverted + leg2Breakdown.netFareConverted,
-          options.targetCurrency
-        ),
-        serviceFee: CurrencyService.roundMoney(
-          leg1Breakdown.totalServiceFee + leg2Breakdown.totalServiceFee,
-          options.targetCurrency
-        ),
-        fxBufferAmount: CurrencyService.roundMoney(
-          leg1Breakdown.fxBufferAmount + leg2Breakdown.fxBufferAmount,
-          options.targetCurrency
-        ),
-        serviceFeePerSegment: leg1Breakdown.serviceFeePerSegment,
-        stpcHotelValue: 0,
-        totalEconomicSavings: splitEconomy.totalEconomicSavings,
-        fareBreakdown: {
-          leg1: leg1Breakdown,
-          leg2: leg2Breakdown,
-          splitEconomy,
-        },
-        segmentBreakdowns: [
-          {
-            segmentTitle: `Сегмент 1: ${originIata} → SAW (Pegasus)`,
-            providerName: 'Pegasus Airlines',
-            price: leg1Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-          {
-            segmentTitle: `Сегмент 2: SAW → ${destIata} (Pegasus)`,
-            providerName: 'Pegasus Airlines',
-            price: leg2Breakdown.finalPrice,
-            currency: options.targetCurrency,
-          },
-        ],
-        splitSavingsReason: `Лоукост-сплит через Стамбул (Сабиха): экономия ${splitEconomy.monetarySavings.toLocaleString('ru-RU')} ₽!`,
-      },
-      isBestValue: true,
-      isFastest: false,
-      isStpcEligible: false,
-      baggageIncluded: true,
-      baggageDescription: 'Багаж 20 кг + ручная кладь',
-      cabinClass: 'Economy',
-      tags: ['⚡ Split-Ticket', '🔥 Рекордная выгода', '💰 Экономия до 50%'],
-    });
-
-    return results;
-  }
-
-  // =========================================================================
-  // СЦЕНАРИЙ 3: СТАНДАРТНЫЙ СТОПОВЕР ЧЕРЕЗ СТАМБУЛ (TK с отелем STPC 4★)
-  // =========================================================================
-  const hubMeta = getCityMeta('IST', 'Стамбул');
-  const isDirectToHub = destIata === 'IST';
-  const seg1NetFareRub = 16500 * passengers;
-  const seg2NetFareRub = 17500 * passengers;
-
-  const seg1: FlightSegment = {
-    airline: 'Turkish Airlines',
-    airlineCode: 'TK',
-    flightNumber: 'TK 414',
-    fromAirport: originMeta.name,
-    fromCity: originMeta.city,
-    fromIata: originIata,
-    toAirport: hubMeta.name,
-    toCity: hubMeta.city,
-    toIata: 'IST',
-    departureTime: '08:40',
-    arrivalTime: '13:50',
-    duration: '5ч 10м',
-    bookingProvider: 'Turkish Airlines NDC',
-    cabinClass: 'Economy',
-    aircraft: 'Airbus A330-300',
-    baggage: '1 × 23 кг + ручная кладь',
-  };
-
-  const seg2: FlightSegment = {
-    airline: 'Turkish Airlines',
-    airlineCode: 'TK',
-    flightNumber: 'TK 782',
-    fromAirport: hubMeta.name,
-    fromCity: hubMeta.city,
-    fromIata: 'IST',
-    toAirport: destMeta.name,
-    toCity: destMeta.city,
-    toIata: destIata,
-    departureTime: '23:15',
-    arrivalTime: '07:30',
-    duration: '6ч 15м',
-    bookingProvider: 'Turkish Airlines NDC',
-    cabinClass: 'Economy',
-    aircraft: 'Boeing 777-300ER',
-    baggage: '1 × 23 кг + ручная кладь',
-  };
-
-  const splitLegs: SplitTicketLegInput[] = isDirectToHub
-    ? [
-        {
-          legId: `leg-1-${originIata}-IST`,
-          netFare: seg1NetFareRub,
-          currency: 'RUB',
-          segments: [
-            {
-              airlineCode: 'TK',
-              airlineName: 'Turkish Airlines',
-              flightNumber: 'TK 414',
-              departureAirport: originIata,
-              arrivalAirport: 'IST',
-              departureTime: '08:40',
-              arrivalTime: '13:50',
-            },
-          ],
-        },
-      ]
-    : [
-        {
-          legId: `leg-1-${originIata}-IST`,
-          netFare: seg1NetFareRub,
-          currency: 'RUB',
-          segments: [
-            {
-              airlineCode: 'TK',
-              airlineName: 'Turkish Airlines',
-              flightNumber: 'TK 414',
-              departureAirport: originIata,
-              arrivalAirport: 'IST',
-              departureTime: '08:40',
-              arrivalTime: '13:50',
-              layoverDurationMinutes: 565, // 9ч 25м стыковка в хабе Стамбул (TK)
-            },
-          ],
-        },
-        {
-          legId: `leg-2-IST-${destIata}`,
-          netFare: seg2NetFareRub,
-          currency: 'RUB',
-          segments: [
-            {
-              airlineCode: 'TK',
-              airlineName: 'Turkish Airlines',
-              flightNumber: 'TK 782',
-              departureAirport: 'IST',
-              arrivalAirport: destIata,
-              departureTime: '23:15',
-              arrivalTime: '07:30',
-            },
-          ],
-        },
-      ];
-
-  const directBenchmarkRub = calculateRealisticBenchmark(originIata, destIata, passengers) || (48000 * passengers);
-
-  const splitEconomy = await PricingService.calculateSplitEconomy(
-    directBenchmarkRub,
-    'RUB',
-    splitLegs,
-    options,
-    {
-      userTargetPrice: state.user_target_price,
-      userTargetSource: state.user_target_source,
-    }
-  );
-
-  const leg1Breakdown = splitEconomy.legs[0].fareBreakdown;
-  const leg2Breakdown = isDirectToHub ? null : splitEconomy.legs[1]?.fareBreakdown;
-  const isStpcEligible = isDirectToHub ? false : Boolean(splitEconomy.stpcInfo?.eligible);
-
-  results.push({
-    id: isDirectToHub ? `direct-${originIata}-IST-1` : `split-${originIata}-IST-${destIata}-1`,
-    originCity: originMeta.city,
-    destinationCity: destMeta.city,
-    originIata,
-    destinationIata: destIata,
-    departureDate: depDate,
-    returnDate: state.return_date || undefined,
-    totalDuration: isDirectToHub ? '5ч 10м' : '20ч 50м',
-    totalDurationMinutes: isDirectToHub ? 310 : 1250,
-    segments: isDirectToHub ? [seg1] : [seg1, seg2],
-    transit: isDirectToHub
-      ? {
-          hasTransit: false,
-          stpcHotelIncluded: false,
-          visaFreeTransit: true,
-          baggageRecheckRequired: false,
-        }
-      : {
-          hasTransit: true,
-          transitCity: 'Стамбул',
-          transitAirport: 'IST',
-          transitDuration: '9ч 25м',
-          stpcHotelIncluded: isStpcEligible,
-          stpcDetails: isStpcEligible
-            ? (splitEconomy.stpcInfo?.details || 'Бесплатный отель 4★ STPC от Turkish Airlines при стыковке')
-            : undefined,
-          visaFreeTransit: true,
-          baggageRecheckRequired: false,
-        },
-    pricing: {
-      currency: options.targetCurrency,
-      totalPrice: splitEconomy.splitRouteTotalPrice,
-      marketPrice: splitEconomy.directBenchmarkPrice,
-      savedAmount: splitEconomy.monetarySavings,
-      savedPercentage: splitEconomy.savingsPercentage,
-      benchmarkType: splitEconomy.benchmarkType,
-      benchmarkLabel: splitEconomy.benchmarkLabel,
-      userTargetPrice: splitEconomy.userTargetPrice,
-      userTargetSource: splitEconomy.userTargetSource,
-      netSupplierFare: CurrencyService.roundMoney(
-        leg1Breakdown.netFareConverted + (leg2Breakdown?.netFareConverted || 0),
-        options.targetCurrency
-      ),
-      serviceFee: CurrencyService.roundMoney(
-        leg1Breakdown.totalServiceFee + (leg2Breakdown?.totalServiceFee || 0),
-        options.targetCurrency
-      ),
-      fxBufferAmount: CurrencyService.roundMoney(
-        leg1Breakdown.fxBufferAmount + (leg2Breakdown?.fxBufferAmount || 0),
-        options.targetCurrency
-      ),
-      serviceFeePerSegment: leg1Breakdown.serviceFeePerSegment,
-      stpcHotelValue: isDirectToHub ? 0 : (splitEconomy.stpcInfo?.hotelValueEstimate || 0),
-      totalEconomicSavings: splitEconomy.totalEconomicSavings,
-      fareBreakdown: {
-        leg1: leg1Breakdown,
-        leg2: leg2Breakdown,
-        splitEconomy,
-      },
-      segmentBreakdowns: isDirectToHub
-        ? [
-            {
-              segmentTitle: `Прямой рейс: ${originIata} → IST`,
-              providerName: 'Turkish Airlines',
-              price: leg1Breakdown.finalPrice,
-              currency: options.targetCurrency,
-            },
-          ]
-        : [
-            {
-              segmentTitle: `${originIata} → IST`,
-              providerName: 'Turkish Airlines',
-              price: leg1Breakdown.finalPrice,
-              currency: options.targetCurrency,
-            },
-            {
-              segmentTitle: `IST → ${destIata}`,
-              providerName: 'Turkish Airlines',
-              price: leg2Breakdown?.finalPrice || 0,
-              currency: options.targetCurrency,
-            },
-          ],
-      splitSavingsReason: state.user_target_price
-        ? `Выгода относительно вашей цены на ${state.user_target_source || 'стороннем сайте'} (${splitEconomy.directBenchmarkPrice.toLocaleString('ru-RU')} ₽)`
-        : isDirectToHub
-        ? 'Прямой регулярный рейс Turkish Airlines в Стамбул'
-        : (isStpcEligible
-            ? 'Сплит-тариф со стыковкой в Стамбуле и бесплатным отелем 4★ STPC'
-            : 'Сплит-тариф со стыковкой в Стамбуле'),
-    },
-    isBestValue: true,
-    isFastest: isDirectToHub,
-    isStpcEligible,
-    baggageIncluded: true,
-    baggageDescription: 'Багаж 23 кг + ручная кладь 8 кг',
-    cabinClass: 'Economy',
-    tags: isDirectToHub
-      ? ['✈️ Прямой рейс', 'Turkish Airlines', 'Без пересадок']
-      : isStpcEligible
-      ? ['🎁 Отель STPC 4★', 'Duffel Verified', '💰 Раздельная выписка']
-      : ['Duffel Verified', '💰 Раздельная выписка'],
-    stopsCount: isDirectToHub ? 0 : 1,
-  });
 
   return results;
 }
@@ -2306,10 +1104,10 @@ function extractDeterministicState(text: string, context: any) {
       assistant_message = `🎯 Принято! Сравниваем сплит-маршруты ${origin_name || origin_iata} → ${destination_name || destination_iata} с вашей найденной ценой на ${user_target_source || 'стороннем сайте'} (${user_target_price.toLocaleString('ru-RU')} ₽):`;
       quick_options = ['🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс'];
     } else if (wantsStpc) {
-      assistant_message = `Подобрал варианты перелета с бесплатным отелем 4★ STPC при стыковке ${origin_name || origin_iata} → ${destination_name || destination_iata}. Сравнение рассчитано относительно сквозного тарифа GDS. Если вы уже нашли рейс на другом сайте — назовите цену, и я найду еще выгоднее!`;
+      assistant_message = `Подобрал варианты перелета с бесплатным отелем 4★ STPC при стыковке ${origin_name || origin_iata} → ${destination_name || destination_iata}. Если вы уже нашли рейс на другом сайте — назовите цену, и я найду еще выгоднее!`;
       quick_options = ['💬 Назвать свою цену', '🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс'];
     } else {
-      assistant_message = `Подобрал оптимальные сплит-маршруты ${origin_name || origin_iata} → ${destination_name || destination_iata}. Сравнение рассчитано относительно сквозного тарифа GDS. Если вы уже нашли рейс на другом сайте — назовите цену, и я найду еще выгоднее!`;
+      assistant_message = `Подобрал актуальные варианты перелета ${origin_name || origin_iata} → ${destination_name || destination_iata}. Если вы уже нашли рейс на другом сайте — назовите цену, и я найду еще выгоднее!`;
       quick_options = ['💬 Назвать свою цену', '🔄 Добавить обратный билет', '👥 2 пассажира', '💎 Бизнес-класс'];
     }
   }

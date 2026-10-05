@@ -305,11 +305,11 @@ export class AviasalesService {
       VJ: { city: 'Ханой', iata: 'HAN', name: 'Нойбай (HAN)' },
       VN: { city: 'Ханой', iata: 'HAN', name: 'Нойбай (HAN)' },
     };
-    const defaultHub = hubs[airlineCode] || { city: 'Стыковка', iata: 'TRANSIT', name: 'Транзитный аэропорт' };
+    const defaultHub = hubs[airlineCode] || { city: 'Пересадка', iata: 'TRANSIT', name: 'Аэропорт пересадки' };
     if (defaultHub.iata === destIata) {
       if (airlineCode === 'VJ' || airlineCode === 'VN') return { city: 'Хошимин', iata: 'SGN', name: 'Таншоннят (SGN)' };
       if (airlineCode === 'TK' || airlineCode === 'PC') return { city: 'Анталья', iata: 'AYT', name: 'Анталья (AYT)' };
-      return { city: 'Стыковка', iata: 'TRANSIT', name: 'Транзитный аэропорт' };
+      return { city: 'Пересадка', iata: 'TRANSIT', name: 'Аэропорт пересадки' };
     }
     return defaultHub;
   }

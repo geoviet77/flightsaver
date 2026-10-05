@@ -1104,7 +1104,7 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
   if (userTargetPrice && userTargetPrice > 0) {
     aiSummary = `🎯 Персональное сравнение с вашей ценой (${userTargetSource || 'сторонний сервис'}: ${userTargetPrice.toLocaleString('ru-RU')} ₽). Мы подобрали сплит-маршруты с гарантированной выгодой!`;
   } else {
-    aiSummary = `Подобрал оптимальные сплит-маршруты. Сравнение рассчитано относительно сквозного тарифа GDS. Если вы уже нашли рейс на другом сайте — назовите вашу цену, и я найду еще выгоднее!`;
+    aiSummary = `Подобрал актуальные варианты перелета. Если вы уже нашли рейс на другом сайте — назовите вашу цену, и я найду еще выгоднее!`;
   }
 
   return {

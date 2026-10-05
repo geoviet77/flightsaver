@@ -321,6 +321,42 @@ const CITY_DATABASE: CityEntity[] = [
     variations: ['дананг', 'дананга', 'дананге', 'данангу', 'да нанг', 'да-нанг', 'dad', 'danang', 'da nang']
   },
   {
+    nameRu: 'Фукуок',
+    nameEn: 'Phu Quoc',
+    iata: 'PQC',
+    variations: ['фукуок', 'фукуока', 'фукуоке', 'фукуоку', 'pqc', 'phu quoc']
+  },
+  {
+    nameRu: 'Самуи',
+    nameEn: 'Koh Samui',
+    iata: 'USM',
+    variations: ['самуи', 'самуй', 'самуя', 'usm', 'samui', 'koh samui']
+  },
+  {
+    nameRu: 'Мале (Мальдивы)',
+    nameEn: 'Male',
+    iata: 'MLE',
+    variations: ['мале', 'мальдивы', 'мальдив', 'мальдивах', 'mle', 'male', 'maldives']
+  },
+  {
+    nameRu: 'Гоа',
+    nameEn: 'Goa',
+    iata: 'GOI',
+    variations: ['гоа', 'даболим', 'манохар', 'goi', 'gox', 'goa']
+  },
+  {
+    nameRu: 'Коломбо (Шри-Ланка)',
+    nameEn: 'Colombo',
+    iata: 'CMB',
+    variations: ['коломбо', 'шри-ланка', 'шри ланка', 'шри-ланки', 'cmb', 'colombo', 'sri lanka']
+  },
+  {
+    nameRu: 'Эль-Кувейт',
+    nameEn: 'Kuwait City',
+    iata: 'KWI',
+    variations: ['кувейт', 'эль-кувейт', 'кувейта', 'kwi', 'kuwait']
+  },
+  {
     nameRu: 'Дубай',
     nameEn: 'Dubai',
     iata: 'DXB',
@@ -822,8 +858,10 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
     }
   }
 
-  // 3. Budget limits
+  // 3. Budget limits & User Target Price Matching
   let maxBudget: number | undefined = undefined;
+  let userTargetPrice: number | undefined = previousParams?.userTargetPrice;
+  let userTargetSource: string | undefined = previousParams?.userTargetSource;
   let currency: Currency = 'RUB';
 
   if (/(\$|usd|доллар)/i.test(text)) {
@@ -836,16 +874,49 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
     currency = 'AED';
   }
 
+  // Source matching: Авиасейлс, Яндекс, Trip.com, Купибилет, Аэрофлот
+  if (/авиасейлс|aviasales/i.test(text)) {
+    userTargetSource = 'Авиасейлс';
+  } else if (/яндекс|yandex/i.test(text)) {
+    userTargetSource = 'Яндекс.Путешествия';
+  } else if (/trip\.com|трип\.ком|трип/i.test(text)) {
+    userTargetSource = 'Trip.com';
+  } else if (/купибилет|kupibilet/i.test(text)) {
+    userTargetSource = 'Купибилет';
+  } else if (/onetwotrip|вантутрип/i.test(text)) {
+    userTargetSource = 'OneTwoTrip';
+  } else if (/аэрофлот|aeroflot/i.test(text)) {
+    userTargetSource = 'Сайт Аэрофлота';
+  }
+
+  // Target price extraction: "видел за 68000", "нашел за 45к", "цена 50 000", "билет за 33 000 рублей"
+  const targetPriceMatch = text.match(/(?:видел|нашел|предложение|цена|билет|стоит|стоил|дешевле|на стороннем сайте|на другом сайте|на авиасейлс|на яндекс)\s*(?:билет|рейс)?\s*(?:за|на|в|по)?\s*(\d{1,3}[\s_]?\d{3}|\d{1,3}\s*тыс|\d{1,3}[кkKК])(?:\s|$|[^\wа-яА-ЯёЁ])/i) ||
+                           text.match(/за\s+(\d{1,3}[\s_]?\d{3}|\d{1,3}[кkKК]|\d{1,3}\s*тыс)\s*(?:руб|р|rub|₽)?/i);
+
+  if (targetPriceMatch) {
+    const rawVal = targetPriceMatch[1].replace(/[\s_]/g, '').toLowerCase();
+    if (rawVal.endsWith('к') || rawVal.endsWith('k')) {
+      userTargetPrice = parseInt(rawVal.replace(/[кk]/g, ''), 10) * 1000;
+    } else if (rawVal.includes('тыс')) {
+      userTargetPrice = parseInt(rawVal.replace(/тыс/g, ''), 10) * 1000;
+    } else {
+      userTargetPrice = parseInt(rawVal, 10);
+    }
+  }
+
+
   const budgetMatchK = text.match(/(?:до|бюджет|max|under)?\s*(\d+)\s*(?:тыс|тысяч|к|k)\b/i);
   const budgetMatchExact = text.match(/(?:до|бюджет|max|under)?\s*(\d{4,7})\s*(?:руб|р|rub|\$|€)?\b/i);
   const budgetMatchShortCurrency = text.match(/(?:до|under)?\s*(\d{2,5})\s*(?:\$|usd|€|eur)/i);
 
-  if (budgetMatchK) {
-    maxBudget = parseInt(budgetMatchK[1], 10) * 1000;
-  } else if (budgetMatchShortCurrency) {
-    maxBudget = parseInt(budgetMatchShortCurrency[1], 10);
-  } else if (budgetMatchExact) {
-    maxBudget = parseInt(budgetMatchExact[1], 10);
+  if (!targetPriceMatch) {
+    if (budgetMatchK) {
+      maxBudget = parseInt(budgetMatchK[1], 10) * 1000;
+    } else if (budgetMatchShortCurrency) {
+      maxBudget = parseInt(budgetMatchShortCurrency[1], 10);
+    } else if (budgetMatchExact) {
+      maxBudget = parseInt(budgetMatchExact[1], 10);
+    }
   }
 
   // 4. Passenger composition
@@ -855,6 +926,7 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
   let passengerDescription = previousParams?.passengerDescription || '1 взрослый';
 
   const explicitPassengerMatch = text.match(/(\d+)\s*(?:пасс|пассажир|взросл|эконом|билет|человек|мест)/i);
+
   if (explicitPassengerMatch) {
     adults = parseInt(explicitPassengerMatch[1], 10);
     passengerDescription = `${adults} ${adults === 1 ? 'взрослый' : adults >= 2 && adults <= 4 ? 'взрослых' : 'пассажиров'}`;
@@ -1011,19 +1083,28 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
       );
     }
 
-    // 4. Luggage (3 separate options)
-    if (!isLuggageExplicit) {
-      missingFields.push('luggage');
-      quickReplies.push(
-        { id: 'lug-hand', label: '🎒 Только ручная кладь', queryText: 'только ручная кладь', category: 'luggage' },
-        { id: 'lug-23kg', label: '🧳 С багажом (23 кг)', queryText: 'с багажом 23 кг', category: 'luggage' },
-        { id: 'lug-2bags', label: '🧳🧳 2 места багажа', queryText: '2 места багажа', category: 'luggage' }
-      );
+    // 5. Target Price Competitor Matching Prompt
+    if (!userTargetPrice) {
+      quickReplies.push({
+        id: 'target-price-prompt',
+        label: '💬 Назвать свою цену',
+        queryText: 'видел на авиасейлс дешевле',
+        category: 'targetPrice',
+        isCustomInputPrompt: true,
+        promptText: 'Укажите цену, найденную на стороннем сайте (например: видел на Авиасейлс за 65 000 руб):',
+      });
     }
   }
 
-  if (stpcHotelOnly || visaFreeOnly || baggageIncluded || cabinClass !== 'Economy' || isGroupBooking) {
+  if (stpcHotelOnly || visaFreeOnly || baggageIncluded || cabinClass !== 'Economy' || isGroupBooking || userTargetPrice) {
     confidenceScore += 0.15;
+  }
+
+  let aiSummary = '';
+  if (userTargetPrice && userTargetPrice > 0) {
+    aiSummary = `🎯 Персональное сравнение с вашей ценой (${userTargetSource || 'сторонний сервис'}: ${userTargetPrice.toLocaleString('ru-RU')} ₽). Мы подобрали сплит-маршруты с гарантированной выгодой!`;
+  } else {
+    aiSummary = `Подобрал актуальные варианты перелета. Если вы уже нашли рейс на другом сайте — назовите вашу цену, и я найду еще выгоднее!`;
   }
 
   return {
@@ -1050,6 +1131,10 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
     needsClarification,
     clarificationMessage,
     confidenceScore: Math.min(1, Math.max(0.3, confidenceScore)),
+    aiSummary,
+    userTargetPrice,
+    userTargetSource,
+    benchmarkType: userTargetPrice ? 'user_target' : 'gds_through_fare',
     stpcHotelOnly,
     visaFreeOnly,
     hasLuggage,
@@ -1064,3 +1149,4 @@ export function parseTravelQuery(rawText: string, previousParams?: ParsedSearchP
     quickReplies,
   };
 }
+

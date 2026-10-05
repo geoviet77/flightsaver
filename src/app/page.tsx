@@ -9,7 +9,6 @@ import { FlightResultsList } from '@/components/FlightResultsList';
 import { BookingModal } from '@/components/BookingModal';
 import { InfoModal, InfoModalType } from '@/components/InfoModal';
 import { parseTravelQuery } from '@/lib/nlpParser';
-import { generateMockFlights } from '@/lib/mockFlights';
 import { Flight, ParsedSearchParams, Currency, Language, BookingOrder, AccumulatedSearchParams, ChatMessage } from '@/lib/types';
 import { TRANSLATIONS, formatPrice, useI18n } from '@/lib/i18n';
 import { addStoredSearch, addStoredOrder } from '@/lib/mockStorage';
@@ -173,10 +172,10 @@ function HomeContent() {
         throw new Error('API search error');
       }
     } catch (err) {
-      console.warn('[Search] API error, performing exact local extraction:', err);
+      console.warn('[Search] API error:', err);
       const fallback = parseTravelQuery(cleanQuery, parsedParams);
       fallback.currency = currentCurrency;
-      const results = (fallback.originIata && fallback.destinationIata) ? generateMockFlights(fallback) : [];
+      const results: Flight[] = [];
       setParsedParams(fallback);
       setFlights(results);
 
@@ -184,11 +183,11 @@ function HomeContent() {
         id: `ast-${Date.now()}`,
         role: 'assistant',
         text: fallback.originCity && fallback.destinationCity
-          ? (fallback.aiSummary || `Подобрал маршруты ${fallback.originCity} ➔ ${fallback.destinationCity}.`)
-          : 'Пожалуйста, укажите город вылета и прилета для точного подбора рейсов (например: "Екатеринбург конго 17 октября").',
+          ? `Не удалось связаться с сервером бронирования по направлению ${fallback.originCity} ➔ ${fallback.destinationCity}. Пожалуйста, повторите попытку.`
+          : 'Пожалуйста, укажите город вылета и прилета для точного подбора рейсов (например: "Москва Фукуок 12 декабря").',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         parsedParams: fallback,
-        flightsCount: results.length,
+        flightsCount: 0,
         quickReplies: fallback.quickReplies || [],
       };
       setConversationHistory([...currentHistory, assistantMsg]);

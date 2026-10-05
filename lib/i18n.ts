@@ -91,11 +91,14 @@ export const TRANSLATIONS = {
     authTitle: 'Вход в FlightSaver',
     authSubtitle: 'Сохраняйте историю поиска, маршруты и бронирования',
     googleSignIn: 'Войти через Google в 1 клик',
+    telegramSignIn: 'Войти через Telegram',
     orEmail: 'или по электронной почте',
     emailPlaceholder: 'ivan@example.com',
     magicLinkBtn: 'Получить ссылку для входа',
     magicLinkSent: 'Ссылка для входа отправлена на ваш Email!',
     demoLoginBtn: 'Быстрый вход (Демо)',
+    authOfficialGuarantee: 'Официальная авторизация Supabase, Google & Telegram',
+
 
     // Dashboard
     dashboardTitle: 'Личный кабинет путешественника',
@@ -111,7 +114,7 @@ export const TRANSLATIONS = {
 
     // Chat Dialogue System
     aiChatBadge: 'ИИ Консьерж FlightSaver',
-    aiChatMessage: '«Привет! Я подбираю прямые агентские билеты без наценок, нахожу бесплатные 4★ отели STPC при стыковках от 8ч и комбинирую рейсы с экономией до 50%. Нажмите на пример или напишите свой запрос:»',
+    aiChatMessage: '«Привет! Я нахожу билеты напрямую от авиакомпаний без наценок агрегаторов, подбираю бесплатные отели при длительных стыковках и нахожу выгодные маршруты. Нажмите на пример или напишите свой запрос:»',
     aiSearchingStatus: 'Ищу лучшие прямые и составные рейсы без наценок агрегаторов...',
     aiResultsFound: (count: number) => `Нашёл ${count} лучших варианта с максимальной экономией и комфортными пересадками:`,
     
@@ -123,21 +126,22 @@ export const TRANSLATIONS = {
     chatPrompt2User: 'Путешественник',
     chatPrompt2Title: 'Пхукет + Багаж 25 кг включен',
     chatPrompt2Query: 'На Пхукет с багажом на двоих до 120 000 ₽',
-    chatPrompt2Badge: 'Прямая выписка сегментов • -41%',
+    chatPrompt2Badge: 'Выгодный тариф с багажом • -41%',
 
-    // Flight Card
     selectFlightBtn: 'Выбрать этот билет',
     fareDetailsBtn: 'Детали тарифа и экономии',
     savedText: 'Экономия',
     aggregatorPriceLabel: 'в обычных кассах',
-    directIssuance: 'Прямая агентская выписка',
+    directIssuance: 'Гарантия лучшей цены',
+    directIssuanceDesc: 'Прямой поиск по тарифам авиакомпаний без наценок и скрытых комиссий',
+    tariffOfficial: 'Официальный',
     hotelIncludedBadge: 'Бесплатный 4★ отель STPC',
     twovBadge: 'Безвизовый транзит TWOV',
     layoverText: (city: string, duration: string) => `Пересадка в ${city}: ${duration}`,
 
     footerCopyright: '© 2026 FlightSaver AI Travel. Умный поиск авиабилетов.',
     footerSupport: 'Поддержка 24/7',
-    footerFares: 'Оптовые тарифы NDC/GDS',
+    footerFares: 'Тарифы без скрытых комиссий',
     modalClose: 'Закрыть',
     modalSearchBtn: 'Подобрать такие рейсы',
 
@@ -175,11 +179,14 @@ export const TRANSLATIONS = {
     authTitle: 'Sign in to FlightSaver',
     authSubtitle: 'Save your AI search history, routes, and bookings',
     googleSignIn: 'Continue with Google in 1 click',
+    telegramSignIn: 'Continue with Telegram',
     orEmail: 'or via email address',
     emailPlaceholder: 'john@example.com',
     magicLinkBtn: 'Send Magic Sign-In Link',
     magicLinkSent: 'Magic sign-in link has been sent to your email!',
     demoLoginBtn: 'Instant Demo Login',
+    authOfficialGuarantee: 'Official Supabase, Google & Telegram Auth',
+
 
     // Dashboard
     dashboardTitle: 'Traveler Dashboard',
@@ -195,8 +202,8 @@ export const TRANSLATIONS = {
 
     // Chat Dialogue System
     aiChatBadge: 'FlightSaver AI Concierge',
-    aiChatMessage: '“Hello! I find direct wholesale airfares without markups, discover free 4★ STPC hotels for 8h+ layovers, and combine split-ticket segments saving you up to 50%. Pick an example or enter your route:”',
-    aiSearchingStatus: 'Searching wholesale NDC/GDS airline fares with zero middleman fees...',
+    aiChatMessage: '“Hello! I find verified airfares directly from airlines without agency markups, find free layover hotels, and optimize your travel routes. Pick an example or enter your route:”',
+    aiSearchingStatus: 'Searching direct airline fares with zero middleman fees...',
     aiResultsFound: (count: number) => `Found ${count} optimal itineraries with maximum savings and comfortable layovers:`,
     
     chatPrompt1User: 'Traveler',
@@ -207,21 +214,23 @@ export const TRANSLATIONS = {
     chatPrompt2User: 'Traveler',
     chatPrompt2Title: 'Phuket + 25kg Baggage Included',
     chatPrompt2Query: 'To Phuket with baggage for 2 up to $1,300',
-    chatPrompt2Badge: 'Direct split-ticketing • Save 41%',
+    chatPrompt2Badge: 'Special fare with baggage • Save 41%',
 
     // Flight Card
     selectFlightBtn: 'Select this flight',
     fareDetailsBtn: 'Price & savings breakdown',
     savedText: 'Saved',
     aggregatorPriceLabel: 'on regular sites',
-    directIssuance: 'Direct agency ticketing',
+    directIssuance: 'Best Price Guarantee',
+    directIssuanceDesc: 'Direct airline search without hidden fees or markups',
+    tariffOfficial: 'Official',
     hotelIncludedBadge: 'Free 4★ STPC Hotel',
     twovBadge: 'Visa-free transit (TWOV)',
     layoverText: (city: string, duration: string) => `Layover in ${city}: ${duration}`,
 
     footerCopyright: '© 2026 FlightSaver AI Travel. Smart flight aggregator.',
     footerSupport: '24/7 Support',
-    footerFares: 'Wholesale NDC/GDS fares',
+    footerFares: 'Direct airline fares',
     modalClose: 'Close',
     modalSearchBtn: 'Find these flights',
 
